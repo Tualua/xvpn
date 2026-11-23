@@ -135,12 +135,66 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| FND-01 | Phase 1 | Pending |
+| FND-02 | Phase 1 | Pending |
+| FND-03 | Phase 1 | Pending |
+| FND-04 | Phase 1 | Pending |
+| FND-05 | Phase 1 | Pending |
+| FND-06 | Phase 1 | Pending |
+| FND-07 | Phase 1 | Pending |
+| EDGE-01 | Phase 2 | Pending |
+| EDGE-02 | Phase 2 | Pending |
+| EDGE-03 | Phase 2 | Pending |
+| PANEL-01 | Phase 2 | Pending |
+| PANEL-02 | Phase 2 | Pending |
+| PANEL-03 | Phase 2 | Pending |
+| PANEL-04 | Phase 2 | Pending |
+| PANEL-05 | Phase 2 | Pending |
+| PANEL-06 | Phase 2 | Pending |
+| SUB-01 | Phase 2 | Pending |
+| SUB-02 | Phase 2 | Pending |
+| NODE-01 | Phase 3 | Pending |
+| NODE-02 | Phase 3 | Pending |
+| NODE-03 | Phase 3 | Pending |
+| STEAL-01 | Phase 3 | Pending |
+| STEAL-02 | Phase 3 | Pending |
+| STEAL-03 | Phase 3 | Pending |
+| STEAL-04 | Phase 3 | Pending |
+| STEAL-05 | Phase 3 | Pending |
+| API-01 | Phase 3 | Pending |
+| API-02 | Phase 3 | Pending |
+| API-03 | Phase 3 | Pending |
+| API-04 | Phase 3 | Pending |
+| API-05 | Phase 3 | Pending |
+| LAN-01 | Phase 4 | Pending |
+| LAN-02 | Phase 4 | Pending |
+| LAN-03 | Phase 4 | Pending |
+| LAN-04 | Phase 4 | Pending |
+| OPS-01 | Phase 5 | Pending |
+| OPS-02 | Phase 5 | Pending |
+| OPS-03 | Phase 5 | Pending |
+| OPS-04 | Phase 5 | Pending |
+| OPS-05 | Phase 5 | Pending |
+| HARD-01 | Phase 5 | Pending |
+| HARD-02 | Phase 5 | Pending |
+| HARD-03 | Phase 5 | Pending |
+| HARD-04 | Phase 5 | Pending |
+| QA-01 | Phase 1 | Pending |
+| QA-02 | Phase 1 | Pending |
+| QA-03 | Phase 1 | Pending |
+| QA-04 | Phase 5 | Pending |
+| QA-05 | Phase 2 | Pending |
+| QA-06 | Phase 5 | Pending |
+| DOC-01 | Phase 5 | Pending |
+| DOC-02 | Phase 5 | Pending |
+| DOC-03 | Phase 5 | Pending |
+| DOC-04 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 54 total
-- Mapped to phases: 0
-- Unmapped: 54 ⚠️
+- Mapped to phases: 54
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-23*
-*Last updated: 2026-11-23 after initial definition*
+*Last updated: 2026-11-23 after roadmap creation*
