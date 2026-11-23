@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Nothing (first phase)
 **Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05, FND-06, FND-07, QA-01, QA-02, QA-03
 **Success Criteria** (what must be TRUE):
-  1. На хосте не-EL10, с SELinux не в enforcing, с Podman ниже 5.4, с занятыми 80/443 или с A-записью, не указывающей на хост (или проксируемой Cloudflare), playbook падает на preflight с понятным сообщением, ничего не изменив
+  1. На хосте не-EL10, с SELinux не в enforcing, с Podman ниже 5.4, с занятыми 80/443 или с A-записью, не указывающей на IP внешнего интерфейса хоста, playbook падает на preflight с понятным сообщением, ничего не изменив
   2. После прогона на чистом EL10 тестовый Quadlet-сервис под выделенным rootless-пользователем слушает порт 80, управляется через `systemctl --user` из Ansible и снова поднимается после перезагрузки хоста
   3. VM-тир Molecule (AlmaLinux 10 и Rocky 10, SELinux enforcing) проходит converge, идемпотентность (`changed=0`), reboot-тест и проверку нуля AVC-denial'ов; firewalld открывает только нужные порты
   4. Контейнерный тир Molecule, ansible-lint и yamllint проходят в CI; коллекция собирается из `galaxy.yml` (`xvpn.remnawave`), у ролей есть `argument_specs`
