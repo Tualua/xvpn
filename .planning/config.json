@@ -90,5 +90,6 @@
     "source_grounding_authority": "grep"
   },
   "mode": "yolo",
-  "granularity": "coarse"
+  "granularity": "coarse",
+  "response_language": "ru"
 }
