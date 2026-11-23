@@ -596,16 +596,22 @@ The `actions/checkout@v5` version and the apt package list are [ASSUMED]; no com
 | A15 | Pinning Podman 5.x/5.4 floor in a VM by pointing dnf at `vault.rockylinux.org/10.0|10.2` repos installs cleanly on a 10.3 box | Open Questions | Medium |
 | A16 | `ansible-core 2.22` as controller works with LSR 2.5.0 and Molecule 26.11.0 (devcontainer has 2.22.0, CI target primary is 2.21) | Stack | Low: CI matrix (QA-06 is Phase 5) |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does Vagrant + vagrant-libvirt run reliably on `ubuntu-24.04` hosted runners?**
    - Known: KVM is claimed available (staff statement 2024-04, changelog udev rule); both boxes exist; the molecule driver and platform keys are valid. Not known: a working recipe (apt `vagrant` 2.3.x + distro `vagrant-libvirt` vs HashiCorp 2.4.9 + gem build), boot time, `box_url` download time (~hundreds of MB).
-   - Recommendation: Plan 3 starts with a 1-task spike (CI job that only does `vagrant up` of the Rocky box and runs `getenforce`). Pass criteria: boots in < 10 min. If it fails twice with distinct root causes, switch to the **fallback**: `driver: default` (delegated) with `create.yml`/`destroy.yml` using `virt-install --import` of `AlmaLinux-10-GenericCloud-latest.x86_64.qcow2` (https://repo.almalinux.org/almalinux/10/cloud/x86_64/images/) and `Rocky-10-GenericCloud-Base.latest.x86_64.qcow2` (https://dl.rockylinux.org/pub/rocky/10/images/x86_64/) + a cloud-init seed ISO; checksums from the published `CHECKSUM` files [VERIFIED: both directory listings]. Pre-decide this so the plan does not stall.
-2. **Does the `/var/lib/xvpn` home cause AVCs?** Unknown until an enforcing VM run. The Plan-1 spike must test BOTH `/var/lib/xvpn` + equivalence and `/home` and report AVC counts BEFORE Phases 2-4 hard-code paths (D-08 is `costly`).
-3. **Podman 5.x coverage.** Both default VM legs get 6.1.x. Cheap option: an optional nightly leg that writes dnf repo overrides pointing at `https://dl.rockylinux.org/vault/rocky/10.2/{BaseOS,AppStream}/x86_64/os/` (Podman 5.8.2 [VERIFIED listing]) or `.../10.0/...` (Podman 5.4.0, the exact floor [VERIFIED listing]). Needs confirmation that dependency resolution works on a 10.3 base.
-4. **Does LSR's role-level work (config files, `sr_fingerprint`, `package_facts`) stay `changed=0` on the second run with empty `podman_containers_conf` etc.?** Source suggests yes; proven only by the VM idempotence step.
-5. **Is `network-online.target` active on the Vagrant/GenericCloud images at boot?** Determines whether the 90 s helper delays the first unit start after reboot (affects reboot-test timeouts).
-6. **AAAA handling** in preflight (warn vs fail) - discretion item; recommendation: warn only, fail on A mismatch.
+   - Recommendation: a spike in CI. If it fails twice with distinct root causes, switch to the **fallback**: `driver: default` (delegated) with `create.yml`/`destroy.yml` using `virt-install --import` of versioned AlmaLinux/Rocky GenericCloud qcow2 images + a cloud-init seed ISO; checksums from the published `CHECKSUM` files [VERIFIED: both directory listings].
+   - **RESOLVED:** Plan 10 Task 2 is the spike with pre-decided decision rules: (1) no `/dev/kvm` twice -> VM tier local-only per D-16 with a human-action checkpoint for local evidence; (2) Vagrant/vagrant-libvirt fails twice with distinct causes -> delegated GenericCloud fallback with versioned, sha256-verified images. Package sources (gem, HashiCorp apt) are approved at the Plan 07 legitimacy checkpoint.
+2. **Does the `/var/lib/xvpn` home cause AVCs?** Unknown until an enforcing VM run. The original recommendation was a comparative spike of `/var/lib/xvpn` + equivalence versus `/home`.
+   - **RESOLVED:** the `/home` variant is NOT evaluated as a separate leg. D-08 (`/var/lib/xvpn/<user>`) is a locked user decision; the VM tier (Plans 09-10) is the decision criterion: zero AVC (dontaudit disabled, before and after reboot) plus the `user_home_dir_t` label assertion proves D-08. Any AVC naming `/var/lib/xvpn` stops execution with a `checkpoint:decision` offering (a) keep `/var/lib/xvpn` + the specific file-context rule the denial proves, or (b) move homes to `/home/<user>` (changes D-08). No plan overrides `xvpn_podman_rootless_home_root`.
+3. **Podman 5.x coverage.** Both default VM legs get 6.1.x. Cheap option: an optional nightly leg with dnf repo overrides pointing at `https://dl.rockylinux.org/vault/rocky/10.2/{BaseOS,AppStream}/x86_64/os/` (Podman 5.8.2 [VERIFIED listing]) or `.../10.0/...` (Podman 5.4.0, the exact floor [VERIFIED listing]). Needs confirmation that dependency resolution works on a 10.3 base.
+   - **RESOLVED (accepted risk):** no Podman 5.x VM leg in Phase 1. The 5.4 floor is enforced only by the preflight version check (Plan 04, exercised in Plan 06 by narrowing the floor). Risk accepted: a Quadlet key or LSR behaviour that differs on Podman 5.4-5.8 is not caught by CI. Recorded as a FLAGGED ASSUMPTION in Plan 09; revisit with the CI matrix work (QA-06, Phase 5).
+4. **Does LSR's role-level work stay `changed=0` on the second run with empty `podman_containers_conf` etc.?** Source suggests yes.
+   - **RESOLVED:** proven by the idempotence steps of the container tier (Plan 08) and VM tier (Plan 10); a non-zero change is a genuine defect fixed at the source under the Plan 08/10 fix rules, never by disabling idempotence.
+5. **Is `network-online.target` active on the Vagrant/GenericCloud images at boot?**
+   - **RESOLVED:** asserted by `verify_runtime.yml` (Plan 09) before and after reboot; the post-reboot wait uses 60 x 10 s retries, which covers the up-to-90 s `podman-user-wait-network-online` helper.
+6. **AAAA handling** in preflight (warn vs fail) - discretion item.
+   - **RESOLVED:** warn only (A13); A-record mismatch fails hard (D-04). Implemented in Plan 04 `check_dns.yml`.
 
 ## Environment Availability
 

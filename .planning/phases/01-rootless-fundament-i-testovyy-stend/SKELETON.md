@@ -11,27 +11,27 @@ An operator runs `ansible-playbook -i inventory xvpn.remnawave.foundation` again
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Distribution unit | Ansible collection `xvpn.remnawave` (galaxy.yml, `requires_ansible >=2.20.0`) | Public Galaxy-ready artifact (FND-06); FQCN roles and playbooks |
+| Distribution unit | Ansible collection `xvpn.remnawave` (galaxy.yml, `requires_ansible >=2.20.0`, explicit `repository:` URL aligned with origin in Plan 08) | Public Galaxy-ready artifact (FND-06); FQCN roles and playbooks; nothing before Plan 08 depends on a git remote |
 | Operator entry point | Collection playbook `playbooks/foundation.yml` (`xvpn.remnawave.foundation`): play 1 preflight (`any_errors_fatal`), play 2 common + podman_rootless | Separate read-only first play guarantees "nothing changed" on any failure (D-06) |
 | Role boundaries | `preflight` (read-only), `common` (packages, SELinux gate, add-only firewalld), `podman_rootless` (users, home, SELinux equivalence, sysctl, linger, user manager, Quadlet deploy); no `meta` dependencies | D-09; later roles call `include_role ... tasks_from` |
 | Container runtime | Rootless Podman + Quadlet user units, one service user per trust domain: `rw-edge`, `rw-panel`, `rw-node` | D-07; project constraint (no Docker, no rootful) |
 | Quadlet deployment interface | `include_role: xvpn.remnawave.podman_rootless`, `tasks_from: quadlet`, vars `xvpn_podman_rootless_quadlet_user`, `xvpn_podman_rootless_quadlet_specs` (`template_src` absolute paths), `xvpn_podman_rootless_quadlet_activate`; generator `--dryrun` validation, then LSR `podman` with `podman_pull_image: false` | D-10 resolved in RESEARCH in favour of LSR (prefer maintained Galaxy roles); one interface for Phases 2-4 |
-| Service user home | `/var/lib/xvpn/<user>` with SELinux equivalence `/var/lib/xvpn` = `/home` | D-08; proven by the zero-AVC VM tier, escalation to the user if it fails |
+| Service user home | `/var/lib/xvpn/<user>` with SELinux equivalence `/var/lib/xvpn` = `/home` | D-08; proven by the zero-AVC VM tier, escalation to the user if it fails; no `/home` comparison leg (RESEARCH Open Question 2 RESOLVED) |
 | Privileged ports | Host sysctl `net.ipv4.ip_unprivileged_port_start=80` in `/etc/sysctl.d/99-xvpn-unprivileged-ports.conf` | FND-03; documented host-wide trade-off |
 | Firewall | `ansible.posix.firewalld`, add-only in the zone of the public interface, SSH guard | D-13, D-14 |
-| Variables | `xvpn_<role>_*`, shared `xvpn_public_interface` / `xvpn_public_ip`; `meta/argument_specs.yml` in every role; lint skip `var-naming[no-role-prefix]` | ARCHITECTURE.md, D-04 |
+| Variables | `xvpn_<role>_*`, shared `xvpn_public_interface` / `xvpn_public_ip` (defaults owned by `preflight`, read by `common` with `default('')`); `meta/argument_specs.yml` in every role; lint skip `var-naming[no-role-prefix]` | ARCHITECTURE.md, D-04 |
 | Quality gate | `scripts/check.sh` (ansible-lint production, yamllint, argument_specs presence, syntax-check, build) locally and in CI | QA-01 |
 | Test tiers | Molecule collection mode `extensions/molecule/`: `container` + `preflight` (podman driver, every push), `vm` (vagrant+libvirt, AlmaLinux 10 + Rocky 10, SELinux enforcing, reboot, zero AVC; PR/nightly/on demand; delegated GenericCloud fallback) | D-15..D-18 |
 | CI | GitHub Actions: `lint.yml`, `molecule-container.yml`, `molecule-vm.yml`; actions pinned by SHA, `contents: read` | D-17 |
 
 ## Stack Touched in Phase 1
 
-- [x] Project scaffold (galaxy.yml, runtime, changelog, lint configs, `scripts/check.sh`) — Plan 01
-- [x] Routing equivalent — operator playbook `xvpn.remnawave.foundation` with preflight + foundation plays — Plans 01-03
-- [x] State write — service user, SELinux file-context equivalence, sysctl, linger, Quadlet unit on the target host — Plan 01
-- [x] State read — read-only preflight (OS, SELinux, Podman, ports, DNS) — Plans 01-02
-- [x] User-visible behaviour — fixture HTTP service on host :80 as a rootless user, surviving reboot — Plans 01 + 05
-- [x] Deployment — CI runs on GitHub Actions; local one-command `molecule test -s vm` — Plans 04-05
+- [x] Project scaffold — collection identity in Plan 01; lint configs, changelog, `scripts/check.sh` (CI-hard yamllint) in Plan 02
+- [x] Routing equivalent — operator playbook `xvpn.remnawave.foundation` with preflight + foundation plays — Plans 01, 03, 05
+- [x] State write — service user, SELinux file-context equivalence, sysctl, linger, Quadlet unit on the target host — Plan 01 (tracer), guarded by generator dry-run and negative tests in Plan 03
+- [x] State read — read-only preflight (OS, SELinux, Podman, ports, DNS) — Plans 03-04, executed cases in Plan 06
+- [x] User-visible behaviour — fixture HTTP service on host :80 as a rootless user, surviving reboot — Plans 01 + 09-10
+- [x] Deployment — CI runs on GitHub Actions; local one-command `molecule test -s vm` — Plans 07-08 (lint + container tier, GitHub prerequisites checkpoint) and 09-10 (VM tier)
 
 ## Out of Scope (Deferred to Later Slices)
 
