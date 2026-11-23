@@ -74,6 +74,7 @@
 | Panel на отдельном хосте | Типичная топология пользователя | — Pending |
 | Имя коллекции `xvpn.remnawave` (временное) | Сменить перед публикацией | — Pending |
 | Общение GSD/Claude с пользователем на русском (`response_language: ru`) | Предпочтение пользователя; код и технические термины на английском | ✓ Good |
+| Rocky 10 в VM-тире Molecule — официальный libvirt Vagrant box с dl.rockylinux.org (версионированный, sha256 из CHECKSUM), а не nightly cloud-image job из CLAUDE.md | D-18 требует Alma и Rocky в самом VM-тире; box `rockylinux/10` в Vagrant Cloud устарел. Принято пользователем 2026-11-23 (Phase 1, планы 01-11/01-12) | ✓ Принято |
 
 ## Evolution
 
@@ -93,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-23 after initialization*
+*Last updated: 2026-11-23 after Phase 1 planning (Rocky VM box decision)*

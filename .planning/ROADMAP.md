@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Rootless-фундамент и тестовый стенд
-**Goal**: Оператор запускает playbook на чистом Rocky/Alma 10 и получает проверенный rootless-хост: preflight отсекает неподходящие хосты, выделенный пользователь с linger запускает Quadlet-сервис на порту 80, который переживает перезагрузку при SELinux enforcing без AVC; всё это автоматически проверяется в Molecule и CI-линтерах.
+**Goal**: Оператор запускает playbook на чистом Rocky/Alma 10 и получает проверенный rootless-хост: preflight отсекает неподходящие хосты, выделенный пользователь с linger запускает тестовый Quadlet-сервис (fixture из Molecule, D-12) на порту 80, который переживает перезагрузку при SELinux enforcing без AVC; всё это автоматически проверяется в Molecule и CI-линтерах.
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05, FND-06, FND-07, QA-01, QA-02, QA-03
@@ -108,7 +108,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Rootless-фундамент и тестовый стенд | 0/5 | Not started | - |
+| 1. Rootless-фундамент и тестовый стенд | 0/12 | Planned | - |
 | 2. Panel за Traefik с защищённым входом | 0/3 | Not started | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
