@@ -33,17 +33,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 12 plans
 Plans:
 - [ ] 01-01-PLAN.md — Tracer: collection identity, podman_rootless (users, home, sysctl, linger) + LSR Quadlet interface, foundation playbook (wave 1)
-- [ ] 01-02-PLAN.md — Container scenario: pinned + justified requirements.yml, ansible.cfg, pinned fixture, converge through the quadlet entry point (wave 2)
+- [ ] 01-02-PLAN.md — Container scenario: pinned + justified requirements.yml with Galaxy approval checkpoint, ansible.cfg, pinned fixture, converge through the quadlet entry point (wave 2)
 - [ ] 01-03-PLAN.md — Quality gate: lint configs, scripts/check.sh with CI-hard yamllint, README stub, LICENSE (wave 3)
-- [ ] 01-04-PLAN.md — Unit/input guards: generator dry-run before LSR, container verify with negative cases (wave 4)
-- [ ] 01-05-PLAN.md — Preflight base: OS/SELinux read-only first play + standalone xvpn.remnawave.preflight playbook (wave 4)
-- [ ] 01-06-PLAN.md — Preflight: input validation, Podman floor, port owner, DNS A-record checks + README docs (wave 5)
-- [ ] 01-07-PLAN.md — Role common: SELinux gate, add-only firewalld with SSH guard, exact-port-set verify, executed guard negatives (wave 5)
-- [ ] 01-08-PLAN.md — Preflight Molecule scenario: 17 cases incl. invalid inputs, nothing-changed proof (wave 6)
-- [ ] 01-09-PLAN.md — CI definitions: pinned dev tooling, lint + container workflows, package legitimacy checkpoint (wave 4)
-- [ ] 01-10-PLAN.md — CI go-live: GitHub prerequisites checkpoint, repository alignment, lint + container tier green (wave 7)
-- [ ] 01-11-PLAN.md — VM scenario: AlmaLinux 10 + Rocky 10 enforcing, checksummed boxes, systemctl --user restart round-trip, reboot, zero AVC (wave 6)
-- [ ] 01-12-PLAN.md — VM CI: KVM-gated workflow, Vagrant spike with fallback, README Testing, VM tier green (wave 8)
+- [ ] 01-04-PLAN.md — Unit/input guards: generator dry-run before LSR, container verify with :443 bind probe and negative cases (wave 5)
+- [ ] 01-05-PLAN.md — Preflight base: OS/SELinux read-only first play + standalone xvpn.remnawave.preflight playbook (wave 5)
+- [ ] 01-06-PLAN.md — Preflight: input validation, Podman floor, port owner, DNS A-record checks + README docs (wave 6)
+- [ ] 01-07-PLAN.md — Role common: SELinux gate, add-only firewalld with SSH guard, exact-port-set verify, executed guard negatives (wave 6)
+- [ ] 01-08-PLAN.md — Preflight Molecule scenario: 18 cases incl. invalid inputs, nothing-changed proof (wave 7)
+- [ ] 01-09-PLAN.md — CI definitions + first CI run: pinned dev tooling, lint + container workflows, PyPI/gem/apt legitimacy + GitHub prerequisites checkpoint, repository alignment, tracer green in CI (wave 4)
+- [ ] 01-10-PLAN.md — CI all-green: preflight scenario added to CI, lint + container + preflight tiers green with all guards (wave 8)
+- [ ] 01-11-PLAN.md — VM scenario: AlmaLinux 10 + Rocky 10 enforcing, checksummed boxes, systemctl --user restart round-trip, reboot, proven dontaudit-off, zero AVC (wave 7)
+- [ ] 01-12-PLAN.md — VM CI: KVM-gated workflow, Vagrant spike with fallback, README Testing, VM tier green (wave 9)
 **Research flag**: Podman 5.x vs 6.x для Quadlet на EL10.0-10.3; KVM на CI-раннерах для libvirt-тира; drop-in `user@.service` для порядка загрузки
 
 ### Phase 2: Panel за Traefik с защищённым входом
