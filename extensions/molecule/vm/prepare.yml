@@ -18,6 +18,17 @@
         enabled: true
         state: started
 
+    - name: Capture SELinux policy diagnostics (informational, no assertion)
+      ansible.builtin.shell: |
+        seinfo --version; sestatus; ls -l /etc/selinux/targeted/policy/ /sys/fs/selinux/policy
+      register: xvpn_prepare_selinux_diag
+      changed_when: false
+      failed_when: false
+
+    - name: Show SELinux policy diagnostics
+      ansible.builtin.debug:
+        var: xvpn_prepare_selinux_diag.stdout_lines
+
     # Positive control: seinfo must see dontaudit rules before they are disabled,
     # otherwise a later "0" would prove nothing (B-2).
     - name: Read the loaded policy statistics before disabling dontaudit
@@ -28,8 +39,8 @@
     - name: Assert the dontaudit probe sees dontaudit rules
       ansible.builtin.assert:
         that:
-          - xvpn_prepare_seinfo_before.stdout is regex('(?m)^\s*Dontaudit:\s+[0-9]+')
-          - (xvpn_prepare_seinfo_before.stdout | regex_search('(?m)^\s*Dontaudit:\s+([0-9]+)', '\1') | first | int) > 0
+          - xvpn_prepare_seinfo_before.stdout is regex('(?m)\bDontaudit:\s+[0-9]+')
+          - (xvpn_prepare_seinfo_before.stdout | regex_search('(?m)\bDontaudit:\s+([0-9]+)', '\1') | first | int) > 0
         fail_msg: |-
           seinfo reports no dontaudit rules before the dontaudit disable; the dontaudit probe is not trustworthy
           {{ xvpn_prepare_seinfo_before.stdout }}
@@ -47,8 +58,8 @@
     - name: Assert no dontaudit rules are loaded
       ansible.builtin.assert:
         that:
-          - xvpn_prepare_seinfo_after.stdout is regex('(?m)^\s*Dontaudit:\s+[0-9]+')
-          - (xvpn_prepare_seinfo_after.stdout | regex_search('(?m)^\s*Dontaudit:\s+([0-9]+)', '\1') | first | int) == 0
+          - xvpn_prepare_seinfo_after.stdout is regex('(?m)\bDontaudit:\s+[0-9]+')
+          - (xvpn_prepare_seinfo_after.stdout | regex_search('(?m)\bDontaudit:\s+([0-9]+)', '\1') | first | int) == 0
         fail_msg: |-
           dontaudit rules still loaded after the dontaudit disable
           {{ xvpn_prepare_seinfo_after.stdout }}
