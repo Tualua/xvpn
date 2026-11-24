@@ -22,6 +22,24 @@
       changed_when: false
       check_mode: false
 
+    # Candidates may reference .network/.volume units deployed by an earlier invocation (WR-06).
+    - name: Look up the already installed Quadlet directory of the service user
+      ansible.builtin.stat:
+        path: "{{ ansible_facts['getent_passwd'][xvpn_podman_rootless_quadlet_user][4] }}/.config/containers/systemd"
+      register: xvpn_podman_rootless_installed_dir
+      check_mode: false
+
+    - name: Seed the scratch directory with the already installed units
+      ansible.builtin.copy:
+        src: "{{ xvpn_podman_rootless_installed_dir.stat.path }}/"
+        dest: "{{ xvpn_podman_rootless_scratch.path }}/"
+        remote_src: true
+        mode: "0600"
+        directory_mode: "0700"
+      changed_when: false
+      check_mode: false
+      when: xvpn_podman_rootless_installed_dir.stat.isdir | default(false)
+
     - name: Render the candidate units into the scratch directory
       ansible.builtin.template:
         src: "{{ item.template_src }}"
@@ -59,7 +77,7 @@
     - name: Assert the dry-run produced every expected service
       ansible.builtin.assert:
         that:
-          - xvpn_podman_rootless_expected_service in xvpn_podman_rootless_dryrun.stdout
+          - xvpn_podman_rootless_dryrun.stdout is search('(?m)^---(.*/)?' ~ (xvpn_podman_rootless_expected_service | regex_escape) ~ '---$')
         fail_msg: >-
           Quadlet dry-run did not produce {{ xvpn_podman_rootless_expected_service }}
           for {{ item }}: {{ xvpn_podman_rootless_dryrun.stderr }}
