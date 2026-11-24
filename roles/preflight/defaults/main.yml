@@ -5,6 +5,7 @@ xvpn_preflight_supported_distributions:
 xvpn_preflight_supported_major_versions:
   - "10"
 xvpn_preflight_podman_min_version: "5.4"
+# TCP only: the check uses ss -ltn, so a UDP listener (e.g. QUIC on 443/udp) is not detected.
 xvpn_preflight_ports:
   - 80
   - 443

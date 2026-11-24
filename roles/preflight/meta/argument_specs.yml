@@ -24,7 +24,9 @@ argument_specs:
         type: str
         default: "5.4"
       xvpn_preflight_ports:
-        description: TCP ports that must be free or held by an accepted service user.
+        description: >-
+          TCP ports that must be free or held by an accepted service user.
+          Only TCP listeners are checked; UDP listeners (for example QUIC on 443/udp) are not detected.
         type: list
         elements: int
         default:
