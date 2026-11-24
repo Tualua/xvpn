@@ -12,6 +12,24 @@
           - policycoreutils-python-utils
         state: present
 
+    # Installing the SELinux policy packages the role needs rebuilds the policy and re-enables dontaudit
+    # rules, so they must be present before `semodule -DB` and the AVC marker (Plan 11 pre-decided fix).
+    - name: Install the SELinux policy packages the role would install
+      ansible.builtin.dnf:
+        name: container-selinux
+        state: present
+
+    - name: Look up passt-selinux in the enabled repositories
+      ansible.builtin.command: dnf -q repoquery --available passt-selinux
+      register: xvpn_prepare_passt_selinux
+      changed_when: false
+
+    - name: Install passt-selinux when it is offered
+      ansible.builtin.dnf:
+        name: passt-selinux
+        state: present
+      when: xvpn_prepare_passt_selinux.stdout | trim | length > 0
+
     - name: Enable and start auditd
       ansible.builtin.systemd_service:
         name: auditd.service
