@@ -66,7 +66,8 @@
             xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['bad-user-name'] }}"
           when:
             - not (ansible_failed_result.msg | string).startswith('negative case')
-            - "'Invalid service user name' in (ansible_failed_result.msg | string)"
+            # the assert runs in a loop, so the text sits in the per-item results
+            - "'Invalid service user name' in (ansible_failed_result | to_json)"
 
     - name: Look up the injected user name
       ansible.builtin.command:
@@ -106,7 +107,8 @@
             xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['relative-template'] }}"
           when:
             - not (ansible_failed_result.msg | string).startswith('negative case')
-            - "'template_src must be an absolute path' in (ansible_failed_result.msg | string)"
+            # the assert runs in a loop, so the text sits in the per-item results
+            - "'template_src must be an absolute path' in (ansible_failed_result | to_json)"
 
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
