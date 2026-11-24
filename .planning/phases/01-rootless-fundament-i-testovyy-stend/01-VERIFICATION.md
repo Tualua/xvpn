@@ -1,37 +1,35 @@
 ---
 phase: 01-rootless-fundament-i-testovyy-stend
-verified: 2026-11-24T10:00:00Z
-status: human_needed
+verified: 2026-11-24T12:10:00Z
+status: passed
 score: 4/4 must-haves verified
 covered_files:
+  - .github/workflows/lint.yml
   - .github/workflows/molecule-vm.yml
-  - extensions/molecule/preflight/converge.yml
-  - extensions/molecule/vm/side_effect.yml
+  - extensions/molecule/shared/verify_rootless.yml
   - galaxy.yml
   - roles/common/tasks/firewalld.yml
+  - roles/common/tasks/main.yml
   - roles/podman_rootless/tasks/main.yml
-  - roles/preflight/tasks/main.yml
-covered_digest: "v4:sha256:be11fd73d0da86e300ae0ee2d9471a6eb387da8044585fad371966a9d52e2c14"
+  - roles/podman_rootless/tasks/user.yml
+  - roles/preflight/tasks/check_dns.yml
+covered_digest: "v4:sha256:16caafa760e8ebbfdfe140a80e1562b84e7474575dc5953d2d5ffd85ad149bfc"
 behavior_unverified: 0
 overrides_applied: 0
-human_verification:
-  - test: "Решить, делать ли molecule-vm обязательной проверкой слияния (branch protection)"
-    expected: "После пяти подряд зелёных прогонов molecule-vm добавить в required checks; сейчас зелёный прогон один (45360051173)"
-    why_human: "Решение о политике репозитория; в 01-12 SUMMARY зафиксировано как отложенное"
-  - test: "Принять отклонение: бокс alma10 берётся из каталога Vagrant Cloud с закреплённой версией, без sha256-пина из репозитория"
-    expected: "Оператор подтверждает приемлемость или требует sha256-пин"
-    why_human: "Компромисс по цепочке поставок, решает человек"
-  - test: "Решить судьбу 8 открытых предупреждений 01-REVIEW.md (WR-01..WR-08, все open)"
-    expected: "Исправить в Phase 1 или явно перенести"
-    why_human: "Приоритизация; на достижение цели фазы не влияют, но WR-01/WR-02/WR-03/WR-05 касаются безопасности и надёжности роли"
+re_verification:
+  previous_status: human_needed
+  previous_score: 4/4
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 1: Rootless-фундамент и тестовый стенд. Отчёт верификации
 
-**Цель фазы:** Оператор запускает playbook на чистом Rocky/Alma 10 и получает проверенный rootless-хост: preflight отсекает неподходящие хосты, выделенный пользователь с linger запускает тестовый Quadlet-сервис на порту 80, который переживает перезагрузку при SELinux enforcing без AVC; всё проверяется в Molecule и CI-линтерах.
+**Цель фазы:** Оператор запускает playbook на чистом Rocky/Alma 10 и получает проверенный rootless-хост: preflight отсекает неподходящие хосты, выделенный пользователь с linger запускает тестовый Quadlet-сервис (fixture из Molecule, D-12) на порту 80, который переживает перезагрузку при SELinux enforcing без AVC; всё автоматически проверяется в Molecule и CI-линтерах.
 **Проверено:** 2026-11-24
-**Статус:** human_needed (цель достигнута; остаются решения человека)
-**Повторная верификация:** нет, первичная
+**Статус:** passed (с предупреждениями ревью, см. ниже)
+**Повторная верификация:** да, после review-fix (WR-01..07, IN-01..06) и UAT
 
 ## Достижение цели
 
@@ -39,45 +37,62 @@ human_verification:
 
 | # | Истина | Статус | Доказательство |
 |---|--------|--------|----------------|
-| 1 | Preflight падает с понятным сообщением на не-EL10, SELinux не Enforcing, Podman < 5.4, занятых 80/443, неверной A-записи, ничего не изменив | VERIFIED | `roles/preflight/tasks/main.yml` собирает ошибки и один раз вызывает `fail`; чеки ОС, getenforce, `check_podman.yml`, `check_ports.yml`, `check_dns.yml`. `playbooks/foundation.yml`: первый play это preflight с `any_errors_fatal`. Сценарий `extensions/molecule/preflight` имеет кейсы os/selinux/podman-floor/port-foreign/port-unmanaged/dns-mismatch/dns-unresolvable/dns-disabled; verify проверяет read-only allow-list модулей и отсутствие изменений на хосте. Сценарий в матрице molecule-container (зелёный) |
-| 2 | Тестовый Quadlet-сервис под rootless-пользователем слушает :80, управляется через `systemctl --user` из Ansible, поднимается после reboot | VERIFIED | `side_effect.yml`: `systemd_service scope: user state: restarted` с проверкой нового InvocationID; `reboot` и ожидание `is-active` до 60x10 с. VM-прогон 45360051173: converge, идемпотентный прогон (changed=0), reboot, verify (ok=83 changed=0) на alma10 |
-| 3 | VM-тир Alma10 и Rocky10 (SELinux enforcing): converge, idempotence changed=0, reboot, ноль AVC; firewalld открывает только нужные порты | VERIFIED | Run 45360051173, job `vm (alma10)` и `vm (rocky10)` оба success; в логе "Assert zero AVC denials since the marker" до и после reboot, dontaudit отключён и проверен, контрольная сумма бинарной политики сверяется после reboot. `verify_common.yml` проверяет точное совпадение портов зоны, список сервисов, отсутствие внутренних портов 3000/3010/8443/2222, SSH остаётся доступным |
-| 4 | Контейнерный тир, ansible-lint и yamllint проходят в CI; коллекция собирается из `galaxy.yml`; у ролей есть `argument_specs` | VERIFIED | На HEAD-коммите a73aa2a `lint` (45364037493) и `molecule-container` (45364037508) success. `ansible-galaxy collection build` собрал `xvpn-remnawave-0.1.0.tar.gz`. `argument_specs.yml` есть у common, podman_rootless, preflight |
+| 1 | Preflight падает с понятным сообщением на не-EL10, SELinux не Enforcing, Podman < 5.4, занятых 80/443, неверной A-записи, ничего не изменив | VERIFIED | `roles/preflight/tasks/{main,check_podman,check_ports,check_dns}.yml` на месте; `check_dns.yml` после WR-07 защищён rescue-блоком; сценарий `extensions/molecule/preflight` покрывает кейсы os/selinux/podman/port/dns. `molecule-container` зелёный на HEAD (45385042482) |
+| 2 | Тестовый Quadlet-сервис под rootless-пользователем слушает :80, управляется через `systemctl --user`, поднимается после reboot | VERIFIED | VM-прогон 45374658629 (alma10 и rocky10 success) на коммите f63864f, содержащем все review-fix; с тех пор в roles/extensions/playbooks/.github/galaxy.yml изменений нет (`git diff f63864f HEAD` пуст) |
+| 3 | VM-тир Alma10/Rocky10 (SELinux enforcing): converge, идемпотентность changed=0, reboot, ноль AVC; firewalld открывает только нужные порты | VERIFIED | Тот же прогон 45374658629 (оба job success), то есть доказательство относится к коду после правок `firewalld.yml` и `podman_rootless/tasks/main.yml`, а не только к состоянию до ревью |
+| 4 | Контейнерный тир, ansible-lint и yamllint в CI; коллекция собирается; у ролей есть `argument_specs` | VERIFIED | `lint` 45385042412 и `molecule-container` 45385042482 success на HEAD-1; локально `ansible-lint --profile production`: 0 failures, 0 warnings; `ansible-galaxy collection build` создаёт `xvpn-remnawave-0.1.0.tar.gz`; `argument_specs.yml` у common, podman_rootless, preflight |
 
-**Счёт:** 4/4 истин подтверждено.
+**Счёт:** 4/4.
 
 ### Требования
 
 | Требование | Статус | Доказательство |
 |------------|--------|----------------|
-| FND-01 | SATISFIED | Роль preflight, сценарий preflight (кейсы выше) |
-| FND-02 | SATISFIED | `podman_rootless/tasks/user.yml`: пользователь uid>=1000, nologin, home 0700, subuid check; linger и `systemctl --user` подтверждены в VM-verify |
-| FND-03 | SATISFIED | sysctl drop-in `ip_unprivileged_port_start`; `verify_rootless.yml` биндует :443 под rw-edge и отрицательный контроль :79 (EACCES), до и после reboot |
-| FND-04 | SATISFIED | `quadlet_validate.yml` (dry-run генератора) до LSR podman; VM-тир подтверждает переживание reboot |
-| FND-05 | SATISFIED | `common/tasks/firewalld.yml`, sefcontext для home root; AVC=0 в VM-прогоне, SELinux Enforcing |
-| FND-06 | SATISFIED | `galaxy.yml` (`xvpn.remnawave`), `argument_specs` для 3 ролей, сборка проходит |
-| FND-07 | SATISFIED | `check_dns.yml` сравнивает A-записи с IP интерфейса или `xvpn_public_ip`, отключается `xvpn_preflight_dns_check`; CDN-детекции нет. Проверено в контейнерном сценарии с подменой резолвинга; на реальном внешнем IP не проверялось |
-| QA-01 | SATISFIED | `lint.yml` зелёный на HEAD (после правки двух line-length ошибок в a73aa2a) |
-| QA-02 | SATISFIED | `molecule-container.yml`, матрица container + preflight, зелёная |
-| QA-03 | SATISFIED | `molecule-vm.yml`, run 45360051173 |
+| FND-01 | SATISFIED | роль preflight + сценарий preflight |
+| FND-02 | SATISFIED | `podman_rootless/tasks/user.yml` (защита от усыновления аккаунта, linger), VM-verify |
+| FND-03 | SATISFIED | sysctl drop-in, диапазон 1..80 проверяется в роли, bind-проба в `verify_rootless.yml` |
+| FND-04 | SATISFIED | `quadlet_validate.yml` + переживание reboot в VM-тире |
+| FND-05 | SATISFIED | `firewalld.yml`, sefcontext, AVC=0 в VM-тире, SELinux-гейт в common и podman_rootless |
+| FND-06 | SATISFIED | `galaxy.yml`, 3 `argument_specs`, сборка проходит |
+| FND-07 | SATISFIED | `check_dns.yml`, флаг отключения; реальный внешний IP не проверялся (ограничение стенда) |
+| QA-01 | SATISFIED | lint workflow зелёный, локальный ansible-lint production чист |
+| QA-02 | SATISFIED | `molecule-container.yml`, матрица container + preflight |
+| QA-03 | SATISFIED | `molecule-vm.yml`, прогон 45374658629 |
 
-Все 10 ID из PLAN frontmatter найдены в REQUIREMENTS.md и отмечены Complete; осиротевших требований Phase 1 нет (QA-04/05/06 привязаны к фазам 2 и 5).
+Все 10 ID из PLAN frontmatter присутствуют в REQUIREMENTS.md и отмечены Complete. Осиротевших требований Phase 1 нет (QA-04/05/06 привязаны к фазам 2 и 5).
 
 ### Анти-паттерны
 
-TBD/FIXME/XXX в roles, extensions, playbooks, .github, scripts: не найдено. Стабов нет.
+TBD/FIXME/XXX в roles, extensions, playbooks, .github, scripts, galaxy.yml: не найдено. Стабов нет.
 
-### Замечания
+### Открытые замечания свежего ревью (01-REVIEW.md), оценка влияния на цель
 
-- Lint был красным на коммитах 5017478..2314474 и docs(01-12) 45361546115, исправлен a73aa2a; на HEAD зелёный. Последующие коммиты только документация.
-- Прогон molecule-vm единственный зелёный (до него три красных/отменённых при отладке); устойчивость не доказана статистикой.
-- Открытые ревью-предупреждения WR-01..WR-08 (0 critical) не блокируют цель, но WR-01 (усыновление существующего аккаунта), WR-02 (`..` в home_root), WR-03 (restorecon только при изменении sefcontext), WR-05 (SELinux-гейт после установки пакетов при автономном запуске роли), WR-07 (необработанная ошибка DNS-шаблона при отсутствии фактов интерфейса) стоит решить до публикации.
+Критичных нет. Все четыре предупреждения подтверждены в коде, но касаются граничных, нестандартных входных значений и не нарушают ни одну из 4 истин при значениях по умолчанию (VM-тир зелёный на этом коде). Блокерами не являются, рекомендуется закрыть до публикации коллекции.
 
-### Требуется решение человека
+| ID | Подтверждено в коде | Влияние |
+|----|---------------------|---------|
+| WR-01 | `podman_rootless/tasks/main.yml:30`: regex допускает сегмент `.`, `'..' not in` его не ловит; denylist неполный | Только при ошибочном нестандартном `home_root`; риск к системному каталогу через chown/restorecon. Предупреждение безопасности |
+| WR-02 | `common/tasks/main.yml:21-33` и `podman_rootless/tasks/main.yml:3-15`: `getenforce` вызывается до установки `libselinux-utils`; при отсутствии бинаря ошибка вводит в заблуждение | Ложный отказ (fail closed), небезопасного прохождения нет; на стандартных образах EL10 `libselinux-utils` обычно уже есть |
+| WR-03 | `user.yml:17-34`: явно заданный `uid` не сверяется с uid существующего аккаунта | Только для заранее существующего аккаунта с заданным `uid`; неполная защита D-08 |
+| WR-04 | `verify_rootless.yml:186-213`: порт 79 зашит, ложный провал при `unprivileged_port_start` <= 79 | Только в тесте и только при нестандартном значении; роль не затронута |
+| IN-01, IN-02 | ветка AAAA в `check_dns.yml`; зашитые `rw-edge` и путь в verify | Шум/гибкость, функциональность не затронута |
 
-1. Политика required check для molecule-vm (после пяти зелёных прогонов).
-2. Приемлемость бокса alma10 без sha256-пина репозитория.
-3. Распределение 8 открытых предупреждений ревью.
+Диспозиция в `01-REVIEW-DISPOSITION.md`: 6 open, WR-05..07 и IN-03..06 fixed, WR-08 skipped (риск принят пользователем в UAT).
+
+### Решения человека (UAT учтён)
+
+`01-UAT.md` status complete: 2 pass, 1 skipped, 0 issues, pending 0.
+
+- Бокс alma10 без sha256-пина: принято (pass).
+- Судьба предупреждений ревью: принята (WR-01..07 исправлены, WR-08 принят как остаточный риск).
+- Политика required check для molecule-vm: осознанно отложена как follow-up (не блокер цели; прогонов molecule-vm теперь три успешных: 45360051173, 45369636668, 45374658629).
+
+Ожидающих проверок человека нет, поэтому статус `passed`, а не `human_needed`.
+
+### Рекомендации (не блокируют)
+
+1. Закрыть WR-01..WR-04 до публикации (`/gsd-code-review-fix 1`) или явно перенести в backlog; WR-01 и WR-03 касаются безопасности входных данных.
+2. Вернуться к политике required check для molecule-vm.
 
 ---
 
