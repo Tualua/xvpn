@@ -1,0 +1,21 @@
+---
+argument_specs:
+  main:
+    short_description: Read-only OS and SELinux checks with one aggregated failure
+    options:
+      xvpn_preflight_supported_distributions:
+        description: Supported distribution names as reported by Ansible facts.
+        type: list
+        elements: str
+        choices:
+          - Rocky
+          - AlmaLinux
+        default:
+          - Rocky
+          - AlmaLinux
+      xvpn_preflight_supported_major_versions:
+        description: Supported major OS versions.
+        type: list
+        elements: str
+        default:
+          - "10"

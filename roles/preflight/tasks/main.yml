@@ -1,0 +1,51 @@
+---
+# Read-only checks only. Every error is collected and reported by one final fail.
+- name: Preflight | start with an empty error list
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: []
+
+- name: Preflight | check the operating system
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: >-
+      {{ xvpn_preflight_errors + ['Unsupported OS: '
+      ~ ansible_facts['distribution'] ~ ' ' ~ ansible_facts['distribution_major_version']
+      ~ ' (supported: Rocky/AlmaLinux 10)'] }}
+  when: >-
+    ansible_facts['distribution'] not in xvpn_preflight_supported_distributions
+    or ansible_facts['distribution_major_version'] not in xvpn_preflight_supported_major_versions
+
+# The selinux fact is not used: without python3-libselinux it reports a missing library, not the mode.
+- name: Preflight | read the SELinux mode
+  ansible.builtin.command: getenforce
+  register: xvpn_preflight_getenforce
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Preflight | check that SELinux is Enforcing
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: >-
+      {{ xvpn_preflight_errors + ['SELinux must be Enforcing, getenforce reports: '
+      ~ (xvpn_preflight_getenforce.stdout | trim)] }}
+  when:
+    - xvpn_preflight_getenforce.rc | default(1) == 0
+    - (xvpn_preflight_getenforce.stdout | trim) != 'Enforcing'
+
+- name: Preflight | report that getenforce could not run
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: >-
+      {{ xvpn_preflight_errors + ['SELinux must be Enforcing, getenforce reports: '
+      ~ 'getenforce not found or failed (rc ' ~ (xvpn_preflight_getenforce.rc | default('none'))
+      ~ '); install libselinux-utils'] }}
+  when:
+    - xvpn_preflight_getenforce.rc | default(1) != 0
+    - (xvpn_preflight_getenforce.stdout | default('') | trim) == ''
+
+- name: Preflight | fail once with every collected error
+  ansible.builtin.fail:
+    msg: |-
+      Preflight failed on {{ inventory_hostname }}; nothing was changed:
+      {% for e in xvpn_preflight_errors %}
+      - {{ e }}
+      {% endfor %}
+  when: xvpn_preflight_errors | length > 0
