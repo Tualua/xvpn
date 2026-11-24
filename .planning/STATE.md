@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
-status: executing
-stopped_at: Completed 01-10-PLAN.md
-last_updated: "2026-11-24T06:26:03.704Z"
+status: verifying
+stopped_at: Completed 01-12-PLAN.md
+last_updated: "2026-11-24T09:03:12.631Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase 01 execution started
-state_head: 1a2bddf46fbd86c52c79604ae121b06e887fa6c0
+state_head: 2314474cbca15a237006942f83267f6ef5ccaad9
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 
 Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
 Plan: 12 of 12
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-24 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P08 | n/a | 2 tasks | 7 files |
 | Phase 01 P11 | 25 min | 2 tasks | 6 files |
 | Phase 01 P10 | 10min | 1 tasks | 1 files |
+| Phase 01 P12 | 3h | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-07: SSH guard inlined twice in roles/common/tasks/firewalld.yml; FND-05 left open until VM-tier zero-AVC proof
 - [Phase 01]: 01-08: failed case messages recorded as to_json of ansible_failed_result (loop asserts)
 - [Phase 01]: VM boxes pinned via community.vagrant box_download_checksum(_type); box_checksum is not a driver key
+- [Phase 01]: 01-12: alma10 box via Vagrant Cloud catalog mode (pinned version); Dontaudit parsed with (?:^|\s) regex; policy packages installed in prepare before semodule -DB
 
 ### Pending Todos
 
@@ -110,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T06:26:03.637Z
-Stopped at: Completed 01-10-PLAN.md
+Last session: 2026-11-24T09:03:12.560Z
+Stopped at: Completed 01-12-PLAN.md
 Resume file: None

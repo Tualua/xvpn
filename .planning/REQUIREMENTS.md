@@ -10,10 +10,10 @@
 ### Foundation (FND)
 
 - [x] **FND-01**: Оператор получает понятную ошибку preflight, если хост не Rocky/Alma 10, SELinux не enforcing, Podman ниже 5.4 или порты 80/443 заняты
-- [ ] **FND-02**: Каждый сервис работает под выделенным rootless-пользователем с linger, subuid/subgid и доступным `systemctl --user` из Ansible
-- [ ] **FND-03**: Rootless-контейнеры могут слушать порты 80/443 (persistent sysctl `ip_unprivileged_port_start`), что проверяется в verify
-- [ ] **FND-04**: Quadlet-юниты рендерятся из шаблонов, проходят dry-run генератора, переживают перезагрузку хоста
-- [ ] **FND-05**: Роли настраивают firewalld и SELinux (контексты томов, booleans/порты только по доказанной необходимости) без перевода SELinux в permissive и без AVC-denial'ов
+- [x] **FND-02**: Каждый сервис работает под выделенным rootless-пользователем с linger, subuid/subgid и доступным `systemctl --user` из Ansible
+- [x] **FND-03**: Rootless-контейнеры могут слушать порты 80/443 (persistent sysctl `ip_unprivileged_port_start`), что проверяется в verify
+- [x] **FND-04**: Quadlet-юниты рендерятся из шаблонов, проходят dry-run генератора, переживают перезагрузку хоста
+- [x] **FND-05**: Роли настраивают firewalld и SELinux (контексты томов, booleans/порты только по доказанной необходимости) без перевода SELinux в permissive и без AVC-denial'ов
 - [x] **FND-06**: Коллекция имеет `galaxy.yml` (`xvpn.remnawave`), `argument_specs` для всех ролей и Galaxy-ready структуру
 - [x] **FND-07**: Preflight проверяет, что A-запись каждого домена указывает на IP внешнего интерфейса хоста (жёсткий fail, отключаемый флагом; детекция Cloudflare не делается — DNS в ответственности оператора)
 
@@ -85,7 +85,7 @@
 
 - [x] **QA-01**: Каждая роль проходит ansible-lint и yamllint в CI
 - [x] **QA-02**: Molecule: быстрый контейнерный тир (синтаксис, шаблоны, идемпотентность) для каждой роли
-- [ ] **QA-03**: Molecule: VM-тир на Alma/Rocky 10 с SELinux enforcing, проверкой нуля AVC, идемпотентности и перезагрузки
+- [x] **QA-03**: Molecule: VM-тир на Alma/Rocky 10 с SELinux enforcing, проверкой нуля AVC, идемпотентности и перезагрузки
 - [ ] **QA-04**: Повторный прогон полного playbook даёт `changed=0`
 - [ ] **QA-05**: CI использует Pebble (или LE staging), никогда не обращаясь к production Let's Encrypt
 - [ ] **QA-06**: CI-матрица покрывает ansible-core 2.21 и 2.22
@@ -136,10 +136,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FND-01 | Phase 1 | Complete |
-| FND-02 | Phase 1 | Pending |
-| FND-03 | Phase 1 | Pending |
-| FND-04 | Phase 1 | Pending |
-| FND-05 | Phase 1 | Pending |
+| FND-02 | Phase 1 | Complete |
+| FND-03 | Phase 1 | Complete |
+| FND-04 | Phase 1 | Complete |
+| FND-05 | Phase 1 | Complete |
 | FND-06 | Phase 1 | Complete |
 | FND-07 | Phase 1 | Complete |
 | EDGE-01 | Phase 2 | Pending |
@@ -181,7 +181,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HARD-04 | Phase 5 | Pending |
 | QA-01 | Phase 1 | Complete |
 | QA-02 | Phase 1 | Complete |
-| QA-03 | Phase 1 | Pending |
+| QA-03 | Phase 1 | Complete |
 | QA-04 | Phase 5 | Pending |
 | QA-05 | Phase 2 | Pending |
 | QA-06 | Phase 5 | Pending |
