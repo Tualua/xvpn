@@ -2,212 +2,87 @@
 phase: 01-rootless-fundament-i-testovyy-stend
 reviewed: 2026-11-24T00:00:00Z
 depth: standard
-files_reviewed: 54
+files_reviewed: 13
 files_reviewed_list:
-  - .ansible-lint
   - .github/workflows/lint.yml
-  - .github/workflows/molecule-container.yml
-  - .github/workflows/molecule-vm.yml
-  - .gitignore
-  - .yamllint
-  - LICENSE
-  - README.md
-  - ansible.cfg
-  - changelogs/changelog.yaml
-  - extensions/molecule/container/converge.yml
-  - extensions/molecule/container/molecule.yml
-  - extensions/molecule/container/prepare.yml
-  - extensions/molecule/container/verify.yml
-  - extensions/molecule/preflight/converge.yml
-  - extensions/molecule/preflight/molecule.yml
-  - extensions/molecule/preflight/prepare.yml
-  - extensions/molecule/preflight/run_case.yml
-  - extensions/molecule/preflight/verify.yml
-  - extensions/molecule/shared/templates/xvpn-broken.container.j2
-  - extensions/molecule/shared/templates/xvpn-fixture.container.j2
-  - extensions/molecule/shared/verify_common.yml
   - extensions/molecule/shared/verify_rootless.yml
-  - extensions/molecule/shared/verify_runtime.yml
-  - extensions/molecule/vm/converge.yml
-  - extensions/molecule/vm/molecule.yml
-  - extensions/molecule/vm/prepare.yml
-  - extensions/molecule/vm/side_effect.yml
-  - extensions/molecule/vm/verify.yml
-  - galaxy.yml
-  - meta/runtime.yml
-  - playbooks/foundation.yml
-  - playbooks/preflight.yml
-  - requirements-dev.txt
-  - requirements.yml
   - roles/common/defaults/main.yml
   - roles/common/meta/argument_specs.yml
-  - roles/common/meta/main.yml
   - roles/common/tasks/firewalld.yml
   - roles/common/tasks/main.yml
-  - roles/podman_rootless/defaults/main.yml
   - roles/podman_rootless/meta/argument_specs.yml
-  - roles/podman_rootless/meta/main.yml
   - roles/podman_rootless/tasks/main.yml
-  - roles/podman_rootless/tasks/quadlet.yml
   - roles/podman_rootless/tasks/quadlet_validate.yml
   - roles/podman_rootless/tasks/user.yml
   - roles/preflight/defaults/main.yml
   - roles/preflight/meta/argument_specs.yml
-  - roles/preflight/meta/main.yml
   - roles/preflight/tasks/check_dns.yml
-  - roles/preflight/tasks/check_podman.yml
-  - roles/preflight/tasks/check_ports.yml
-  - roles/preflight/tasks/main.yml
-  - scripts/check.sh
 findings:
   critical: 0
-  warning: 8
-  info: 6
-  total: 14
-  necessity: 1
+  warning: 4
+  info: 2
+  total: 6
+  necessity: 0
 status: issues_found
 ---
 
-# Phase 1: Code Review Report
+# Phase 1: Отчёт о code review (повторный, инкрементальный)
 
 **Reviewed:** 2026-11-24
 **Depth:** standard
-**Files Reviewed:** 54
+**Files Reviewed:** 13
 **Status:** issues_found
 
 ## Summary
 
-Просмотрены роли `preflight`, `common`, `podman_rootless`, три сценария Molecule (container, preflight, vm), CI-воркфлоу и `scripts/check.sh`. Структурный пре-проход (fallow) не передавался. Файл `~/.claude/gsd-core/references/necessity-review.md` не читался; категория necessity оценена по месту, по доказательствам из репозитория (одна находка, IN-01).
-
-Критических дефектов безопасности и потери данных не найдено. Основные риски: деструктивное «усыновление» существующей учётной записи (WR-01), слабая валидация `xvpn_podman_rootless_home_root` при рекурсивном `restorecon` (WR-02), дыра в идемпотентности релейблинга SELinux (WR-03), SELinux-гейт в `common` срабатывает после установки пакетов (WR-05), неагрегированные падения в DNS-проверке preflight (WR-07), отсутствие `timeout-minutes` в `lint.yml` (WR-04).
+Проверены исправления WR-01..WR-07 и IN-01..IN-06 (WR-08 вне области). Большинство исправлений корректно: `timeout-minutes`, перенос SELinux-гейта, `xvpn_common_ssh_port`, диапазон 1..80 для `unprivileged_port_start`, безопасное выражение набора IPv4 в `check_dns.yml`, построчная проверка sysctl в `verify_rootless.yml`, поиск заголовка `---<service>---` в `quadlet_validate.yml` (формат совпадает с выводом dry-run Podman). Критичных проблем нет. Найдены остаточные дефекты самих исправлений: валидация `home_root` всё ещё обходится, гейт SELinux в новом месте даёт вводящую в заблуждение ошибку, защита от «усыновления» аккаунта не сверяет явный `uid`, негативный контроль в verify ломается при допустимых значениях sysctl.
 
 ## Warnings
 
-### WR-01: Роль «усыновляет» любую существующую учётную запись с uid >= 1000 и перезаписывает её shell, пароль и home
+### WR-01: Валидация `xvpn_podman_rootless_home_root` обходится сегментом `.` и неполным denylist (недоработка WR-02 прошлого ревью)
+
+**File:** `roles/podman_rootless/tasks/main.yml:28-37`
+**Issue:** Regex `^/[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*$` допускает сегмент `.`, а проверка `'..' not in` его не ловит. Значения `/var/./lib` или `/var/lib/.` проходят и не равны ни одному элементу denylist, хотя указывают на `/var/lib`. Затем идут `file` (owner root, mode 0755), `sefcontext` с substitute `/home` и рекурсивный `restorecon -R` по системному каталогу, то есть исходный риск WR-02 остаётся. Denylist также не содержит `/var/log`, `/var/cache`, `/usr/local`, `/etc/ssh`, `/var/lib/containers` и т.п.; любой подкаталог системных каталогов проходит.
+**Fix:** Перейти на allowlist и запретить сегменты `.`/`..`:
+```yaml
+- "xvpn_podman_rootless_home_root is match('^/(var/lib|srv|opt)/[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$')"
+```
+либо оставить denylist, но убрать `.` из допустимых символов сегмента, если точки в имени каталога не нужны (`[A-Za-z0-9_-]+`), и добавить `/var/log`, `/usr/local`, `/var/cache`.
+
+### WR-02: SELinux-гейт теперь стоит до установки `libselinux-utils`, при отсутствии `getenforce` ошибка вводит в заблуждение
+
+**File:** `roles/common/tasks/main.yml:21-33`, `roles/podman_rootless/tasks/main.yml:3-15`
+**Issue:** После переноса гейта перед `dnf install` бинарь `getenforce` (пакет `libselinux-utils`, который роль `common` сама ставит) может ещё отсутствовать на минимальном образе. Команда с `failed_when: false` вернёт rc=2 и пустой stdout, и роль упадёт сообщением `SELinux must be Enforcing (getenforce: )`, хотя SELinux может быть в Enforcing. Роль `podman_rootless` вообще не ставит `libselinux-utils` в своих пакетах (проверить `xvpn_podman_rootless_packages`), поэтому при отдельном запуске гейт и последующий `selinuxenabled` зависят от внешнего состояния.
+**Fix:** Различать «нет бинаря» и «не Enforcing» (`when: getenforce.rc != 0` отдельным `fail` с сообщением «getenforce not found; install libselinux-utils»), либо читать режим без бинаря: `slurp` `/sys/fs/selinux/enforce` (`1` = Enforcing), либо ставить `libselinux-utils` отдельной задачей перед гейтом.
+
+### WR-03: Защита от «усыновления» аккаунта не сверяет явно заданный `uid`
 
 **File:** `roles/podman_rootless/tasks/user.yml:17-34`
-**Issue:** Защита отсекает только системные аккаунты (uid < 1000). Если в `xvpn_podman_rootless_users` указано имя реального человека-пользователя (uid >= 1000), модуль `user` выставит ему `shell: /sbin/nologin`, `password_lock: true` и новый `home`. Затем `file` сменит владельца и права на 0700. Это блокирует вход живому пользователю. Опечатка в имени или совпадение с существующим именем приводят к локауту.
-**Fix:** Усыновлять только аккаунт, который уже выглядит как управляемый: ожидаемый home под `xvpn_podman_rootless_home_root` и shell `/sbin/nologin`. Иначе падать.
+**Issue:** Для существующей учётной записи проверяются uid >= 1000, home и shell, но если в спецификации задан `uid` и он отличается от текущего, `ansible.builtin.user` выполнит `usermod -u` над живым аккаунтом (смена владельца файлов/подчинённых id, рассинхрон с linger и `/run/user/<uid>`). Это обходит заявленный смысл WR-01 (не переписывать чужой аккаунт).
+**Fix:** добавить в assert условие
 ```yaml
-- name: Refuse to adopt an account that this collection did not create
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] | int >= 1000
-      - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][4]
-        == xvpn_podman_rootless_home_root ~ '/' ~ xvpn_podman_rootless_user.name
-      - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][5] in ['/sbin/nologin', '/usr/sbin/nologin']
-  when: ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name] is not none
+- xvpn_podman_rootless_user.uid is not defined or ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] | int == xvpn_podman_rootless_user.uid | int
 ```
 
-### WR-02: Валидация `xvpn_podman_rootless_home_root` допускает `..` и системные каталоги, затем идут chmod/chown и рекурсивный restorecon
+### WR-04: Негативный контроль «порт 79 привилегирован» ломается при допустимых значениях sysctl
 
-**File:** `roles/podman_rootless/tasks/main.yml:13-18, 54-79`
-**Issue:** Регулярное выражение `^/[A-Za-z0-9_./-]+$` пропускает `/usr`, `/etc`, `/var/lib` и `/../etc`. Для такого значения роль выставит владельца root и права 0755, создаст эквивалентность `sefcontext` (`target -> /home`) и выполнит `restorecon -R`. Это рекурсивный релейбл системного дерева. Источник значения — инвентарь, но роль заявляет входную валидацию (T-01-07), и она неполна.
-**Fix:** Запретить `..` и ограничить допустимые родители. Для SELinux-эквивалентности нужен выделенный каталог.
-```yaml
-that:
-  - xvpn_podman_rootless_home_root is match('^/[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*$')
-  - "'..' not in xvpn_podman_rootless_home_root"
-  - xvpn_podman_rootless_home_root not in ['/usr', '/etc', '/var', '/var/lib', '/opt', '/srv', '/home', '/root']
-```
-
-### WR-03: `restorecon` запускается только если `sefcontext` изменился, поэтому прерванный первый прогон оставляет неверные метки навсегда
-
-**File:** `roles/podman_rootless/tasks/main.yml:62-79`
-**Issue:** Задача `restorecon -R` условна по `xvpn_podman_rootless_sefcontext is changed`. Если первый прогон упал между `sefcontext` и `restorecon` (или `restorecon` сам завершился ошибкой), повторный прогон видит эквивалентность уже установленной, пропускает `restorecon`, и метки `var_lib_t` остаются. Домашние каталоги, созданные ранее, не релейблятся. Идемпотентные модули не должны зависеть от того, что предыдущая итерация дошла до конца. Верификация VM поймает это только на чистом стенде.
-**Fix:** Проверять фактическую метку и релейблить по результату проверки.
-```yaml
-- name: Check that the home root already carries the /home-equivalent label
-  ansible.builtin.command: restorecon -nvR {{ xvpn_podman_rootless_home_root | quote }}
-  register: xvpn_podman_rootless_relabel_probe
-  changed_when: xvpn_podman_rootless_relabel_probe.stdout | length > 0
-  check_mode: false
-  when: xvpn_podman_rootless_selinux.rc == 0
-# then run `restorecon -R` when xvpn_podman_rootless_relabel_probe is changed
-```
-
-### WR-04: Задача `lint` в `lint.yml` не имеет `timeout-minutes`
-
-**File:** `.github/workflows/lint.yml:17-18`
-**Issue:** Остальные воркфлоу ограничены (`45`/`120` минут), у `lint` лимита нет, действует дефолт GitHub 360 минут. Зависание `ansible-galaxy collection install` (сеть Galaxy) блокирует runner на шесть часов. Это нарушает проектное требование о CI-дисциплине.
-**Fix:**
-```yaml
-jobs:
-  lint:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-```
-
-### WR-05: SELinux-гейт в роли `common` стоит после установки пакетов и не защищает `podman_rootless` при отдельном запуске
-
-**File:** `roles/common/tasks/main.yml:20-38`, `roles/podman_rootless/tasks/main.yml:20-67`
-**Issue:** Комментарий называет блок «defence in depth», но `dnf install` идёт раньше проверки `getenforce`. При Permissive/Disabled хост уже изменён, хотя ограничение проекта запрещает работу без Enforcing. Роль `podman_rootless` вообще не имеет гейта и сама допускает отключённый SELinux (`ignore_selinux_state` и `when: selinux.rc == 0`). Если её вызвать без `foundation.yml` (в том числе через `tasks_from: quadlet`), роль молча создаст пользователей, выставит sysctl и продолжит.
-**Fix:** Поставить проверку `getenforce` первой задачей в `common` (до `dnf`) и добавить такой же короткий гейт в начало `podman_rootless/tasks/main.yml`. В `podman_rootless` убрать ветки «SELinux выключен» либо превратить их в `fail`.
-
-### WR-06: Валидация Quadlet изолирует спеки одного вызова, поэтому юниты со ссылками на `.network`/`.volume` из другого вызова будут ложно отклонены; проверка «ожидаемый сервис» подстрочная
-
-**File:** `roles/podman_rootless/tasks/quadlet_validate.yml:36-73`
-**Issue:** Генератор запускается с `QUADLET_UNIT_DIRS` на scratch-каталог, в который попадают только спеки текущего вызова. Для `.container` с `Network=panel.network` или `Volume=pg.volume`, объявленными отдельным вызовом `tasks_from: quadlet`, генератор вернёт ошибку «not found», и деплой упадёт, хотя юнит корректен. Из плана Panel/Node (фазы 2-4) это неизбежный сценарий. Также `expected_service in stdout` — подстрочное совпадение: `foo.service` найдётся внутри `xfoo.service` или в строках `Wants=`/`After=` чужого юнита, и safety net даёт ложный успех. Код возврата генератора помечен в комментарии как предположение (RESEARCH A5).
-**Fix:** Подкладывать в scratch-каталог уже установленные юниты из Quadlet-каталога пользователя (symlink или копия), а проверку делать по заголовку блока, например `regex_search('(?m)^---' ~ expected ~ '---$')`.
-
-### WR-07: Проверка DNS в preflight падает необработанной ошибкой шаблона, если факты выбранного интерфейса отсутствуют
-
-**File:** `roles/preflight/tasks/check_dns.yml:20-26, 83-95`
-**Issue:** `ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')]['ipv4']['address']` обращается к словарю, которого может не быть: интерфейс без IPv4 (только IPv6), имя из `xvpn_public_interface`, которого нет на хосте, либо ключ факта с `.`/`:`. Валидатор имён допускает `.` и `:`. Результат — «dict object has no attribute» и аварийное завершение, а не сообщение в агрегированном списке ошибок. Это ломает главный контракт preflight «один отчёт со всеми проблемами». Блок AAAA прикрыт `rescue`, блок A — нет.
-**Fix:** Добавить явную проверку существования интерфейса и записывать ошибку в `xvpn_preflight_errors`.
-```yaml
-- name: Preflight dns | interface facts are missing
-  ansible.builtin.set_fact:
-    xvpn_preflight_errors: "{{ xvpn_preflight_errors + ['No IPv4 facts for interface ' ~ xvpn_preflight_dns_iface ~ '; set xvpn_public_ip'] }}"
-  when:
-    - xvpn_public_ip == ''
-    - (ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')]['ipv4']['address'] | default('')) == ''
-```
-И обернуть расчёт `xvpn_preflight_dns_ips` в этот `when`.
-
-### WR-08: Воркфлоу `molecule-vm` ставит vagrant-libvirt и ключ HashiCorp без проверки отпечатка и запускается на каждом PR
-
-**File:** `.github/workflows/molecule-vm.yml:49-55`
-**Issue:** GPG-ключ скачивается через `curl` и сразу доверяется (`gpg --dearmor`), отпечаток не сверяется. Плагин ставится из RubyGems по версии без хеша. Остальной CI аккуратно пин-ит действия по SHA и боксы по checksum, поэтому здесь цепочка поставки слабее. Воркфлоу работает на PR из форков с правами `contents: read` и привилегированным `sudo` на runner'е.
-**Fix:** Сверять отпечаток ключа (`gpg --show-keys --with-fingerprint` и сравнение с зафиксированным значением) перед `tee` в `sources.list.d`. Либо отказаться от ветки с HashiCorp и жёстко опираться на пакеты Ubuntu. Рассмотреть ограничение запуска на PR из форков (`if: github.event.pull_request.head.repo.full_name == github.repository`).
+**File:** `extensions/molecule/shared/verify_rootless.yml:186-213`
+**Issue:** После IN-05 `xvpn_podman_rootless_unprivileged_port_start` допустим в диапазоне 1..80, а verify параметризует sysctl, но порт 79 в негативном контроле зашит. При значении <= 79 (например 70) `rw-edge` легитимно привяжет 79, и assert «bind probe is vacuous» упадёт ложно. Рассогласование появилось из-за IN-04/IN-05.
+**Fix:** брать порт из значения: `xvpn_verify_sysctl_value | int - 1` (проверять только если значение > 1), и пропускать контроль при значении 1; либо ограничить в verify допустимый набор значений явным assert с понятным сообщением.
 
 ## Info
 
-### IN-01: Повторная SSH-проверка «after» в `firewalld.yml` недостижима для падения
+### IN-01: Ветка AAAA в `check_dns.yml` не получила того же укрепления, что A-ветка (WR-07)
 
-**File:** `roles/common/tasks/firewalld.yml:89-118`
-**Issue:** **Category:** necessity. Между проверками «before» и «after» выполняется единственная задача `ansible.posix.firewalld` с `state: enabled` и циклом по портам. Она только добавляет порты и не может убрать сервис `ssh` или порт SSH из зоны (это закреплено и `defaults/main.yml:10`: «Never removes anything», и описанием argument_specs). Состояние «before ok, after fail» невозможно, пока роль add-only, поэтому четыре задачи (два `command`, `fail`) — мёртвая защита. Оценка доказана по коду репозитория.
-**Fix:** Удалить блок «after» либо оставить только как одну проверку, если планируется добавить режим удаления портов.
+**File:** `roles/preflight/tasks/check_dns.yml:105-106`
+**Issue:** `ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')].ipv6 | default([])` разыменовывает `.ipv6` у возможно неопределённого факта интерфейса (например, при заданном `xvpn_public_ip` и пустом интерфейсе); `default` не защищает цепочку, возникает `UndefinedError`. Rescue превратит это в предупреждение «AAAA check could not be evaluated», так что функционально безопасно, но шумно и маскирует реальные AAAA-расхождения.
+**Fix:** использовать тот же приём, что для IPv4: `(ansible_facts[iface | replace('-', '_')] | default({}))['ipv6'] | default([])`.
 
-### IN-02: Проверка конфликта портов в preflight учитывает только TCP
+### IN-02: В verify зашиты пользователь и домашний путь при параметризованном sysctl
 
-**File:** `roles/preflight/tasks/check_ports.yml:8-15`
-**Issue:** `ss -ltn` не видит UDP-слушателей. Планируется QUIC/Hysteria на 443/udp (в `xvpn_common_firewall_ports` допускается `/udp`), и занятый 443/udp пройдёт preflight.
-**Fix:** Либо документировать ограничение рядом с `xvpn_preflight_ports`, либо добавить второй вызов с `-lun` и расширить формат `xvpn_preflight_ports` до `<port>/<proto>`.
-
-### IN-03: SSH-гейт использует `ansible_port` контроллера, а не порт sshd на целевом хосте
-
-**File:** `roles/common/tasks/firewalld.yml:59-68`
-**Issue:** `ansible_port` — порт, к которому подключается Ansible. За NAT/bastion/port-forward он не совпадает с портом sshd. Гейт либо ложно блокирует (зона разрешает 22, а подключение через 2222), либо ложно пропускает. Хост без `ssh` в зоне, но с rich-правилом для SSH, также будет отвергнут.
-**Fix:** Ввести явную переменную `xvpn_common_ssh_port` (по умолчанию `ansible_port | default(22)`) и описать её в `argument_specs`.
-
-### IN-04: Слабые проверки в `verify_rootless.yml` для sysctl
-
-**File:** `extensions/molecule/shared/verify_rootless.yml:105-127`
-**Issue:** `is search('80')` совпадёт и с `800`, `1080` и т. п. Путь к drop-in и значение `80` захардкожены и игнорируют `xvpn_podman_rootless_sysctl_file` и `xvpn_podman_rootless_unprivileged_port_start`. Проверка перестанет соответствовать роли при смене переменных.
-**Fix:** Сравнивать построчно: `is match('(?m)^net\.ipv4\.ip_unprivileged_port_start\s*=\s*80\s*$')`, а путь и значение брать из переменных с теми же дефолтами.
-
-### IN-05: `xvpn_podman_rootless_unprivileged_port_start` не ограничен
-
-**File:** `roles/podman_rootless/meta/argument_specs.yml:34-37`, `roles/podman_rootless/tasks/main.yml:89-96`
-**Issue:** Тип `int` без границ. Значение выше 80 молча ломает привязку 80/443 пользователем `rw-edge`, а значение 0 открывает все порты локальным пользователям. Ошибка проявится только на стадии Traefik.
-**Fix:** Добавить `assert: 1 <= value <= 80` (или 443) в `tasks/main.yml` рядом с валидацией `home_root`.
-
-### IN-06: Дублирование запусков CI и строгие `suboptions` спецификации
-
-**File:** `.github/workflows/lint.yml:4-7`, `.github/workflows/molecule-container.yml:4-7`, `roles/podman_rootless/meta/argument_specs.yml:58-68`
-**Issue:** (1) Триггеры `push:` без фильтра ветки и `pull_request` запускают одну и ту же работу дважды на каждый коммит PR-ветки внутри репозитория. (2) `options` элементов `xvpn_podman_rootless_quadlet_specs` описывают только `template_src` и `state`. Валидатор Ansible отвергает неописанные ключи подопций, поэтому передать дальше в LSR-роль `name`, `activate_systemd_unit` и подобное нельзя, хотя `quadlet.yml` добавляет `run_as_user` уже после валидации.
-**Fix:** (1) Ограничить `push` ветками `main` либо оставить только `pull_request`. (2) Добавить необходимые поля в спецификацию заранее (до фаз 2-4) или документировать, что набор ключей закрыт.
+**File:** `extensions/molecule/shared/verify_rootless.yml:41-57, 136`
+**Issue:** `rw-edge` и `/var/lib/xvpn/rw-edge` захардкожены, тогда как sysctl теперь берётся из переменных роли; смена `xvpn_podman_rootless_home_root` ломает verify без внятной причины. Также из-за `push` без `branches` в `lint.yml` CI запускается дважды на PR из той же репозитории (принято по IN-06, фиксируется для полноты).
+**Fix:** строить пути из `xvpn_podman_rootless_home_root | default('/var/lib/xvpn')` и имени пользователя из переменной.
 
 ---
 
