@@ -13,6 +13,14 @@
     - name: Gather facts after the bootstrap
       ansible.builtin.setup:
 
+    # Container images ship systemd-logind masked or not running; linger needs
+    # login1 on the bus (fallback (a), 01-09). Test environment only.
+    - name: Unmask and start systemd-logind
+      ansible.builtin.systemd_service:
+        name: systemd-logind.service
+        masked: false
+        state: started
+
     # The container shares the runner kernel where SELinux is off (D-15); real
     # SELinux is asserted only in the VM tier. This double exists only here.
     - name: Record the simulated SELinux mode
