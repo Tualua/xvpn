@@ -97,17 +97,22 @@
     fail_msg: "linger is not enabled for rw-edge"
     quiet: true
 
+- name: Resolve the expected sysctl drop-in path and value
+  ansible.builtin.set_fact:
+    xvpn_verify_sysctl_path: "{{ xvpn_podman_rootless_sysctl_file | default('/etc/sysctl.d/99-xvpn-unprivileged-ports.conf') }}"
+    xvpn_verify_sysctl_value: "{{ xvpn_podman_rootless_unprivileged_port_start | default(80) | string }}"
+
 - name: Read the sysctl drop-in
   ansible.builtin.slurp:
-    src: /etc/sysctl.d/99-xvpn-unprivileged-ports.conf
+    src: "{{ xvpn_verify_sysctl_path }}"
   register: xvpn_verify_sysctl_file
 
 - name: Assert the sysctl drop-in content
   ansible.builtin.assert:
     that:
-      - "'net.ipv4.ip_unprivileged_port_start' in (xvpn_verify_sysctl_file.content | b64decode)"
-      - (xvpn_verify_sysctl_file.content | b64decode) is search('80')
-    fail_msg: "sysctl drop-in does not set net.ipv4.ip_unprivileged_port_start to 80"
+      - (xvpn_verify_sysctl_file.content | b64decode)
+        is search('(?m)^net\.ipv4\.ip_unprivileged_port_start\s*=\s*' ~ xvpn_verify_sysctl_value ~ '\s*$')
+    fail_msg: "sysctl drop-in does not set net.ipv4.ip_unprivileged_port_start to {{ xvpn_verify_sysctl_value }}"
     quiet: true
 
 - name: Read the live unprivileged port start
@@ -122,8 +127,8 @@
 - name: Assert the live unprivileged port start
   ansible.builtin.assert:
     that:
-      - xvpn_verify_sysctl_live.stdout | trim == '80'
-    fail_msg: "net.ipv4.ip_unprivileged_port_start is {{ xvpn_verify_sysctl_live.stdout | trim }}, expected 80"
+      - xvpn_verify_sysctl_live.stdout | trim == xvpn_verify_sysctl_value
+    fail_msg: "net.ipv4.ip_unprivileged_port_start is {{ xvpn_verify_sysctl_live.stdout | trim }}, expected {{ xvpn_verify_sysctl_value }}"
     quiet: true
 
 - name: Stat the installed fixture unit
