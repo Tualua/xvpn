@@ -1,0 +1,81 @@
+---
+# Generator dry-run of the specs in xvpn_podman_rootless_validate_specs (D-10 (e)).
+# Runs as the service user before anything is written to its Quadlet directory.
+# Expects xvpn_podman_rootless_validate_specs and xvpn_podman_rootless_validate_uid.
+- name: Dry-run the Quadlet generator over the rendered specs
+  become: true
+  become_user: "{{ xvpn_podman_rootless_quadlet_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ xvpn_podman_rootless_validate_uid }}"
+  vars:
+    xvpn_podman_rootless_validate_units: >-
+      {{ xvpn_podman_rootless_validate_specs
+         | map(attribute='template_src') | map('basename')
+         | map('regex_replace', '[.]j2$', '') | list }}
+  block:
+    - name: Create a scratch directory for the rendered units
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: xvpn-quadlet
+      register: xvpn_podman_rootless_scratch
+      changed_when: false
+      check_mode: false
+
+    - name: Render the candidate units into the scratch directory
+      ansible.builtin.template:
+        src: "{{ item.template_src }}"
+        dest: "{{ xvpn_podman_rootless_scratch.path }}/{{ item.template_src | basename | regex_replace('[.]j2$', '') }}"
+        mode: "0600"
+      loop: "{{ xvpn_podman_rootless_validate_specs }}"
+      loop_control:
+        label: "{{ item.template_src | basename }}"
+      changed_when: false
+      check_mode: false
+
+    - name: Run the generator in dry-run mode
+      ansible.builtin.command: /usr/lib/systemd/system-generators/podman-system-generator --user --dryrun
+      environment:
+        QUADLET_UNIT_DIRS: "{{ xvpn_podman_rootless_scratch.path }}"
+      register: xvpn_podman_rootless_dryrun
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # rc semantics are RESEARCH A5 (assumed); this plan owns the pattern; Plan 10
+    # fallback (c) changes it only after a user checkpoint.
+    - name: Fail when the generator rejected a unit
+      ansible.builtin.fail:
+        msg: >-
+          Quadlet dry-run failed for {{ xvpn_podman_rootless_validate_units | join(', ') }}:
+          rc={{ xvpn_podman_rootless_dryrun.rc }} {{ xvpn_podman_rootless_dryrun.stderr }}
+      vars:
+        xvpn_podman_rootless_dryrun_error_regex: '(?m)converting "[^"]+": |^Error: '
+      when: >-
+        xvpn_podman_rootless_dryrun.rc != 0
+        or xvpn_podman_rootless_dryrun.stderr is search(xvpn_podman_rootless_dryrun_error_regex)
+
+    # Safety net for a generator that exits 0 without output on a bad unit.
+    - name: Assert the dry-run produced every expected service
+      ansible.builtin.assert:
+        that:
+          - xvpn_podman_rootless_expected_service in xvpn_podman_rootless_dryrun.stdout
+        fail_msg: >-
+          Quadlet dry-run did not produce {{ xvpn_podman_rootless_expected_service }}
+          for {{ item }}: {{ xvpn_podman_rootless_dryrun.stderr }}
+        quiet: true
+      vars:
+        xvpn_podman_rootless_expected_service: >-
+          {{ item | regex_replace('[.]container$', '.service')
+                  | regex_replace('[.]network$', '-network.service')
+                  | regex_replace('[.]volume$', '-volume.service') }}
+      loop: "{{ xvpn_podman_rootless_validate_units }}"
+      when: item is search('[.](container|network|volume)$')
+  always:
+    - name: Remove the scratch directory
+      ansible.builtin.file:
+        path: "{{ xvpn_podman_rootless_scratch.path }}"
+        state: absent
+      when: xvpn_podman_rootless_scratch.path is defined
+      changed_when: false
+      check_mode: false
