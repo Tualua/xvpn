@@ -1,0 +1,116 @@
+---
+- name: Verify the rootless fundament and the guards (container tier)
+  hosts: all
+  become: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Verify the rootless plumbing and the bind probes
+      ansible.builtin.include_tasks: ../shared/verify_rootless.yml
+      vars:
+        # The container tier activates no unit, so :80 is free and probed directly.
+        xvpn_verify_bind_probe_ports: [80, 443]
+
+    # xvpn_negative_case: broken-unit
+    - name: Negative case broken-unit
+      block:
+        - name: Deploy a unit that the Quadlet generator rejects
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.podman_rootless
+            tasks_from: quadlet
+          vars:
+            xvpn_podman_rootless_quadlet_user: rw-edge
+            xvpn_podman_rootless_quadlet_activate: false
+            xvpn_podman_rootless_quadlet_specs:
+              - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-broken.container.j2') | realpath }}"
+        - name: Fail when the broken unit was accepted
+          ansible.builtin.fail:
+            msg: "negative case broken-unit was accepted"
+      rescue:
+        - name: Record that the broken unit was rejected by the dry-run
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['broken-unit'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - (ansible_failed_result.msg | string).startswith('Quadlet dry-run')
+            - "'xvpn-broken' in (ansible_failed_result.msg | string)"
+
+    - name: Stat the broken unit in the user Quadlet directory
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-edge/.config/containers/systemd/xvpn-broken.container
+      register: xvpn_verify_broken_unit
+
+    - name: Assert the broken unit was not installed
+      ansible.builtin.assert:
+        that:
+          - not xvpn_verify_broken_unit.stat.exists
+        fail_msg: "xvpn-broken.container was installed although the generator rejects it"
+        quiet: true
+
+    # xvpn_negative_case: bad-user-name
+    - name: Negative case bad-user-name
+      block:
+        - name: Run the role with an injected service user name
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.podman_rootless
+          vars:
+            xvpn_podman_rootless_users:
+              - name: "x;id"
+            xvpn_podman_rootless_manage_user_manager: false
+        - name: Fail when the injected user name was accepted
+          ansible.builtin.fail:
+            msg: "negative case bad-user-name was accepted"
+      rescue:
+        - name: Record that the injected user name was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['bad-user-name'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'Invalid service user name' in (ansible_failed_result.msg | string)"
+
+    - name: Look up the injected user name
+      ansible.builtin.command:
+        argv:
+          - getent
+          - passwd
+          - "x;id"
+      register: xvpn_verify_injected_user
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the injected user was not created
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_injected_user.rc == 2
+        fail_msg: "a user named 'x;id' exists: rc={{ xvpn_verify_injected_user.rc }}"
+        quiet: true
+
+    # xvpn_negative_case: relative-template
+    - name: Negative case relative-template
+      block:
+        - name: Deploy a spec with a relative template path
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.podman_rootless
+            tasks_from: quadlet
+          vars:
+            xvpn_podman_rootless_quadlet_user: rw-edge
+            xvpn_podman_rootless_quadlet_activate: false
+            xvpn_podman_rootless_quadlet_specs:
+              - template_src: "templates/xvpn-fixture.container.j2"
+        - name: Fail when the relative template path was accepted
+          ansible.builtin.fail:
+            msg: "negative case relative-template was accepted"
+      rescue:
+        - name: Record that the relative template path was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['relative-template'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'template_src must be an absolute path' in (ansible_failed_result.msg | string)"
+
+    - name: Assert every negative case was rejected for the expected reason
+      ansible.builtin.assert:
+        that:
+          - (xvpn_negative_rejected | default([])) | sort == ['bad-user-name', 'broken-unit', 'relative-template']
+        fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
+        quiet: true

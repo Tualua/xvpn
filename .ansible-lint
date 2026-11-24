@@ -10,3 +10,6 @@ exclude_paths:
   - .claude/
   - .devcontainer/
   - .ansible/
+kinds:
+  # Shared task files included by the verify playbooks are not playbooks.
+  - tasks: "extensions/molecule/shared/*.yml"

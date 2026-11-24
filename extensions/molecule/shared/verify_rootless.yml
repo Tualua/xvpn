@@ -1,0 +1,208 @@
+---
+# Rootless plumbing assertions shared by the container and VM tiers.
+# Input: xvpn_verify_bind_probe_ports (default [443]).
+- name: Check required rootless packages
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - passt
+      - container-selinux
+  changed_when: false
+
+# passt-selinux exists on EL10.3 only; follow the role's optional-package rule.
+- name: Look up passt-selinux in the enabled repositories
+  ansible.builtin.dnf:
+    list: passt-selinux
+  register: xvpn_verify_passt_selinux_offer
+  changed_when: false
+
+- name: Check passt-selinux when it is offered
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - passt-selinux
+  register: xvpn_verify_passt_selinux
+  changed_when: false
+  failed_when: false
+  when: xvpn_verify_passt_selinux_offer.results | length > 0
+
+- name: Assert passt-selinux is installed when offered
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_passt_selinux.rc == 0
+    fail_msg: "passt-selinux is offered by the enabled repositories but not installed"
+    quiet: true
+  when: xvpn_verify_passt_selinux_offer.results | length > 0
+
+- name: Read the service user account
+  ansible.builtin.getent:
+    database: passwd
+    key: rw-edge
+
+- name: Read the service user shadow entry
+  ansible.builtin.getent:
+    database: shadow
+    key: rw-edge
+
+- name: Assert the service user account
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd']['rw-edge'][1] | int >= 1000
+      - ansible_facts['getent_passwd']['rw-edge'][4] == '/var/lib/xvpn/rw-edge'
+      - ansible_facts['getent_passwd']['rw-edge'][5] == '/sbin/nologin'
+      - ansible_facts['getent_shadow']['rw-edge'][0] is match('^!')
+    fail_msg: "rw-edge account is not a locked regular user with home /var/lib/xvpn/rw-edge and shell /sbin/nologin"
+    quiet: true
+
+- name: Stat the service user home
+  ansible.builtin.stat:
+    path: /var/lib/xvpn/rw-edge
+  register: xvpn_verify_home
+
+- name: Assert the service user home
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_home.stat.exists
+      - xvpn_verify_home.stat.mode == '0700'
+      - xvpn_verify_home.stat.pw_name == 'rw-edge'
+    fail_msg: "rw-edge home must exist with mode 0700 and owner rw-edge"
+    quiet: true
+
+- name: Check subordinate uid range
+  ansible.builtin.command:
+    argv:
+      - getsubids
+      - rw-edge
+  changed_when: false
+
+- name: Check subordinate gid range
+  ansible.builtin.command:
+    argv:
+      - getsubids
+      - -g
+      - rw-edge
+  changed_when: false
+
+- name: Stat the linger marker
+  ansible.builtin.stat:
+    path: /var/lib/systemd/linger/rw-edge
+  register: xvpn_verify_linger
+
+- name: Assert linger is enabled
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_linger.stat.exists
+    fail_msg: "linger is not enabled for rw-edge"
+    quiet: true
+
+- name: Read the sysctl drop-in
+  ansible.builtin.slurp:
+    src: /etc/sysctl.d/99-xvpn-unprivileged-ports.conf
+  register: xvpn_verify_sysctl_file
+
+- name: Assert the sysctl drop-in content
+  ansible.builtin.assert:
+    that:
+      - "'net.ipv4.ip_unprivileged_port_start' in (xvpn_verify_sysctl_file.content | b64decode)"
+      - (xvpn_verify_sysctl_file.content | b64decode) is search('80')
+    fail_msg: "sysctl drop-in does not set net.ipv4.ip_unprivileged_port_start to 80"
+    quiet: true
+
+- name: Read the live unprivileged port start
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - -n
+      - net.ipv4.ip_unprivileged_port_start
+  register: xvpn_verify_sysctl_live
+  changed_when: false
+
+- name: Assert the live unprivileged port start
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_sysctl_live.stdout | trim == '80'
+    fail_msg: "net.ipv4.ip_unprivileged_port_start is {{ xvpn_verify_sysctl_live.stdout | trim }}, expected 80"
+    quiet: true
+
+- name: Stat the installed fixture unit
+  ansible.builtin.stat:
+    path: /var/lib/xvpn/rw-edge/.config/containers/systemd/xvpn-fixture.container
+  register: xvpn_verify_fixture
+
+- name: Assert the installed fixture unit
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_fixture.stat.exists
+      - xvpn_verify_fixture.stat.pw_name == 'rw-edge'
+    fail_msg: "xvpn-fixture.container is not installed for rw-edge"
+    quiet: true
+
+# FND-03 bind probe: rw-edge binds each probe port under its own uid.
+- name: Probe binding of TCP ports as rw-edge
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import os, socket, sys
+        p = int(sys.argv[1])
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(("0.0.0.0", p))
+        except PermissionError:
+            sys.exit(13)
+        print("uid=%d bound=%d" % (os.getuid(), p))
+        s.close()
+      - "{{ item }}"
+  become: true
+  become_user: rw-edge
+  become_method: ansible.builtin.sudo
+  changed_when: false
+  failed_when: false
+  register: xvpn_verify_bind_probe
+  loop: "{{ xvpn_verify_bind_probe_ports | default([443]) }}"
+
+- name: Assert rw-edge bound every probe port
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - item.stdout | trim == 'uid=' ~ ansible_facts['getent_passwd']['rw-edge'][1] ~ ' bound=' ~ item.item
+    fail_msg: >-
+      rw-edge cannot bind TCP {{ item.item }}: rc={{ item.rc }} {{ item.stderr }};
+      check net.ipv4.ip_unprivileged_port_start (FND-03)
+    quiet: true
+  loop: "{{ xvpn_verify_bind_probe.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# Negative control: a privileged port below the sysctl threshold must stay closed.
+- name: Probe binding of TCP port 79 as rw-edge
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import socket, sys
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(("0.0.0.0", int(sys.argv[1])))
+        except PermissionError:
+            sys.exit(13)
+        s.close()
+      - "79"
+  become: true
+  become_user: rw-edge
+  become_method: ansible.builtin.sudo
+  changed_when: false
+  failed_when: false
+  register: xvpn_verify_bind_probe_negative
+
+- name: Assert port 79 stays privileged
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_bind_probe_negative.rc == 13
+    fail_msg: "bind probe is vacuous: rw-edge bound privileged port 79"
+    quiet: true
