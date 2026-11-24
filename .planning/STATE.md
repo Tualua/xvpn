@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-11-24T05:49:20.011Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-11-24T05:59:17.428Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase 01 execution started
-state_head: f921dc535df238f4d2109249662eebaae4162b52
+state_head: 0df220d804bff730ccc745435829dbc6b63b82ff
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
-Plan: 8 of 12
+Plan: 9 of 12
 Status: Ready to execute
 Last activity: 2026-11-24 — Phase 01 execution started
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P04 | n/a | 2 tasks | 7 files |
 | Phase 01 P05 | n/a | 2 tasks | 6 files |
 | Phase 01 P06 | 25m | 2 tasks | 7 files |
+| Phase 01 P07 | n/a | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Recent decisions affecting current work:
 - [Phase 1]: CI runs ansible-core 2.21 only; container scenario starts systemd-logind in prepare (01-09)
 - [Phase 01]: Generator dry-run rc is non-zero on a bad unit (A5 confirmed in CI); loop assert failures matched via whole failed result
 - [Phase 01]: Preflight regexes avoid backslashes (Jinja escapes); getent ahosts misses are {domain: null}
+- [Phase 01]: 01-07: SSH guard inlined twice in roles/common/tasks/firewalld.yml; FND-05 left open until VM-tier zero-AVC proof
 
 ### Pending Todos
 
@@ -103,6 +105,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T05:49:19.890Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-11-24T05:59:17.324Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
