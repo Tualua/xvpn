@@ -1,0 +1,168 @@
+---
+- name: Verify that a failed preflight changed nothing and stays read-only
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    ansible_pipelining: true
+    xvpn_repo_root: "{{ (playbook_dir ~ '/../../..') | realpath }}"
+    # Task keywords: every other key of a task is its module.
+    xvpn_task_keywords:
+      - name
+      - when
+      - register
+      - loop
+      - loop_control
+      - vars
+      - changed_when
+      - failed_when
+      - check_mode
+      - become
+      - become_user
+      - become_method
+      - environment
+      - tags
+      - no_log
+      - args
+      - block
+      - rescue
+      - always
+      - retries
+      - delay
+      - until
+      - ignore_errors
+      - throttle
+      - notify
+      - delegate_to
+      - run_once
+      - timeout
+      - any_errors_fatal
+      - diff
+      - collections
+      - module_defaults
+      - debugger
+    xvpn_read_only_modules:
+      - ansible.builtin.set_fact
+      - ansible.builtin.command
+      - ansible.builtin.getent
+      - ansible.builtin.package_facts
+      - ansible.builtin.dnf
+      - ansible.builtin.debug
+      - ansible.builtin.assert
+      - ansible.builtin.fail
+      - ansible.builtin.include_tasks
+  tasks:
+    # Controller side: static proofs about the repository (D-06, D-09).
+    - name: Load the foundation and preflight playbooks
+      ansible.builtin.set_fact:
+        xvpn_foundation_plays: "{{ lookup('ansible.builtin.file', xvpn_repo_root ~ '/playbooks/foundation.yml') | from_yaml }}"
+        xvpn_preflight_plays: "{{ lookup('ansible.builtin.file', xvpn_repo_root ~ '/playbooks/preflight.yml') | from_yaml }}"
+      delegate_to: localhost
+      run_once: true
+      become: false
+      tags: [static]
+
+    - name: Assert play 1 of foundation.yml is the read-only preflight and the standalone playbook equals it
+      ansible.builtin.assert:
+        that:
+          - xvpn_foundation_plays[0].any_errors_fatal is true
+          - xvpn_foundation_plays[0].roles == ['xvpn.remnawave.preflight']
+          - xvpn_preflight_plays | length == 1
+          - xvpn_preflight_plays[0] == xvpn_foundation_plays[0]
+        fail_msg: "foundation.yml play 1 is not the any_errors_fatal preflight, or playbooks/preflight.yml differs from it"
+        quiet: true
+      delegate_to: localhost
+      run_once: true
+      become: false
+      tags: [static]
+
+    - name: Find the preflight task files
+      ansible.builtin.find:
+        paths: "{{ xvpn_repo_root }}/roles/preflight/tasks"
+        patterns: "*.yml"
+      register: xvpn_preflight_task_files
+      delegate_to: localhost
+      run_once: true
+      become: false
+      tags: [static]
+
+    # The macro walks block, rescue and always recursively and emits one line per
+    # module key. Markers: "@ignore_errors" for a swallowed error, "@dnf-no-list"
+    # for an ansible.builtin.dnf task without the list option.
+    - name: Collect the module keys of every preflight task  # noqa: jinja[spacing]
+      ansible.builtin.set_fact:
+        xvpn_preflight_found: "{{ xvpn_preflight_found | default([]) + (xvpn_walked.split('|') | reject('equalto', '') | list) }}"
+      vars:
+        xvpn_walked: >-
+          {%- macro walk(tasks) -%}
+          {%- for t in tasks -%}
+          {%- for k in t.keys() -%}
+          {%- if k == 'ignore_errors' -%}@ignore_errors|
+          {%- elif k not in xvpn_task_keywords and not k.startswith('with_') -%}{{ k }}|
+          {%- endif -%}
+          {%- endfor -%}
+          {%- if 'ansible.builtin.dnf' in t and 'list' not in (t['ansible.builtin.dnf'] | default({}, true)) -%}@dnf-no-list|{%- endif -%}
+          {%- for sec in ['block', 'rescue', 'always'] -%}{%- if sec in t -%}{{ walk(t[sec]) }}{%- endif -%}{%- endfor -%}
+          {%- endfor -%}
+          {%- endmacro -%}
+          {{ walk(lookup('ansible.builtin.file', item.path) | from_yaml) }}
+      loop: "{{ xvpn_preflight_task_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      delegate_to: localhost
+      run_once: true
+      become: false
+      tags: [static]
+
+    - name: Assert roles/preflight stays inside the read-only module allow-list
+      ansible.builtin.assert:
+        that:
+          - xvpn_preflight_found | length > 0
+          - "'@ignore_errors' not in xvpn_preflight_found"
+          - "'@dnf-no-list' not in xvpn_preflight_found"
+          - xvpn_preflight_found | reject('equalto', '@ignore_errors') | unique | difference(xvpn_read_only_modules) | length == 0
+        fail_msg: >-
+          roles/preflight uses modules outside the read-only allow-list or swallows errors:
+          {{ xvpn_preflight_found | unique | difference(xvpn_read_only_modules) }}
+        quiet: true
+      delegate_to: localhost
+      run_once: true
+      become: false
+      tags: [static]
+
+    # Target side: nothing changed after all cases (D-06, success criterion 1).
+    - name: Look up the edge service user
+      ansible.builtin.command: getent passwd rw-edge
+      register: xvpn_verify_edge_user
+      changed_when: false
+      failed_when: false
+
+    - name: Stat the artifacts a real run would create
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: xvpn_verify_stats
+      loop:
+        - /var/lib/xvpn
+        - /etc/sysctl.d/99-xvpn-unprivileged-ports.conf
+        - /var/lib/systemd/linger/rw-edge
+
+    - name: Read the Podman package state now
+      ansible.builtin.command: rpm -q podman  # noqa: command-instead-of-module
+      register: xvpn_verify_podman_after
+      changed_when: false
+      failed_when: false
+
+    - name: Read the recorded Podman package state
+      ansible.builtin.slurp:
+        src: /etc/xvpn-test-podman-before
+      register: xvpn_verify_podman_before
+
+    - name: Assert nothing changed on the host
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_edge_user.rc == 2
+          - xvpn_verify_stats.results | map(attribute='stat.exists') | select | list | length == 0
+          - (xvpn_verify_podman_before.content | b64decode | from_json).rc == xvpn_verify_podman_after.rc
+          - (xvpn_verify_podman_before.content | b64decode | from_json).stdout == xvpn_verify_podman_after.stdout
+        fail_msg: "a preflight case changed the host (user, directory, sysctl, linger or the podman package)"
+        quiet: true

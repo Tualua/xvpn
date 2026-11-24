@@ -1,0 +1,120 @@
+---
+- name: Converge the preflight cases
+  hosts: all
+  become: true
+  vars:
+    ansible_pipelining: true
+    xvpn_case_results: []
+    # Mirrors the role defaults; run_case.yml passes them explicitly per case.
+    xvpn_case_defaults:
+      supported_distributions: [Rocky, AlmaLinux]
+      podman_min_version: "5.4"
+      ports: [80, 443]
+      service_users: [rw-edge, rw-panel, rw-node]
+    xvpn_cases:
+      - xvpn_case_id: baseline
+        domains: [ok.xvpn.test]
+        outcome: pass
+        expect_no_warn: ["A-record check skipped"]
+      - xvpn_case_id: os
+        supported_distributions: [Rocky]
+        outcome: fail
+        expect_in: ["Unsupported OS"]
+      - xvpn_case_id: selinux
+        selinux_mode: Permissive
+        outcome: fail
+        expect_in: ["SELinux must be Enforcing", "Permissive"]
+      - xvpn_case_id: podman-floor
+        podman_min_version: "99.0"
+        outcome: fail
+        expect_in: ["Podman"]
+      # A root-owned holder proves the uid mapping whether or not ss prints a uid field.
+      - xvpn_case_id: port-foreign
+        listener: {port: 80, user: root}
+        outcome: fail
+        expect_in: ["80/tcp", "python3", "uid 0"]
+      - xvpn_case_id: port-managed
+        listener: {port: 8081, user: xvpn-test}
+        ports: [8081]
+        service_users: [xvpn-test]
+        outcome: pass
+        expect_warn: ["A-record check skipped: xvpn_preflight_domains is empty"]
+      - xvpn_case_id: port-unmanaged
+        listener: {port: 8081, user: xvpn-test}
+        ports: [8081]
+        service_users: []
+        outcome: fail
+        expect_in: ["8081/tcp", "xvpn-test"]
+      - xvpn_case_id: dns-mismatch
+        domains: [bad.xvpn.test]
+        outcome: fail
+        expect_in: ["bad.xvpn.test", "192.0.2.10"]
+      - xvpn_case_id: dns-disabled
+        domains: [bad.xvpn.test]
+        dns_check: false
+        outcome: pass
+        expect_no_warn: ["A-record check skipped"]
+      - xvpn_case_id: dns-unresolvable
+        domains: [nores.xvpn.test]
+        outcome: fail
+        expect_in: ["does not resolve"]
+      - xvpn_case_id: public-ip-override
+        domains: [bad.xvpn.test]
+        public_ip: 192.0.2.10
+        outcome: pass
+      - xvpn_case_id: aggregate
+        selinux_mode: Permissive
+        domains: [bad.xvpn.test]
+        outcome: fail
+        expect_in: ["SELinux must be Enforcing", "bad.xvpn.test", "nothing was changed"]
+      - xvpn_case_id: invalid-domain
+        domains: ["bad_domain..test"]
+        outcome: fail
+        expect_in: ["Invalid domain"]
+      - xvpn_case_id: invalid-service-user
+        service_users: ["Bad User;id"]
+        outcome: fail
+        expect_in: ["Invalid service user name"]
+      - xvpn_case_id: invalid-public-ip
+        public_ip: "999.1.1.1"
+        outcome: fail
+        expect_in: ["Invalid xvpn_public_ip"]
+      - xvpn_case_id: invalid-interface
+        public_interface: "eth0;id"
+        outcome: fail
+        expect_in: ["Invalid xvpn_public_interface"]
+      - xvpn_case_id: invalid-port
+        ports: [70000]
+        outcome: fail
+        expect_in: ["Invalid port"]
+      # W-5: preflight merges the podman_rootless user names into its port-owner allow-list.
+      - xvpn_case_id: port-managed-rootless-users
+        listener: {port: 8081, user: xvpn-test}
+        ports: [8081]
+        service_users: []
+        rootless_users: [{name: xvpn-test}]
+        outcome: pass
+  tasks:
+    - name: Run every preflight case
+      ansible.builtin.include_tasks: run_case.yml
+      loop: "{{ xvpn_cases }}"
+      loop_control:
+        loop_var: xvpn_case
+        label: "{{ xvpn_case.xvpn_case_id }}"
+
+    - name: Assert each case matches its expected outcome, messages and warnings
+      ansible.builtin.assert:
+        that:
+          - xvpn_res.outcome == item.outcome
+          - (item.expect_in | default([]) | select('in', xvpn_res.msg) | list | length) == (item.expect_in | default([]) | length)
+          - (item.expect_warn | default([]) | select('in', xvpn_res.warnings | join(' ')) | list | length) == (item.expect_warn | default([]) | length)
+          - (item.expect_no_warn | default([]) | select('in', xvpn_res.warnings | join(' ')) | list | length) == 0
+        fail_msg: >-
+          Case {{ item.xvpn_case_id }}: expected {{ item.outcome }}, got {{ xvpn_res.outcome }};
+          msg={{ xvpn_res.msg }}; warnings={{ xvpn_res.warnings }}
+        quiet: true
+      vars:
+        xvpn_res: "{{ xvpn_case_results | selectattr('id', 'equalto', item.xvpn_case_id) | first }}"
+      loop: "{{ xvpn_cases }}"
+      loop_control:
+        label: "{{ item.xvpn_case_id }}"
