@@ -183,8 +183,8 @@
   loop_control:
     label: "{{ item.item }}"
 
-# Negative control: a privileged port below the sysctl threshold must stay closed.
-- name: Probe binding of TCP port 79 as rw-edge
+# Negative control: the port just below the sysctl threshold must stay closed (skipped when the threshold is 1).
+- name: Probe binding of the port below the sysctl threshold as rw-edge
   ansible.builtin.command:
     argv:
       - python3
@@ -197,17 +197,19 @@
         except PermissionError:
             sys.exit(13)
         s.close()
-      - "79"
+      - "{{ (xvpn_verify_sysctl_value | int) - 1 }}"
   become: true
   become_user: rw-edge
   become_method: ansible.builtin.sudo
   changed_when: false
   failed_when: false
   register: xvpn_verify_bind_probe_negative
+  when: (xvpn_verify_sysctl_value | int) > 1
 
-- name: Assert port 79 stays privileged
+- name: Assert the port below the threshold stays privileged
   ansible.builtin.assert:
     that:
       - xvpn_verify_bind_probe_negative.rc == 13
-    fail_msg: "bind probe is vacuous: rw-edge bound privileged port 79"
+    fail_msg: "bind probe is vacuous: rw-edge bound privileged port {{ (xvpn_verify_sysctl_value | int) - 1 }}"
     quiet: true
+  when: (xvpn_verify_sysctl_value | int) > 1
