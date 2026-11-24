@@ -5,20 +5,28 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "Роль «усыновляет» любую существующую учётную запись с uid >= 1000 и перезаписывает её shell, пароль и home"
+    disposition: open
+    title: "Валидация `xvpn_podman_rootless_home_root` обходится сегментом `.` и неполным denylist (недоработка WR-02 прошлого ревью)"
   - id: WR-02
     severity: warning
-    disposition: fixed
-    title: "Валидация `xvpn_podman_rootless_home_root` допускает `..` и системные каталоги, затем идут chmod/chown и рекурсивный restorecon"
+    disposition: open
+    title: "SELinux-гейт теперь стоит до установки `libselinux-utils`, при отсутствии `getenforce` ошибка вводит в заблуждение"
   - id: WR-03
     severity: warning
-    disposition: fixed
-    title: "`restorecon` запускается только если `sefcontext` изменился, поэтому прерванный первый прогон оставляет неверные метки навсегда"
+    disposition: open
+    title: "Защита от «усыновления» аккаунта не сверяет явно заданный `uid`"
   - id: WR-04
     severity: warning
-    disposition: fixed
-    title: "Задача `lint` в `lint.yml` не имеет `timeout-minutes`"
+    disposition: open
+    title: "Негативный контроль «порт 79 привилегирован» ломается при допустимых значениях sysctl"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "Ветка AAAA в `check_dns.yml` не получила того же укрепления, что A-ветка (WR-07)"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "В verify зашиты пользователь и домашний путь при параметризованном sysctl"
   - id: WR-05
     severity: warning
     disposition: fixed
@@ -35,14 +43,6 @@ findings:
     severity: warning
     disposition: skipped
     title: "Воркфлоу `molecule-vm` ставит vagrant-libvirt и ключ HashiCorp без проверки отпечатка и запускается на каждом PR"
-  - id: IN-01
-    severity: info
-    disposition: fixed
-    title: "Повторная SSH-проверка «after» в `firewalld.yml` недостижима для падения"
-  - id: IN-02
-    severity: info
-    disposition: fixed
-    title: "Проверка конфликта портов в preflight учитывает только TCP"
   - id: IN-03
     severity: info
     disposition: fixed
@@ -59,29 +59,29 @@ findings:
     severity: info
     disposition: fixed
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 0
+open: 6
 total: 14
-recorded: 2026-11-24T10:23:51.526Z
+recorded: 2026-11-24T11:48:31.981Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-02 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-03 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-04 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-05 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-06 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-07 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-08 | warning | skipped | 01-REVIEW-FIX.md |
-| IN-01 | info | fixed | 01-REVIEW-FIX.md |
-| IN-02 | info | fixed | 01-REVIEW-FIX.md |
-| IN-03 | info | fixed | 01-REVIEW-FIX.md |
-| IN-04 | info | fixed | 01-REVIEW-FIX.md |
-| IN-05 | info | fixed | 01-REVIEW-FIX.md |
-| IN-06 | info | fixed | 01-REVIEW-FIX.md |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
+| WR-03 | warning | open | - |
+| WR-04 | warning | open | - |
+| IN-01 | info | open | - |
+| IN-02 | info | open | - |
+| WR-05 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| WR-06 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| WR-07 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| WR-08 | warning | skipped | 01-REVIEW-FIX.md (not in the current review) |
+| IN-03 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| IN-04 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| IN-05 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| IN-06 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
