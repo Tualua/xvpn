@@ -2,9 +2,9 @@
 phase: 01-rootless-fundament-i-testovyy-stend
 fixed_at: 2026-11-24T00:00:00Z
 review_path: /workspaces/xvpn/.planning/phases/01-rootless-fundament-i-testovyy-stend/01-REVIEW.md
-iteration: 1
-findings_in_scope: 8
-fixed: 7
+iteration: 2
+findings_in_scope: 14
+fixed: 13
 skipped: 1
 status: partial
 ---
@@ -13,14 +13,16 @@ status: partial
 
 **Исправлено:** 2026-11-24
 **Исходный отчёт:** `/workspaces/xvpn/.planning/phases/01-rootless-fundament-i-testovyy-stend/01-REVIEW.md`
-**Итерация:** 1
+**Итерация:** 2
 
 **Итого:**
-- Находок в области: 8 (WR-01..WR-08; Info не входят в `critical_warning`)
-- Исправлено: 7
+- Находок в области: 14 (WR-01..WR-08 в итерации 1; IN-01..IN-06 в итерации 2, `fix_scope: all`)
+- Исправлено: 13
 - Пропущено: 1
 
-Работа велась прямо в ветке `main` в основном checkout, без worktree (по указанию оркестратора). Проверки (`bash scripts/check.sh`, включая ansible-lint production, argument_specs, syntax-check, build и `yamllint -s .` yamllint 1.38.0) запускались в основном checkout после каждого исправления и проходили (кроме WR-04, где запускался только `yamllint -s` на изменённом файле). Molecule-сценарии локально не запускались: в окружении нет podman и VM, их прогонит CI.
+Итерация 2 (IN-01..IN-06) выполнена так же, в `main`, без worktree; `bash scripts/check.sh` со строгим yamllint проходил после каждого исправления. Molecule локально не запускался.
+
+Итерация 1: работа велась прямо в ветке `main` в основном checkout, без worktree (по указанию оркестратора). Проверки (`bash scripts/check.sh`, включая ansible-lint production, argument_specs, syntax-check, build и `yamllint -s .` yamllint 1.38.0) запускались в основном checkout после каждого исправления и проходили (кроме WR-04, где запускался только `yamllint -s` на изменённом файле). Molecule-сценарии локально не запускались: в окружении нет podman и VM, их прогонит CI.
 
 ## Fixed Issues
 
@@ -66,6 +68,42 @@ status: partial
 **Исправление:** выражение для набора IPv4-адресов теперь безопасно к отсутствующему интерфейсу/ключу `ipv4`. Если адресов нет, в агрегированный список `xvpn_preflight_errors` добавляется сообщение, а сравнение A/AAAA пропускается (вложенный блок с `when`). Выражение проверено отдельным ad-hoc плейбуком на отсутствующем и присутствующем интерфейсе.
 **Статус:** fixed.
 
+### IN-01: Повторная SSH-проверка «after» в `firewalld.yml` недостижима для падения
+**Файлы:** `roles/common/tasks/firewalld.yml`
+**Коммит:** c2e22af
+**Исправление:** удалён блок «after» (два `command` и `fail`). Вместо него оставлен комментарий: задача `ansible.posix.firewalld` только добавляет порты. Проверка «before» сохранена.
+**Статус:** fixed: requires human verification (необходимость удаляет код).
+
+### IN-02: Проверка конфликта портов в preflight учитывает только TCP
+**Файлы:** `roles/preflight/defaults/main.yml`, `roles/preflight/meta/argument_specs.yml`
+**Коммит:** 9832c5a
+**Исправление:** выбран вариант с документацией: ограничение «только TCP» описано в комментарии defaults и в описании `xvpn_preflight_ports`. Поведение не менялось, формат `<port>/<proto>` не вводился.
+**Статус:** fixed.
+
+### IN-03: SSH-гейт использует `ansible_port` контроллера, а не порт sshd на целевом хосте
+**Файлы:** `roles/common/tasks/firewalld.yml`, `roles/common/defaults/main.yml`, `roles/common/meta/argument_specs.yml`
+**Коммит:** 3a68500
+**Исправление:** добавлена переменная `xvpn_common_ssh_port` (по умолчанию `ansible_port | default(22)`, тип `int` в `argument_specs`); гейт использует её. Поведение по умолчанию прежнее. Проверка `verify_common.yml` по-прежнему берёт `ansible_port`, что совпадает с дефолтом.
+**Статус:** fixed.
+
+### IN-04: Слабые проверки в `verify_rootless.yml` для sysctl
+**Файлы:** `extensions/molecule/shared/verify_rootless.yml`
+**Коммит:** 5cc4c5c
+**Исправление:** путь drop-in и значение берутся из `xvpn_podman_rootless_sysctl_file` и `xvpn_podman_rootless_unprivileged_port_start` с теми же дефолтами. Содержимое проверяется построчно через `is search('(?m)^net\.ipv4\.ip_unprivileged_port_start\s*=\s*<value>\s*$')` (`search`, а не `match`, потому что `match` якорится только в начале строки и не видит строку после комментария). Выражение проверено ad-hoc плейбуком: `80` проходит, `800` отвергается. Формат строки `ansible.posix.sysctl` (`name=value`) подходит под шаблон.
+**Статус:** fixed.
+
+### IN-05: `xvpn_podman_rootless_unprivileged_port_start` не ограничен
+**Файлы:** `roles/podman_rootless/tasks/main.yml`, `roles/podman_rootless/meta/argument_specs.yml`
+**Коммит:** 5194dad
+**Исправление:** перед установкой пакетов добавлен `assert` 1 <= значение <= 80 с понятным сообщением; диапазон описан в `argument_specs`. Значение по умолчанию 80 проходит.
+**Статус:** fixed.
+
+### IN-06: Дублирование запусков CI и строгие `suboptions` спецификации
+**Файлы:** `roles/podman_rootless/meta/argument_specs.yml`
+**Коммит:** cf16378
+**Исправление:** выполнена только часть (2): в описание `xvpn_podman_rootless_quadlet_specs` добавлено, что набор ключей закрыт (`template_src`, `state`) и что спецификацию нужно расширить до передачи других ключей в LSR-роль. Часть (1), триггеры CI в `.github/workflows/lint.yml` и `molecule-container.yml`, намеренно не менялась: раскладка `push` и `pull_request` выбрана планами сознательно, смена затрагивает политику CI и остаётся за человеком.
+**Статус:** fixed (частично, см. примечание).
+
 ## Skipped Issues
 
 ### WR-08: Воркфлоу `molecule-vm` ставит vagrant-libvirt и ключ HashiCorp без проверки отпечатка и запускается на каждом PR
@@ -78,4 +116,4 @@ status: partial
 
 _Fixed: 2026-11-24_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
