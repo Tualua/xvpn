@@ -67,3 +67,12 @@ jobs:
           ANSIBLE_FORCE_COLOR: "1"
           PY_COLORS: "1"
         run: molecule test -s vm --platform-name ${{ matrix.platform }}
+      - name: Vagrant logs on failure
+        if: failure()
+        run: |
+          for f in "$HOME"/.ansible/tmp/molecule.*/vagrant.err "$HOME"/.ansible/tmp/molecule.*/vagrant.out; do
+            [ -f "$f" ] || continue
+            echo "::group::$f"
+            strings -n 3 "$f" | tail -n 120
+            echo "::endgroup::"
+          done
