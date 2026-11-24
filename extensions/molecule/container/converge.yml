@@ -1,0 +1,23 @@
+---
+- name: Foundation
+  ansible.builtin.import_playbook: ../../../playbooks/foundation.yml
+  vars:
+    ansible_pipelining: true
+    # user-manager start/wait is intentionally off in the container tier; proven only by the VM tier (Plans 11-12)
+    xvpn_podman_rootless_manage_user_manager: false
+
+- name: Deploy molecule fixture
+  hosts: all
+  become: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Deploy the fixture unit through the quadlet entry point
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.podman_rootless
+        tasks_from: quadlet
+      vars:
+        xvpn_podman_rootless_quadlet_user: rw-edge
+        xvpn_podman_rootless_quadlet_activate: false
+        xvpn_podman_rootless_quadlet_specs:
+          - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-fixture.container.j2') | realpath }}"
