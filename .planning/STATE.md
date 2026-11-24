@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-11-24T05:39:12.353Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-11-24T05:49:20.011Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase 01 execution started
-state_head: 2ea0c203061727641b78439e60af97c89fabea59
+state_head: f921dc535df238f4d2109249662eebaae4162b52
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
-Plan: 7 of 12
+Plan: 8 of 12
 Status: Ready to execute
 Last activity: 2026-11-24 — Phase 01 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P09 | n/a | 3 tasks | 5 files |
 | Phase 01 P04 | n/a | 2 tasks | 7 files |
 | Phase 01 P05 | n/a | 2 tasks | 6 files |
+| Phase 01 P06 | 25m | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase 01]: ansible-lint production profile with var-naming[no-role-prefix] skip is the accepted lint bar; yamllint mandatory in CI
 - [Phase 1]: CI runs ansible-core 2.21 only; container scenario starts systemd-logind in prepare (01-09)
 - [Phase 01]: Generator dry-run rc is non-zero on a bad unit (A5 confirmed in CI); loop assert failures matched via whole failed result
+- [Phase 01]: Preflight regexes avoid backslashes (Jinja escapes); getent ahosts misses are {domain: null}
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T05:39:12.282Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-11-24T05:49:19.890Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
