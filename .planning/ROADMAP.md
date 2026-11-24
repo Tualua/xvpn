@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. После прогона на чистом EL10 тестовый Quadlet-сервис под выделенным rootless-пользователем слушает порт 80, управляется через `systemctl --user` из Ansible и снова поднимается после перезагрузки хоста
   3. VM-тир Molecule (AlmaLinux 10 и Rocky 10, SELinux enforcing) проходит converge, идемпотентность (`changed=0`), reboot-тест и проверку нуля AVC-denial'ов; firewalld открывает только нужные порты
   4. Контейнерный тир Molecule, ansible-lint и yamllint проходят в CI; коллекция собирается из `galaxy.yml` (`xvpn.remnawave`), у ролей есть `argument_specs`
-**Plans:** 10/12 plans executed
+**Plans:** 11/12 plans executed
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Tracer: collection identity, podman_rootless (users, home, sysctl, linger) + LSR Quadlet interface, foundation playbook (wave 1)
@@ -57,7 +57,7 @@ Plans:
 - [x] 01-11-PLAN.md — VM scenario: AlmaLinux 10 + Rocky 10 enforcing, checksummed boxes, systemctl --user restart round-trip, reboot, proven dontaudit-off, zero AVC (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 01-10-PLAN.md — CI all-green: preflight scenario added to CI, lint + container + preflight tiers green with all guards (wave 8)
+- [x] 01-10-PLAN.md — CI all-green: preflight scenario added to CI, lint + container + preflight tiers green with all guards (wave 8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 01-12-PLAN.md — VM CI: KVM-gated workflow, Vagrant spike with fallback, README Testing, VM tier green (wave 9)
@@ -125,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Rootless-фундамент и тестовый стенд | 10/12 | In Progress | - |
+| 1. Rootless-фундамент и тестовый стенд | 11/12 | In Progress | - |
 | 2. Panel за Traefik с защищённым входом | 0/3 | Not started | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |

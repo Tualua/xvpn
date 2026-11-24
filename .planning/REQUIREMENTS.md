@@ -83,8 +83,8 @@
 
 ### Quality (QA)
 
-- [ ] **QA-01**: Каждая роль проходит ansible-lint и yamllint в CI
-- [ ] **QA-02**: Molecule: быстрый контейнерный тир (синтаксис, шаблоны, идемпотентность) для каждой роли
+- [x] **QA-01**: Каждая роль проходит ansible-lint и yamllint в CI
+- [x] **QA-02**: Molecule: быстрый контейнерный тир (синтаксис, шаблоны, идемпотентность) для каждой роли
 - [ ] **QA-03**: Molecule: VM-тир на Alma/Rocky 10 с SELinux enforcing, проверкой нуля AVC, идемпотентности и перезагрузки
 - [ ] **QA-04**: Повторный прогон полного playbook даёт `changed=0`
 - [ ] **QA-05**: CI использует Pebble (или LE staging), никогда не обращаясь к production Let's Encrypt
@@ -179,8 +179,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HARD-02 | Phase 5 | Pending |
 | HARD-03 | Phase 5 | Pending |
 | HARD-04 | Phase 5 | Pending |
-| QA-01 | Phase 1 | Pending |
-| QA-02 | Phase 1 | Pending |
+| QA-01 | Phase 1 | Complete |
+| QA-02 | Phase 1 | Complete |
 | QA-03 | Phase 1 | Pending |
 | QA-04 | Phase 5 | Pending |
 | QA-05 | Phase 2 | Pending |
