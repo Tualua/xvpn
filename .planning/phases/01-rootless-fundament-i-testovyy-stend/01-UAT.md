@@ -24,7 +24,7 @@ result: pass
 ### 3. Решить судьбу 8 открытых предупреждений 01-REVIEW.md (WR-01..WR-08, все open)
 expected: Исправить в Phase 1 или явно перенести
 result: pass
-note: "WR-01..WR-07 fixed (01-REVIEW-FIX.md); WR-08 skipped, residual supply-chain risk accepted by the user
+note: "WR-01..WR-07 fixed (01-REVIEW-FIX.md); WR-08 skipped, residual supply-chain risk accepted by the user"
 
 ## Summary
 
