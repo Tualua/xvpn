@@ -24,21 +24,21 @@ status: all_fixed
 
 ## Fixed Issues
 
-### WR-01: Валидация `xvpn_podman_rootless_home_root` обходится сегментом `.`
+### WR-01: Валидация `xvpn_podman_rootless_home_root` обходится сегментом `.` и неполным denylist (недоработка WR-02 прошлого ревью)
 
 **Files modified:** `roles/podman_rootless/tasks/main.yml`
 **Commit:** 3282765
 **Applied fix:** regex сегментов сужен до `[A-Za-z0-9_-]+` (точки запрещены целиком, проверка `'..'` стала лишней и убрана); denylist расширен (`/var/log`, `/var/cache`, `/var/tmp`, `/var/run`, `/var/spool`, `/usr/local`, `/usr/bin`, `/usr/sbin`, `/usr/lib`, `/usr/lib64`, `/usr/share`, `/var/lib/containers`, `/var/lib/systemd`, `/var/lib/selinux`). Выбран вариант «убрать `.`», а не allowlist, чтобы не ограничивать допустимые корни. Подкаталоги других системных каталогов (например `/etc/ssh`) по-прежнему проходят; полный allowlist остаётся решением владельца.
 Статус: fixed: requires human verification (логика валидации).
 
-### WR-02: SELinux-гейт до установки `libselinux-utils` даёт вводящую в заблуждение ошибку
+### WR-02: SELinux-гейт теперь стоит до установки `libselinux-utils`, при отсутствии `getenforce` ошибка вводит в заблуждение
 
 **Files modified:** `roles/common/tasks/main.yml`, `roles/podman_rootless/tasks/main.yml`
 **Commit:** eb8c45e
 **Applied fix:** перед проверкой Enforcing добавлена отдельная задача `fail`, срабатывающая при `getenforce.rc != 0`, с сообщением «getenforce is unavailable or failed; install libselinux-utils ...». Теперь отсутствие бинаря отличается от режима не-Enforcing.
 Статус: fixed: requires human verification (логика гейта).
 
-### WR-03: Защита от «усыновления» аккаунта не сверяет явный `uid`
+### WR-03: Защита от «усыновления» аккаунта не сверяет явно заданный `uid`
 
 **Files modified:** `roles/podman_rootless/tasks/user.yml`
 **Commit:** e448be3
