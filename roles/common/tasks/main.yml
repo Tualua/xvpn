@@ -17,12 +17,7 @@
     quiet: true
   when: (xvpn_public_interface | default('')) | length > 0
 
-- name: Common | install the baseline packages
-  ansible.builtin.dnf:
-    name: "{{ xvpn_common_packages }}"
-    state: present
-
-# Defence in depth when the preflight play is skipped; the SELinux mode is never changed.
+# Defence in depth when the preflight play is skipped; runs before any host change; the SELinux mode is never changed.
 - name: Common | read the SELinux mode
   ansible.builtin.command: getenforce
   register: xvpn_common_getenforce
@@ -36,6 +31,11 @@
       SELinux must be Enforcing (getenforce: {{ xvpn_common_getenforce.stdout | default('') | trim }});
       this collection never changes the SELinux mode
   when: (xvpn_common_getenforce.stdout | default('') | trim) != 'Enforcing'
+
+- name: Common | install the baseline packages
+  ansible.builtin.dnf:
+    name: "{{ xvpn_common_packages }}"
+    state: present
 
 - name: Common | enable and start firewalld
   ansible.builtin.systemd_service:

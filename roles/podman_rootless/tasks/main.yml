@@ -1,4 +1,19 @@
 ---
+# Defence in depth when this role runs without the common role or the preflight play; runs before any host change.
+- name: Read the SELinux mode
+  ansible.builtin.command: getenforce
+  register: xvpn_podman_rootless_getenforce
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Require SELinux Enforcing
+  ansible.builtin.fail:
+    msg: >-
+      SELinux must be Enforcing (getenforce: {{ xvpn_podman_rootless_getenforce.stdout | default('') | trim }});
+      this collection never changes the SELinux mode
+  when: (xvpn_podman_rootless_getenforce.stdout | default('') | trim) != 'Enforcing'
+
 - name: Validate service user names
   ansible.builtin.assert:
     that:
