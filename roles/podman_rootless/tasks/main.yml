@@ -78,6 +78,14 @@
     - xvpn_podman_rootless_sefcontext is changed
     - xvpn_podman_rootless_selinux.rc == 0
 
+- name: Ensure the sysctl drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ xvpn_podman_rootless_sysctl_file | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
 - name: Allow unprivileged processes to bind low ports
   ansible.posix.sysctl:
     name: net.ipv4.ip_unprivileged_port_start
