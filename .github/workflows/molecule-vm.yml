@@ -62,6 +62,13 @@ jobs:
           ln -sfn "$GITHUB_WORKSPACE" .ansible/collections/ansible_collections/xvpn/remnawave
           ansible-galaxy collection install -r requirements.yml -p .ansible/collections
           echo "ANSIBLE_COLLECTIONS_PATH=$GITHUB_WORKSPACE/.ansible/collections" >> "$GITHUB_ENV"
+      - name: Box download diagnostic (alma10)
+        if: matrix.platform == 'alma10'
+        continue-on-error: true
+        run: |
+          vagrant box add --name diag-alma10 --provider libvirt --box-architecture amd64 \
+            --checksum 24b3ff7cd6810e5bf63614ab5c31496cb5496c329c3074ad29885ab370e2f9c1 --checksum-type sha256 \
+            https://vagrantcloud.com/almalinux/boxes/10/versions/10.2.20260914/providers/libvirt/amd64/vagrant.box 2>&1 | strings -n 3 | tail -n 60
       - name: Molecule
         env:
           ANSIBLE_FORCE_COLOR: "1"
