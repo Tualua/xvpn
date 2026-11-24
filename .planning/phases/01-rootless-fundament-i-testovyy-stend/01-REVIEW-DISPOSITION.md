@@ -5,15 +5,15 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Валидация `xvpn_podman_rootless_home_root` обходится сегментом `.` и неполным denylist (недоработка WR-02 прошлого ревью)"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "SELinux-гейт теперь стоит до установки `libselinux-utils`, при отсутствии `getenforce` ошибка вводит в заблуждение"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Защита от «усыновления» аккаунта не сверяет явно заданный `uid`"
   - id: WR-04
     severity: warning
@@ -59,18 +59,18 @@ findings:
     severity: info
     disposition: fixed
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 5
+open: 2
 total: 14
-recorded: 2026-11-24T11:57:19.508Z
+recorded: 2026-11-24T11:57:30.780Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
+| WR-01 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 01-REVIEW-FIX.md |
 | WR-04 | warning | fixed | 01-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
