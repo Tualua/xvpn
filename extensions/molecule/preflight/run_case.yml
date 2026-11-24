@@ -1,0 +1,99 @@
+---
+# One preflight case (loop var xvpn_case). Idempotence contract (QA-02): every
+# task here except the include_role itself is changed_when: false, because it is
+# test harness state set up and torn down on every run, not role state.
+- name: Reset the warnings so a previous case cannot leak into this one
+  ansible.builtin.set_fact:
+    xvpn_preflight_warnings: []
+  changed_when: false
+
+- name: Set the simulated SELinux mode for this case
+  ansible.builtin.copy:
+    content: "{{ xvpn_case.selinux_mode }}\n"
+    dest: /etc/xvpn-test-selinux-mode
+    mode: "0644"
+    owner: root
+    group: root
+  when: xvpn_case.selinux_mode is defined
+  changed_when: false
+
+# fallback if systemd-run fails in CI (Plan 10 fallback (d)): argv setsid -f runuser -u <user> -- python3 -m http.server <port> --bind 0.0.0.0,
+# stopped in always with argv pkill -u <user> -f 'http.server <port>' (failed_when false)
+- name: Start the case listener
+  ansible.builtin.command:
+    argv:
+      - systemd-run
+      - --unit=xvpn-case-listener
+      - "--uid={{ xvpn_case.listener.user }}"
+      - --property=Type=simple
+      - python3
+      - -m
+      - http.server
+      - "{{ xvpn_case.listener.port }}"
+      - --bind
+      - 0.0.0.0
+  when: xvpn_case.listener is defined
+  changed_when: false
+
+- name: Wait for the case listener
+  ansible.builtin.wait_for:
+    port: "{{ xvpn_case.listener.port }}"
+    timeout: 20
+  when: xvpn_case.listener is defined
+  changed_when: false
+
+- name: Run one preflight case
+  block:
+    - name: Run the preflight role with the case inputs
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.preflight
+      vars:
+        xvpn_preflight_domains: "{{ xvpn_case.domains | default([]) }}"
+        xvpn_preflight_dns_check: "{{ xvpn_case.dns_check | default(true) }}"
+        xvpn_public_ip: "{{ xvpn_case.public_ip | default('') }}"
+        xvpn_public_interface: "{{ xvpn_case.public_interface | default('') }}"
+        xvpn_preflight_supported_distributions: "{{ xvpn_case.supported_distributions | default(xvpn_case_defaults.supported_distributions) }}"
+        xvpn_preflight_podman_min_version: "{{ xvpn_case.podman_min_version | default(xvpn_case_defaults.podman_min_version) }}"
+        xvpn_preflight_ports: "{{ xvpn_case.ports | default(xvpn_case_defaults.ports) }}"
+        xvpn_preflight_service_users: "{{ xvpn_case.service_users | default(xvpn_case_defaults.service_users) }}"
+        xvpn_podman_rootless_users: "{{ xvpn_case.rootless_users | default([]) }}"
+
+    - name: Record the passing case
+      ansible.builtin.set_fact:
+        xvpn_case_results: >-
+          {{ xvpn_case_results + [{'id': xvpn_case.xvpn_case_id, 'outcome': 'pass', 'msg': '',
+          'warnings': xvpn_preflight_warnings | default([])}] }}
+      changed_when: false
+  rescue:
+    # A failed assert in a loop keeps the item text in the per-item results,
+    # so the whole failed result is serialised into the recorded message.
+    - name: Record the failing case
+      ansible.builtin.set_fact:
+        xvpn_case_results: >-
+          {{ xvpn_case_results + [{'id': xvpn_case.xvpn_case_id, 'outcome': 'fail',
+          'msg': (ansible_failed_result | to_json),
+          'warnings': xvpn_preflight_warnings | default([])}] }}
+      changed_when: false
+  always:
+    - name: Restore the simulated SELinux mode
+      ansible.builtin.copy:
+        content: "Enforcing\n"
+        dest: /etc/xvpn-test-selinux-mode
+        mode: "0644"
+        owner: root
+        group: root
+      changed_when: false
+
+    - name: Stop the case listener
+      ansible.builtin.command:
+        argv: [systemctl, stop, xvpn-case-listener]
+      when: xvpn_case.listener is defined
+      changed_when: false
+      failed_when: false
+
+    - name: Clear a failed state of the case listener unit
+      ansible.builtin.command:
+        argv: [systemctl, reset-failed, xvpn-case-listener]
+      when: xvpn_case.listener is defined
+      changed_when: false
+      failed_when: false

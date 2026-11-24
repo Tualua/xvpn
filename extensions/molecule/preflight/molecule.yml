@@ -1,0 +1,25 @@
+---
+driver:
+  name: podman
+platforms:
+  - name: alma10-preflight
+    image: docker.io/almalinux/10-init:10
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    privileged: true
+ansible:
+  executor:
+    backend: ansible-playbook
+scenario:
+  # QA-02: idempotence re-runs all cases; harness tasks are changed_when: false,
+  # so changed=0 on the re-run is a property of roles/preflight alone.
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

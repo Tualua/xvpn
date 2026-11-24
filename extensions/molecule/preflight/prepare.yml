@@ -1,0 +1,98 @@
+---
+- name: Prepare the preflight scenario platform
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Bootstrap python3, sudo, iproute and procps-ng
+      ansible.builtin.raw: >-
+        /bin/sh -c 'test -x /usr/bin/python3 && command -v sudo && command -v ss ||
+        dnf -y install python3 sudo iproute procps-ng'
+      register: xvpn_bootstrap
+      changed_when: "'Installed' in xvpn_bootstrap.stdout or 'Complete!' in xvpn_bootstrap.stdout"
+
+    # Facts must exist before the /etc/hosts entries below read the default address.
+    - name: Gather facts after the bootstrap
+      ansible.builtin.setup:
+
+    # The container shares the runner kernel where SELinux is off (D-15); the
+    # mode is simulated by a getenforce test double. Test environment only.
+    - name: Record the simulated SELinux mode
+      ansible.builtin.copy:
+        content: "Enforcing\n"
+        dest: /etc/xvpn-test-selinux-mode
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Install the getenforce test double
+      ansible.builtin.copy:
+        content: |
+          #!/bin/sh
+          cat /etc/xvpn-test-selinux-mode
+        dest: /usr/local/sbin/getenforce
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Install the test-only sudoers drop-in so the double wins under become
+      ansible.builtin.copy:
+        content: |
+          Defaults secure_path = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        dest: /etc/sudoers.d/xvpn-test-path
+        mode: "0440"
+        owner: root
+        group: root
+        validate: visudo -cf %s
+
+    - name: Resolve getenforce under become
+      ansible.builtin.command: getenforce
+      become: true
+      register: xvpn_getenforce
+      changed_when: false
+
+    - name: Assert the double is reached under become
+      ansible.builtin.assert:
+        that:
+          - xvpn_getenforce.stdout | trim == 'Enforcing'
+        fail_msg: "getenforce under become does not reach the test double; check sudo secure_path"
+        quiet: true
+
+    # Test fixture: a regular user that owns the managed listeners. Excluded from
+    # the nothing-changed check (verify only inspects role-managed artifacts).
+    - name: Create the test user that owns the case listeners
+      ansible.builtin.user:
+        name: xvpn-test
+        state: present
+        create_home: false
+        shell: /usr/sbin/nologin
+
+    # podman bind-mounts /etc/hosts into the container: atomic rename fails.
+    # FLAGGED ASSUMPTION (FND-07): /etc/hosts stands in for public DNS here; the
+    # host resolver (NSS) is the source of truth by design.
+    - name: Add the matching DNS stand-in for ok.xvpn.test
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ ansible_facts['default_ipv4']['address'] }} ok.xvpn.test"
+        regexp: '[ ]ok[.]xvpn[.]test$'
+        unsafe_writes: true
+
+    - name: Add the mismatching DNS stand-in for bad.xvpn.test
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "192.0.2.10 bad.xvpn.test"
+        regexp: '[ ]bad[.]xvpn[.]test$'
+        unsafe_writes: true
+
+    - name: Read the Podman package state before the cases
+      ansible.builtin.command: rpm -q podman  # noqa: command-instead-of-module
+      register: xvpn_podman_before
+      changed_when: false
+      failed_when: false
+
+    - name: Record the Podman package state
+      ansible.builtin.copy:
+        content: "{{ {'stdout': xvpn_podman_before.stdout, 'rc': xvpn_podman_before.rc} | to_json }}"
+        dest: /etc/xvpn-test-podman-before
+        mode: "0644"
+        owner: root
+        group: root

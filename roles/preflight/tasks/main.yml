@@ -4,6 +4,11 @@
   ansible.builtin.set_fact:
     xvpn_preflight_errors: []
     xvpn_preflight_warnings: []
+    # The check files accumulate into these with default([]); reset so a second
+    # include of the role in one play does not see the previous run's findings.
+    xvpn_preflight_listeners: []
+    xvpn_preflight_listeners_named: []
+    xvpn_preflight_dns_resolved: []
 
 # One effective accepted set: a user managed by podman_rootless can never be missing here (W-5).
 - name: Preflight | compute the accepted service user set
