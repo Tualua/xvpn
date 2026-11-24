@@ -30,13 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. После прогона на чистом EL10 тестовый Quadlet-сервис под выделенным rootless-пользователем слушает порт 80, управляется через `systemctl --user` из Ansible и снова поднимается после перезагрузки хоста
   3. VM-тир Molecule (AlmaLinux 10 и Rocky 10, SELinux enforcing) проходит converge, идемпотентность (`changed=0`), reboot-тест и проверку нуля AVC-denial'ов; firewalld открывает только нужные порты
   4. Контейнерный тир Molecule, ansible-lint и yamllint проходят в CI; коллекция собирается из `galaxy.yml` (`xvpn.remnawave`), у ролей есть `argument_specs`
-**Plans:** 1/12 plans executed
+**Plans:** 2/12 plans executed
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Tracer: collection identity, podman_rootless (users, home, sysctl, linger) + LSR Quadlet interface, foundation playbook (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Container scenario: pinned + justified requirements.yml with Galaxy approval checkpoint, ansible.cfg, pinned fixture, converge through the quadlet entry point (wave 2)
+- [x] 01-02-PLAN.md — Container scenario: pinned + justified requirements.yml with Galaxy approval checkpoint, ansible.cfg, pinned fixture, converge through the quadlet entry point (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — Quality gate: lint configs, scripts/check.sh with CI-hard yamllint, README stub, LICENSE (wave 3)
@@ -125,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Rootless-фундамент и тестовый стенд | 1/12 | In Progress | - |
+| 1. Rootless-фундамент и тестовый стенд | 2/12 | In Progress | - |
 | 2. Panel за Traefik с защищённым входом | 0/3 | Not started | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
