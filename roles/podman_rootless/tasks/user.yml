@@ -18,12 +18,14 @@
   ansible.builtin.assert:
     that:
       - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] | int >= 1000
+      - xvpn_podman_rootless_user.uid is not defined
+        or ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] | int == xvpn_podman_rootless_user.uid | int
       - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][4]
         == xvpn_podman_rootless_home_root ~ '/' ~ xvpn_podman_rootless_user.name
       - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][5] in ['/sbin/nologin', '/usr/sbin/nologin']
     fail_msg: >-
       Account {{ xvpn_podman_rootless_user.name }} already exists and does not look like a service user
-      managed by this collection (uid >= 1000, home {{ xvpn_podman_rootless_home_root }}/{{ xvpn_podman_rootless_user.name }},
+      managed by this collection (uid >= 1000 and equal to the requested uid, home {{ xvpn_podman_rootless_home_root }}/{{ xvpn_podman_rootless_user.name }},
       nologin shell); refusing to rewrite its shell, password and home (D-08)
     quiet: true
   when: ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name] is not none
