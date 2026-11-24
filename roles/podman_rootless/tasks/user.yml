@@ -1,0 +1,112 @@
+---
+# Expects loop_var xvpn_podman_rootless_user (dict with name, optional uid).
+- name: Assert explicit uid is a regular uid
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_user.uid | int >= 1000
+    fail_msg: "Service user {{ xvpn_podman_rootless_user.name }} must have a regular uid >= 1000 (D-08)"
+    quiet: true
+  when: xvpn_podman_rootless_user.uid is defined
+
+- name: Look up a pre-existing account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_podman_rootless_user.name }}"
+    fail_key: false
+
+- name: Refuse to adopt a pre-existing system account
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] | int >= 1000
+    fail_msg: "Service user {{ xvpn_podman_rootless_user.name }} must have a regular uid >= 1000 (D-08)"
+    quiet: true
+  when: ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name] is not none
+
+- name: Create the service user
+  ansible.builtin.user:
+    name: "{{ xvpn_podman_rootless_user.name }}"
+    uid: "{{ xvpn_podman_rootless_user.uid | default(omit) }}"
+    home: "{{ xvpn_podman_rootless_home_root }}/{{ xvpn_podman_rootless_user.name }}"
+    shell: /sbin/nologin
+    password_lock: true
+    create_home: true
+    system: false
+
+- name: Restrict the home directory
+  ansible.builtin.file:
+    path: "{{ xvpn_podman_rootless_home_root }}/{{ xvpn_podman_rootless_user.name }}"
+    state: directory
+    owner: "{{ xvpn_podman_rootless_user.name }}"
+    group: "{{ xvpn_podman_rootless_user.name }}"
+    mode: "0700"
+
+- name: Read back the account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_podman_rootless_user.name }}"
+
+- name: Record the uid
+  ansible.builtin.set_fact:
+    xvpn_podman_rootless_uid: "{{ ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] }}"
+
+- name: Assert the allocated uid is a regular uid
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_uid | int >= 1000
+    fail_msg: "Service user {{ xvpn_podman_rootless_user.name }} must have a regular uid >= 1000 (D-08)"
+    quiet: true
+
+- name: Check subordinate uid range
+  ansible.builtin.command:
+    argv:
+      - getsubids
+      - "{{ xvpn_podman_rootless_user.name }}"
+  register: xvpn_podman_rootless_subuid
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Check subordinate gid range
+  ansible.builtin.command:
+    argv:
+      - getsubids
+      - -g
+      - "{{ xvpn_podman_rootless_user.name }}"
+  register: xvpn_podman_rootless_subgid
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert subordinate ids were allocated
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_subuid.rc == 0
+      - xvpn_podman_rootless_subgid.rc == 0
+    fail_msg: >-
+      useradd did not allocate subordinate IDs for {{ xvpn_podman_rootless_user.name }};
+      check SUB_UID_COUNT/SUB_GID_COUNT in /etc/login.defs
+    quiet: true
+
+- name: Enable linger
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - enable-linger
+      - "{{ xvpn_podman_rootless_user.name }}"
+    creates: "/var/lib/systemd/linger/{{ xvpn_podman_rootless_user.name }}"
+
+- name: Start the user manager
+  ansible.builtin.systemd_service:
+    name: "user@{{ xvpn_podman_rootless_uid }}.service"
+    state: started
+  when: xvpn_podman_rootless_manage_user_manager | bool
+
+- name: Wait for the user manager bus socket
+  ansible.builtin.wait_for:
+    path: "/run/user/{{ xvpn_podman_rootless_uid }}/systemd/private"
+    timeout: 60
+    msg: >-
+      user manager of {{ xvpn_podman_rootless_user.name }} did not create
+      /run/user/{{ xvpn_podman_rootless_uid }}/systemd/private within 60 s
+      (linger/user-manager race, RESEARCH Pitfall 6)
+  when: xvpn_podman_rootless_manage_user_manager | bool

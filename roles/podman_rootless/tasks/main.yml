@@ -1,0 +1,95 @@
+---
+- name: Validate service user names
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_user.name is match('^[a-z_][a-z0-9_-]{0,30}$')
+    fail_msg: "Invalid service user name: {{ xvpn_podman_rootless_user.name }}"
+    quiet: true
+  loop: "{{ xvpn_podman_rootless_users }}"
+  loop_control:
+    loop_var: xvpn_podman_rootless_user
+    label: "{{ xvpn_podman_rootless_user.name }}"
+
+- name: Validate home root
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_home_root is match('^/[A-Za-z0-9_./-]+$')
+    fail_msg: "Invalid home root: {{ xvpn_podman_rootless_home_root }}"
+    quiet: true
+
+- name: Install required packages
+  ansible.builtin.dnf:
+    name: "{{ xvpn_podman_rootless_packages }}"
+    state: present
+
+- name: Look up optional packages
+  ansible.builtin.dnf:
+    list: "{{ item }}"
+  loop: "{{ xvpn_podman_rootless_optional_packages }}"
+  register: xvpn_podman_rootless_optional_lookup
+  changed_when: false
+  check_mode: false
+
+- name: Install optional packages offered by the enabled repositories
+  ansible.builtin.dnf:
+    name: "{{ xvpn_podman_rootless_optional_lookup.results | rejectattr('results', 'equalto', []) | map(attribute='item') | list }}"
+    state: present
+  when: >-
+    (xvpn_podman_rootless_optional_lookup.results | rejectattr('results', 'equalto', []) | list | length) > 0
+
+- name: Report optional packages that are not offered
+  ansible.builtin.debug:
+    msg: "NOTICE: optional package {{ item.item }} is not offered by the enabled repositories of this EL10 minor; skipped"
+  loop: "{{ xvpn_podman_rootless_optional_lookup.results | selectattr('results', 'equalto', []) | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Detect SELinux state
+  ansible.builtin.command: selinuxenabled
+  register: xvpn_podman_rootless_selinux
+  changed_when: false
+  failed_when: xvpn_podman_rootless_selinux.rc not in [0, 1]
+  check_mode: false
+
+- name: Create service user home root
+  ansible.builtin.file:
+    path: "{{ xvpn_podman_rootless_home_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Make the home root label like /home (SELinux file-context equivalence, D-08)
+  community.general.sefcontext:
+    target: "{{ xvpn_podman_rootless_home_root }}"
+    substitute: /home
+    state: present
+    ignore_selinux_state: "{{ xvpn_podman_rootless_selinux.rc != 0 }}"
+  register: xvpn_podman_rootless_sefcontext
+
+- name: Apply the file context to the home root
+  ansible.builtin.command:
+    argv:
+      - restorecon
+      - -R
+      - "{{ xvpn_podman_rootless_home_root }}"
+  changed_when: true
+  when:
+    - xvpn_podman_rootless_sefcontext is changed
+    - xvpn_podman_rootless_selinux.rc == 0
+
+- name: Allow unprivileged processes to bind low ports
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_unprivileged_port_start
+    value: "{{ xvpn_podman_rootless_unprivileged_port_start }}"
+    sysctl_file: "{{ xvpn_podman_rootless_sysctl_file }}"
+    sysctl_set: true
+    reload: true
+    state: present
+
+- name: Set up each service user
+  ansible.builtin.include_tasks: user.yml
+  loop: "{{ xvpn_podman_rootless_users }}"
+  loop_control:
+    loop_var: xvpn_podman_rootless_user
+    label: "{{ xvpn_podman_rootless_user.name }}"

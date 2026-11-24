@@ -1,0 +1,7 @@
+---
+- name: Foundation
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - xvpn.remnawave.podman_rootless

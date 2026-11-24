@@ -1,0 +1,39 @@
+---
+# Single deployment interface for Quadlet units (D-10). Inputs:
+#   xvpn_podman_rootless_quadlet_user, xvpn_podman_rootless_quadlet_specs,
+#   xvpn_podman_rootless_quadlet_activate
+- name: Validate quadlet inputs
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_quadlet_user is match('^[a-z_][a-z0-9_-]{0,30}$')
+    fail_msg: "Invalid service user name: {{ xvpn_podman_rootless_quadlet_user }}"
+    quiet: true
+
+- name: Validate quadlet template paths
+  ansible.builtin.assert:
+    that:
+      - item.template_src is match('^/')
+    fail_msg: "template_src must be an absolute path: {{ item.template_src }}"
+    quiet: true
+  loop: "{{ xvpn_podman_rootless_quadlet_specs }}"
+  loop_control:
+    label: "{{ item.template_src }}"
+
+- name: Look up the quadlet user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_podman_rootless_quadlet_user }}"
+
+# generator validation runs here (Plan 04)
+
+- name: Deploy Quadlet specs through the LSR podman role
+  ansible.builtin.include_role:
+    name: fedora.linux_system_roles.podman
+  vars:
+    podman_pull_image: false
+    podman_run_as_user: "{{ xvpn_podman_rootless_quadlet_user }}"
+    podman_activate_systemd_unit: "{{ xvpn_podman_rootless_quadlet_activate }}"
+    podman_quadlet_specs: >-
+      {{ xvpn_podman_rootless_quadlet_specs
+         | map('combine', {'run_as_user': xvpn_podman_rootless_quadlet_user})
+         | list }}

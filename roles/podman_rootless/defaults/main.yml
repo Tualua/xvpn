@@ -1,0 +1,29 @@
+---
+# Rootless service users, one per trust domain (D-07). Phases 2-4 append rw-panel, rw-node.
+xvpn_podman_rootless_users:
+  - name: rw-edge
+# Parent of the service user homes (D-08).
+xvpn_podman_rootless_home_root: /var/lib/xvpn
+# Required on every EL10 minor admitted by the Podman 5.4 preflight floor.
+xvpn_podman_rootless_packages:
+  - podman
+  - passt
+  - container-selinux
+  - crun
+  - shadow-utils-subid
+  - sudo
+  - acl
+  - python3-libselinux
+  - python3-policycoreutils
+  - policycoreutils-python-utils
+  - libselinux-utils
+# Installed only when the enabled repositories offer them (passt-selinux exists on EL10.3 only).
+xvpn_podman_rootless_optional_packages:
+  - passt-selinux
+xvpn_podman_rootless_unprivileged_port_start: 80
+xvpn_podman_rootless_sysctl_file: /etc/sysctl.d/99-xvpn-unprivileged-ports.conf
+xvpn_podman_rootless_manage_user_manager: true
+# Inputs of the quadlet entry point (tasks_from: quadlet).
+xvpn_podman_rootless_quadlet_user: ""
+xvpn_podman_rootless_quadlet_specs: []
+xvpn_podman_rootless_quadlet_activate: true

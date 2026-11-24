@@ -1,0 +1,31 @@
+---
+namespace: xvpn
+name: remnawave
+version: 0.1.0
+readme: README.md
+authors:
+  - Dmitry Popovich
+description: Remnawave Panel and Node on Rocky/Alma Linux 10 (rootless Podman, Quadlet, SELinux enforcing)
+license:
+  - GPL-3.0-or-later
+repository: https://github.com/Tualua/xvpn
+tags:
+  - linux
+  - infrastructure
+  - security
+dependencies:
+  fedora.linux_system_roles: ">=2.5.0"
+  ansible.posix: ">=2.2.2"
+  community.general: ">=14.0.1"
+  # Required at runtime by fedora.linux_system_roles.podman (handle_images.yml, handle_secret.yml);
+  # no xvpn task calls containers.podman.* directly.
+  containers.podman: ">=1.21.2"
+build_ignore:
+  - .github
+  - .planning
+  - .claude
+  - .devcontainer
+  - .ansible
+  - .venv
+  - scripts
+  - "*.tar.gz"

@@ -1,0 +1,72 @@
+---
+argument_specs:
+  main:
+    short_description: Rootless service users, SELinux home context, unprivileged ports, linger
+    options:
+      xvpn_podman_rootless_users:
+        description: Service users to create. Names must match C(^[a-z_][a-z0-9_-]{0,30}$).
+        type: list
+        elements: dict
+        default:
+          - name: rw-edge
+        options:
+          name:
+            description: User name, regex C(^[a-z_][a-z0-9_-]{0,30}$).
+            type: str
+            required: true
+          uid:
+            description: Optional explicit uid, must be >= 1000.
+            type: int
+      xvpn_podman_rootless_home_root:
+        description: Parent directory of the service user homes.
+        type: str
+        default: /var/lib/xvpn
+      xvpn_podman_rootless_packages:
+        description: Required packages.
+        type: list
+        elements: str
+      xvpn_podman_rootless_optional_packages:
+        description: Packages installed only when the enabled repositories offer them.
+        type: list
+        elements: str
+        default:
+          - passt-selinux
+      xvpn_podman_rootless_unprivileged_port_start:
+        description: Value of net.ipv4.ip_unprivileged_port_start.
+        type: int
+        default: 80
+      xvpn_podman_rootless_sysctl_file:
+        description: Sysctl drop-in file.
+        type: str
+        default: /etc/sysctl.d/99-xvpn-unprivileged-ports.conf
+      xvpn_podman_rootless_manage_user_manager:
+        description: Start user@UID.service and wait for its bus socket.
+        type: bool
+        default: true
+  quadlet:
+    short_description: Deploy Quadlet units for one service user through fedora.linux_system_roles.podman
+    options:
+      xvpn_podman_rootless_quadlet_user:
+        description: Service user that owns the units, regex C(^[a-z_][a-z0-9_-]{0,30}$).
+        type: str
+        required: true
+      xvpn_podman_rootless_quadlet_specs:
+        description: Quadlet specs passed to the LSR podman role.
+        type: list
+        elements: dict
+        default: []
+        options:
+          template_src:
+            description: Absolute controller path of the unit template.
+            type: str
+            required: true
+          state:
+            description: Desired state of the unit.
+            type: str
+            choices:
+              - present
+              - absent
+      xvpn_podman_rootless_quadlet_activate:
+        description: Start and enable the units.
+        type: bool
+        default: true
