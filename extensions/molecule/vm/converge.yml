@@ -1,0 +1,65 @@
+---
+# No container-tier overrides: real firewalld, real user manager, home root stays the D-08 default.
+- name: Foundation
+  ansible.builtin.import_playbook: ../../../playbooks/foundation.yml
+  vars:
+    ansible_pipelining: true
+    xvpn_common_firewall_ports: ["80/tcp"]
+
+- name: Deploy molecule fixture
+  hosts: all
+  become: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Deploy and activate the fixture unit through the quadlet entry point
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.podman_rootless
+        tasks_from: quadlet
+      vars:
+        xvpn_podman_rootless_quadlet_user: rw-edge
+        xvpn_podman_rootless_quadlet_activate: true
+        xvpn_podman_rootless_quadlet_specs:
+          - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-fixture.container.j2') | realpath }}"
+
+    - name: Read the uid of the service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-edge
+
+    # D-10(c), unchanged-unit half: the first converge records the InvocationID,
+    # the idempotence re-run must leave it unchanged (checked in side_effect.yml).
+    - name: Read the InvocationID of the fixture unit
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - xvpn-fixture.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-edge'][1] }}"
+      register: xvpn_converge_invocation
+      changed_when: false
+      check_mode: false
+
+    - name: Assert the fixture unit has an invocation
+      ansible.builtin.assert:
+        that:
+          - xvpn_converge_invocation.stdout | trim | length > 0
+        fail_msg: "xvpn-fixture.service has no InvocationID after the converge; the unit did not start"
+        quiet: true
+
+    - name: Record the InvocationID after the first converge
+      ansible.builtin.copy:
+        content: "{{ xvpn_converge_invocation.stdout | trim }}\n"
+        dest: /var/lib/xvpn-molecule/invocation_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: false

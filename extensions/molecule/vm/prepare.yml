@@ -1,0 +1,75 @@
+---
+- name: Prepare VM platforms (auditd, dontaudit off and proven, AVC marker)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install auditd and the SELinux policy inspection tools
+      ansible.builtin.dnf:
+        name:
+          - audit
+          - setools-console
+        state: present
+
+    - name: Enable and start auditd
+      ansible.builtin.systemd_service:
+        name: auditd.service
+        enabled: true
+        state: started
+
+    # Positive control: seinfo must see dontaudit rules before they are disabled,
+    # otherwise a later "0" would prove nothing (B-2).
+    - name: Read the loaded policy statistics before disabling dontaudit
+      ansible.builtin.command: seinfo
+      register: xvpn_prepare_seinfo_before
+      changed_when: false
+
+    - name: Assert the dontaudit probe sees dontaudit rules
+      ansible.builtin.assert:
+        that:
+          - xvpn_prepare_seinfo_before.stdout is regex('(?m)^\s*Dontaudit:\s+[0-9]+')
+          - (xvpn_prepare_seinfo_before.stdout | regex_search('(?m)^\s*Dontaudit:\s+([0-9]+)', '\1') | first | int) > 0
+        fail_msg: |-
+          seinfo reports no dontaudit rules before the dontaudit disable; the dontaudit probe is not trustworthy
+          {{ xvpn_prepare_seinfo_before.stdout }}
+        quiet: true
+
+    - name: Disable dontaudit rules and rebuild the policy
+      ansible.builtin.command: semodule -DB
+      changed_when: true
+
+    - name: Read the loaded policy statistics after disabling dontaudit
+      ansible.builtin.command: seinfo
+      register: xvpn_prepare_seinfo_after
+      changed_when: false
+
+    - name: Assert no dontaudit rules are loaded
+      ansible.builtin.assert:
+        that:
+          - xvpn_prepare_seinfo_after.stdout is regex('(?m)^\s*Dontaudit:\s+[0-9]+')
+          - (xvpn_prepare_seinfo_after.stdout | regex_search('(?m)^\s*Dontaudit:\s+([0-9]+)', '\1') | first | int) == 0
+        fail_msg: |-
+          dontaudit rules still loaded after the dontaudit disable
+          {{ xvpn_prepare_seinfo_after.stdout }}
+        quiet: true
+
+    - name: Create the molecule state directory
+      ansible.builtin.file:
+        path: /var/lib/xvpn-molecule
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Check for an existing AVC marker
+      ansible.builtin.stat:
+        path: /var/lib/xvpn-molecule/avc_marker
+      register: xvpn_prepare_marker
+
+    # Written only once per VM instance so re-runs keep the original window start.
+    - name: Record the AVC marker
+      ansible.builtin.shell:
+        cmd: set -o pipefail; LC_ALL=C date '+%m/%d/%Y %H:%M:%S' > /var/lib/xvpn-molecule/avc_marker && chmod 0600 /var/lib/xvpn-molecule/avc_marker
+        executable: /bin/bash
+      changed_when: true
+      when: not xvpn_prepare_marker.stat.exists
