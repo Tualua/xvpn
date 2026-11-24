@@ -21,84 +21,95 @@
       ansible.builtin.set_fact:
         xvpn_preflight_dns_ips: >-
           {{ [xvpn_public_ip] if xvpn_public_ip != '' else
-          (([ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')]['ipv4']['address']
-          | default(none)] + (ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')]['ipv4_secondaries']
+          (([((ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')] | default({}))['ipv4'] | default({}))['address']
+          | default(none)]
+          + ((ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')] | default({}))['ipv4_secondaries']
           | default([]) | map(attribute='address') | list)) | reject('none') | list) }}
         xvpn_preflight_dns_source: "{{ 'xvpn_public_ip' if xvpn_public_ip != '' else xvpn_preflight_dns_iface }}"
 
-    - name: Preflight dns | resolve A records
-      ansible.builtin.getent:
-        database: ahostsv4
-        key: "{{ item }}"
-        fail_key: false
-      register: xvpn_preflight_dns_a
-      check_mode: false
-      loop: "{{ xvpn_preflight_domains }}"
-
-    # A hit is keyed by address; a miss is {<domain>: null}.
-    - name: Preflight dns | collect resolved IPv4 addresses
-      ansible.builtin.set_fact:
-        xvpn_preflight_dns_resolved: >-
-          {{ xvpn_preflight_dns_resolved | default([]) + [{'domain': item.item,
-          'ips': (item.ansible_facts.getent_ahostsv4 | default({}) | dict2items
-          | rejectattr('value', 'none') | map(attribute='key') | sort | list)}] }}
-      loop: "{{ xvpn_preflight_dns_a.results }}"
-      loop_control:
-        label: "{{ item.item }}"
-
-    - name: Preflight dns | domain does not resolve
-      ansible.builtin.set_fact:
-        xvpn_preflight_errors: "{{ xvpn_preflight_errors + [item.domain ~ ' does not resolve (no A record)'] }}"
-      when: item.ips | length == 0
-      loop: "{{ xvpn_preflight_dns_resolved }}"
-      loop_control:
-        label: "{{ item.domain }}"
-
-    - name: Preflight dns | domain resolves outside this host
+    - name: Preflight dns | no IPv4 address known for the public interface
       ansible.builtin.set_fact:
         xvpn_preflight_errors: >-
-          {{ xvpn_preflight_errors + [item.domain ~ ' resolves to ' ~ (item.ips | join(', '))
-          ~ ', expected only ' ~ (xvpn_preflight_dns_ips | join(', '))
-          ~ ' (addresses of ' ~ xvpn_preflight_dns_source
-          ~ '); fix DNS or set xvpn_preflight_dns_check: false'] }}
-      when:
-        - item.ips | length > 0
-        - (item.ips | difference(xvpn_preflight_dns_ips)) | length > 0
-      loop: "{{ xvpn_preflight_dns_resolved }}"
-      loop_control:
-        label: "{{ item.domain }}"
+          {{ xvpn_preflight_errors + ['No IPv4 address found for interface ' ~ xvpn_preflight_dns_iface
+          ~ '; set xvpn_public_ip or xvpn_public_interface'] }}
+      when: xvpn_preflight_dns_ips | length == 0
 
-    # AAAA is warn-only (RESEARCH A13): nothing here may add to the error list.
-    - name: Preflight dns | AAAA comparison
+    - name: Preflight dns | compare with the resolved records
+      when: xvpn_preflight_dns_ips | length > 0
       block:
-        - name: Preflight dns | resolve AAAA records
+        - name: Preflight dns | resolve A records
           ansible.builtin.getent:
-            database: ahostsv6
+            database: ahostsv4
             key: "{{ item }}"
             fail_key: false
-          register: xvpn_preflight_dns_aaaa
+          register: xvpn_preflight_dns_a
           check_mode: false
           loop: "{{ xvpn_preflight_domains }}"
 
-        - name: Preflight dns | warn about AAAA records outside this host
+        # A hit is keyed by address; a miss is {<domain>: null}.
+        - name: Preflight dns | collect resolved IPv4 addresses
           ansible.builtin.set_fact:
-            xvpn_preflight_warnings: >-
-              {{ xvpn_preflight_warnings + [item.item ~ ' has AAAA record(s) '
-              ~ (item.ansible_facts.getent_ahostsv6 | default({}) | dict2items
-              | rejectattr('value', 'none') | map(attribute='key') | reject('match', '^::ffff:') | sort | join(', '))
-              ~ ' not found on ' ~ xvpn_preflight_dns_source] }}
-          when:
-            - >-
-              (item.ansible_facts.getent_ahostsv6 | default({}) | dict2items
-              | rejectattr('value', 'none') | map(attribute='key') | reject('match', '^::ffff:') | list
-              | difference(ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')].ipv6
-              | default([]) | map(attribute='address') | list)) | length > 0
-          loop: "{{ xvpn_preflight_dns_aaaa.results }}"
+            xvpn_preflight_dns_resolved: >-
+              {{ xvpn_preflight_dns_resolved | default([]) + [{'domain': item.item,
+              'ips': (item.ansible_facts.getent_ahostsv4 | default({}) | dict2items
+              | rejectattr('value', 'none') | map(attribute='key') | sort | list)}] }}
+          loop: "{{ xvpn_preflight_dns_a.results }}"
           loop_control:
             label: "{{ item.item }}"
-      rescue:
-        - name: Preflight dns | AAAA check could not run
+
+        - name: Preflight dns | domain does not resolve
           ansible.builtin.set_fact:
-            xvpn_preflight_warnings: >-
-              {{ xvpn_preflight_warnings + ['AAAA check could not be evaluated: '
-              ~ (ansible_failed_result.msg | default('unknown error'))] }}
+            xvpn_preflight_errors: "{{ xvpn_preflight_errors + [item.domain ~ ' does not resolve (no A record)'] }}"
+          when: item.ips | length == 0
+          loop: "{{ xvpn_preflight_dns_resolved }}"
+          loop_control:
+            label: "{{ item.domain }}"
+
+        - name: Preflight dns | domain resolves outside this host
+          ansible.builtin.set_fact:
+            xvpn_preflight_errors: >-
+              {{ xvpn_preflight_errors + [item.domain ~ ' resolves to ' ~ (item.ips | join(', '))
+              ~ ', expected only ' ~ (xvpn_preflight_dns_ips | join(', '))
+              ~ ' (addresses of ' ~ xvpn_preflight_dns_source
+              ~ '); fix DNS or set xvpn_preflight_dns_check: false'] }}
+          when:
+            - item.ips | length > 0
+            - (item.ips | difference(xvpn_preflight_dns_ips)) | length > 0
+          loop: "{{ xvpn_preflight_dns_resolved }}"
+          loop_control:
+            label: "{{ item.domain }}"
+
+        # AAAA is warn-only (RESEARCH A13): nothing here may add to the error list.
+        - name: Preflight dns | AAAA comparison
+          block:
+            - name: Preflight dns | resolve AAAA records
+              ansible.builtin.getent:
+                database: ahostsv6
+                key: "{{ item }}"
+                fail_key: false
+              register: xvpn_preflight_dns_aaaa
+              check_mode: false
+              loop: "{{ xvpn_preflight_domains }}"
+
+            - name: Preflight dns | warn about AAAA records outside this host
+              ansible.builtin.set_fact:
+                xvpn_preflight_warnings: >-
+                  {{ xvpn_preflight_warnings + [item.item ~ ' has AAAA record(s) '
+                  ~ (item.ansible_facts.getent_ahostsv6 | default({}) | dict2items
+                  | rejectattr('value', 'none') | map(attribute='key') | reject('match', '^::ffff:') | sort | join(', '))
+                  ~ ' not found on ' ~ xvpn_preflight_dns_source] }}
+              when:
+                - >-
+                  (item.ansible_facts.getent_ahostsv6 | default({}) | dict2items
+                  | rejectattr('value', 'none') | map(attribute='key') | reject('match', '^::ffff:') | list
+                  | difference(ansible_facts[xvpn_preflight_dns_iface | replace('-', '_')].ipv6
+                  | default([]) | map(attribute='address') | list)) | length > 0
+              loop: "{{ xvpn_preflight_dns_aaaa.results }}"
+              loop_control:
+                label: "{{ item.item }}"
+          rescue:
+            - name: Preflight dns | AAAA check could not run
+              ansible.builtin.set_fact:
+                xvpn_preflight_warnings: >-
+                  {{ xvpn_preflight_warnings + ['AAAA check could not be evaluated: '
+                  ~ (ansible_failed_result.msg | default('unknown error'))] }}
