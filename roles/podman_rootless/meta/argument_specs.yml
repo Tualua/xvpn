@@ -51,7 +51,9 @@ argument_specs:
         type: str
         required: true
       xvpn_podman_rootless_quadlet_specs:
-        description: Quadlet specs passed to the LSR podman role.
+        description: >-
+          Quadlet specs passed to the LSR podman role. The key set is closed: only C(template_src) and C(state)
+          are accepted; extend this specification before passing further keys to the LSR role.
         type: list
         elements: dict
         default: []
