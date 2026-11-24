@@ -8,11 +8,13 @@ driver:
     name: libvirt
 platforms:
   - name: alma10
-    box: almalinux-10-10.2.20260914
-    # Vagrant Cloud, libvirt/amd64 provider of version 10.2.20260914; checksum from the Vagrant Cloud API
-    box_url: https://vagrantcloud.com/almalinux/boxes/10/versions/10.2.20260914/providers/libvirt/amd64/vagrant.box
-    box_download_checksum: 24b3ff7cd6810e5bf63614ab5c31496cb5496c329c3074ad29885ab370e2f9c1
-    box_download_checksum_type: sha256
+    # Vagrant Cloud catalog mode, version pinned. A direct vagrantcloud.com box_url cannot be used: its first
+    # redirect answers with Content-Type: application/json, so Vagrant parses the box as catalog metadata and
+    # fails with "metadata for the box was malformed". In catalog mode Vagrant verifies the sha256 published
+    # in the catalog for this exact version and provider (libvirt/amd64):
+    # 24b3ff7cd6810e5bf63614ab5c31496cb5496c329c3074ad29885ab370e2f9c1 (compare when bumping the version).
+    box: almalinux/10
+    box_version: 10.2.20260914
     box_architecture: amd64
     memory: 4096
     cpus: 2
