@@ -37,31 +37,31 @@ findings:
     title: "Воркфлоу `molecule-vm` ставит vagrant-libvirt и ключ HashiCorp без проверки отпечатка и запускается на каждом PR"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Повторная SSH-проверка «after» в `firewalld.yml` недостижима для падения"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Проверка конфликта портов в preflight учитывает только TCP"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: fixed
     title: "SSH-гейт использует `ansible_port` контроллера, а не порт sshd на целевом хосте"
   - id: IN-04
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Слабые проверки в `verify_rootless.yml` для sysctl"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`xvpn_podman_rootless_unprivileged_port_start` не ограничен"
   - id: IN-06
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 6
+open: 0
 total: 14
-recorded: 2026-11-24T09:52:55.003Z
+recorded: 2026-11-24T10:23:51.526Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -76,12 +76,12 @@ recorded: 2026-11-24T09:52:55.003Z
 | WR-06 | warning | fixed | 01-REVIEW-FIX.md |
 | WR-07 | warning | fixed | 01-REVIEW-FIX.md |
 | WR-08 | warning | skipped | 01-REVIEW-FIX.md |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
+| IN-01 | info | fixed | 01-REVIEW-FIX.md |
+| IN-02 | info | fixed | 01-REVIEW-FIX.md |
+| IN-03 | info | fixed | 01-REVIEW-FIX.md |
+| IN-04 | info | fixed | 01-REVIEW-FIX.md |
+| IN-05 | info | fixed | 01-REVIEW-FIX.md |
+| IN-06 | info | fixed | 01-REVIEW-FIX.md |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
