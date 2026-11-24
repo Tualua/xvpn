@@ -22,7 +22,7 @@ status: partial
 
 Работа велась прямо в ветке `main` в основном checkout, без worktree (по указанию оркестратора). Проверки (`bash scripts/check.sh`, включая ansible-lint production, argument_specs, syntax-check, build и `yamllint -s .` yamllint 1.38.0) запускались в основном checkout после каждого исправления и проходили (кроме WR-04, где запускался только `yamllint -s` на изменённом файле). Molecule-сценарии локально не запускались: в окружении нет podman и VM, их прогонит CI.
 
-## Исправленные находки
+## Fixed Issues
 
 ### WR-01: «Усыновление» существующих учётных записей
 **Файлы:** `roles/podman_rootless/tasks/user.yml`
@@ -66,7 +66,7 @@ status: partial
 **Исправление:** выражение для набора IPv4-адресов теперь безопасно к отсутствующему интерфейсу/ключу `ipv4`. Если адресов нет, в агрегированный список `xvpn_preflight_errors` добавляется сообщение, а сравнение A/AAAA пропускается (вложенный блок с `when`). Выражение проверено отдельным ad-hoc плейбуком на отсутствующем и присутствующем интерфейсе.
 **Статус:** fixed.
 
-## Пропущенные находки
+## Skipped Issues
 
 ### WR-08: Воркфлоу `molecule-vm`: ключ HashiCorp и плагин vagrant-libvirt без проверки
 **Файл:** `.github/workflows/molecule-vm.yml:49-55`
