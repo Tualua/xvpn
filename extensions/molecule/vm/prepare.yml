@@ -78,10 +78,11 @@
         path: /var/lib/xvpn-molecule/avc_marker
       register: xvpn_prepare_marker
 
+    # ausearch -ts parses with the C-locale %x/%X formats (two-digit year); a 4-digit year is rejected.
     # Written only once per VM instance so re-runs keep the original window start.
     - name: Record the AVC marker
       ansible.builtin.shell:
-        cmd: set -o pipefail; LC_ALL=C date '+%m/%d/%Y %H:%M:%S' > /var/lib/xvpn-molecule/avc_marker && chmod 0600 /var/lib/xvpn-molecule/avc_marker
+        cmd: set -o pipefail; LC_ALL=C date '+%x %X' > /var/lib/xvpn-molecule/avc_marker && chmod 0600 /var/lib/xvpn-molecule/avc_marker
         executable: /bin/bash
       changed_when: true
       when: not xvpn_prepare_marker.stat.exists
