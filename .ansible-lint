@@ -1,0 +1,12 @@
+---
+profile: production
+supported_ansible_also: ["2.20", "2.21", "2.22"]
+skip_list:
+  # Project convention is xvpn_<role>_* (ARCHITECTURE.md), not <role>_*.
+  - var-naming[no-role-prefix]
+exclude_paths:
+  - .github/
+  - .planning/
+  - .claude/
+  - .devcontainer/
+  - .ansible/
