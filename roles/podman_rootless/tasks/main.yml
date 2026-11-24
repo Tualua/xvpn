@@ -71,6 +71,18 @@
     ignore_selinux_state: "{{ xvpn_podman_rootless_selinux.rc != 0 }}"
   register: xvpn_podman_rootless_sefcontext
 
+- name: Probe whether the home root already carries the /home-equivalent label
+  ansible.builtin.command:
+    argv:
+      - restorecon
+      - -n
+      - -v
+      - "{{ xvpn_podman_rootless_home_root }}"
+  register: xvpn_podman_rootless_relabel_probe
+  changed_when: "'Would relabel' in xvpn_podman_rootless_relabel_probe.stdout"
+  check_mode: false
+  when: xvpn_podman_rootless_selinux.rc == 0
+
 - name: Apply the file context to the home root
   ansible.builtin.command:
     argv:
@@ -79,8 +91,8 @@
       - "{{ xvpn_podman_rootless_home_root }}"
   changed_when: true
   when:
-    - xvpn_podman_rootless_sefcontext is changed
     - xvpn_podman_rootless_selinux.rc == 0
+    - xvpn_podman_rootless_sefcontext is changed or xvpn_podman_rootless_relabel_probe is changed
 
 - name: Ensure the sysctl drop-in directory exists
   ansible.builtin.file:
