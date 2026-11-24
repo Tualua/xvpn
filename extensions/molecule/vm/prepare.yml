@@ -39,8 +39,8 @@
     - name: Assert the dontaudit probe sees dontaudit rules
       ansible.builtin.assert:
         that:
-          - xvpn_prepare_seinfo_before.stdout is regex('(?m)\bDontaudit:\s+[0-9]+')
-          - (xvpn_prepare_seinfo_before.stdout | regex_search('(?m)\bDontaudit:\s+([0-9]+)', '\1') | first | int) > 0
+          - xvpn_prepare_seinfo_before.stdout is regex('(?m)(?:^|\s)Dontaudit:\s+[0-9]+')
+          - (xvpn_prepare_seinfo_before.stdout | regex_findall('(?m)(?:^|\s)Dontaudit:\s+([0-9]+)') | first | int) > 0
         fail_msg: |-
           seinfo reports no dontaudit rules before the dontaudit disable; the dontaudit probe is not trustworthy
           {{ xvpn_prepare_seinfo_before.stdout }}
@@ -58,8 +58,8 @@
     - name: Assert no dontaudit rules are loaded
       ansible.builtin.assert:
         that:
-          - xvpn_prepare_seinfo_after.stdout is regex('(?m)\bDontaudit:\s+[0-9]+')
-          - (xvpn_prepare_seinfo_after.stdout | regex_search('(?m)\bDontaudit:\s+([0-9]+)', '\1') | first | int) == 0
+          - xvpn_prepare_seinfo_after.stdout is regex('(?m)(?:^|\s)Dontaudit:\s+[0-9]+')
+          - (xvpn_prepare_seinfo_after.stdout | regex_findall('(?m)(?:^|\s)Dontaudit:\s+([0-9]+)') | first | int) == 0
         fail_msg: |-
           dontaudit rules still loaded after the dontaudit disable
           {{ xvpn_prepare_seinfo_after.stdout }}
