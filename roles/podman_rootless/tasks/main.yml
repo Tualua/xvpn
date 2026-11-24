@@ -36,6 +36,17 @@
     fail_msg: "Invalid home root: {{ xvpn_podman_rootless_home_root }}"
     quiet: true
 
+- name: Validate the unprivileged port start
+  ansible.builtin.assert:
+    that:
+      - xvpn_podman_rootless_unprivileged_port_start | int >= 1
+      - xvpn_podman_rootless_unprivileged_port_start | int <= 80
+    fail_msg: >-
+      xvpn_podman_rootless_unprivileged_port_start must be between 1 and 80 (got
+      {{ xvpn_podman_rootless_unprivileged_port_start }}): a higher value breaks binding 80/443 by service
+      users, 0 opens every port to local users
+    quiet: true
+
 - name: Install required packages
   ansible.builtin.dnf:
     name: "{{ xvpn_podman_rootless_packages }}"

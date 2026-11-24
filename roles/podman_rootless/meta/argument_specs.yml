@@ -32,7 +32,7 @@ argument_specs:
         default:
           - passt-selinux
       xvpn_podman_rootless_unprivileged_port_start:
-        description: Value of net.ipv4.ip_unprivileged_port_start.
+        description: Value of net.ipv4.ip_unprivileged_port_start, validated to the range 1..80 so that ports 80 and 443 stay bindable.
         type: int
         default: 80
       xvpn_podman_rootless_sysctl_file:
