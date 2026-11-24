@@ -5,6 +5,9 @@
     ansible_pipelining: true
     # user-manager start/wait is intentionally off in the container tier; proven only by the VM tier (Plans 11-12)
     xvpn_podman_rootless_manage_user_manager: false
+    # no running firewalld in the container tier (RESEARCH Pattern 4); the fixture's port is owned by Phase 2 Traefik later
+    xvpn_common_firewalld_offline: true
+    xvpn_common_firewall_ports: ["80/tcp"]
 
 - name: Deploy molecule fixture
   hosts: all

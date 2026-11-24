@@ -1,0 +1,162 @@
+---
+# Host baseline assertions shared by the container and VM tiers.
+# Inputs: xvpn_verify_firewall_cmd (default firewall-cmd), xvpn_verify_expected_ports (default ["80/tcp"]),
+#         xvpn_verify_allowed_services (default [ssh, dhcpv6-client, cockpit]).
+#
+# xvpn_verify_expected_ports is the cross-phase contract of the exact-set firewall check: every later
+# phase that adds a port through xvpn_common_firewall_ports must add the same entry here (scenario vars),
+# otherwise this verify fails by design; on operator hosts with pre-existing ports pass the full expected set.
+- name: Read the SELinux mode
+  ansible.builtin.command: getenforce
+  register: xvpn_verify_getenforce
+  changed_when: false
+
+- name: Assert SELinux is Enforcing
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_getenforce.stdout | trim == 'Enforcing'
+    fail_msg: "getenforce reports {{ xvpn_verify_getenforce.stdout }}"
+    quiet: true
+
+- name: Check that firewalld is installed
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - firewalld
+  changed_when: false
+
+- name: Set the firewall command and the interface
+  ansible.builtin.set_fact:
+    xvpn_verify_fw_cmd: "{{ xvpn_verify_firewall_cmd | default('firewall-cmd') }}"
+    xvpn_verify_fw_iface: "{{ ansible_facts['default_ipv4']['interface'] | default('') }}"
+
+- name: Find the zone of the public interface
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--get-zone-of-interface={{ xvpn_verify_fw_iface }}"
+  register: xvpn_verify_fw_zone_of_iface
+  changed_when: false
+  failed_when: false
+  when: xvpn_verify_fw_iface | length > 0
+
+- name: Find the default zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - --get-default-zone
+  register: xvpn_verify_fw_default_zone
+  changed_when: false
+
+- name: Select the zone
+  ansible.builtin.set_fact:
+    xvpn_verify_fw_zone: >-
+      {{ (xvpn_verify_fw_zone_of_iface.stdout | default('') | trim)
+         if (xvpn_verify_fw_zone_of_iface.rc | default(1) == 0 and (xvpn_verify_fw_zone_of_iface.stdout | default('') | trim) | length > 0)
+         else (xvpn_verify_fw_default_zone.stdout | trim) }}
+
+- name: List the ports of the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--zone={{ xvpn_verify_fw_zone }}"
+      - --list-ports
+  register: xvpn_verify_fw_ports
+  changed_when: false
+
+- name: List the services of the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--zone={{ xvpn_verify_fw_zone }}"
+      - --list-services
+  register: xvpn_verify_fw_services
+  changed_when: false
+
+- name: List the forward ports of the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--zone={{ xvpn_verify_fw_zone }}"
+      - --list-forward-ports
+  register: xvpn_verify_fw_forward
+  changed_when: false
+
+- name: List the rich rules of the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--zone={{ xvpn_verify_fw_zone }}"
+      - --list-rich-rules
+  register: xvpn_verify_fw_rich
+  changed_when: false
+
+- name: Assert the zone ports equal exactly the declared set
+  ansible.builtin.assert:
+    that:
+      - (xvpn_verify_fw_ports.stdout.split() | unique | sort) == ((xvpn_verify_expected_ports | default(['80/tcp'])) | unique | sort)
+    fail_msg: >-
+      zone {{ xvpn_verify_fw_zone }} ports {{ xvpn_verify_fw_ports.stdout.split() | unique | sort }}
+      differ from the declared set {{ (xvpn_verify_expected_ports | default(['80/tcp'])) | unique | sort }}
+    quiet: true
+
+- name: Assert the zone services stay within the declared allow-list
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_fw_services.stdout.split() | difference(xvpn_verify_allowed_services | default(['ssh', 'dhcpv6-client', 'cockpit'])) | length == 0
+    fail_msg: "zone {{ xvpn_verify_fw_zone }} has undeclared services: {{ xvpn_verify_fw_services.stdout }}"
+    quiet: true
+
+- name: Assert no internal port appears in ports, forward ports or rich rules
+  ansible.builtin.assert:
+    that:
+      - not (xvpn_verify_fw_ports.stdout is regex('(^|\s)(3000|3010|8443|2222)/(tcp|udp)(\s|$)'))
+      - not (xvpn_verify_fw_forward.stdout is regex('(^|[^0-9])(3000|3010|8443|2222)([^0-9]|$)'))
+      - not (xvpn_verify_fw_rich.stdout is regex('(^|[^0-9])(3000|3010|8443|2222)([^0-9]|$)'))
+    fail_msg: "an internal port (3000, 3010, 8443, 2222) is exposed in zone {{ xvpn_verify_fw_zone }}"
+    quiet: true
+
+- name: Query SSH by service
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--zone={{ xvpn_verify_fw_zone }}"
+      - --query-service=ssh
+  register: xvpn_verify_fw_ssh_service
+  changed_when: false
+  failed_when: false
+
+- name: Query SSH by port
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_verify_fw_cmd }}"
+      - "--zone={{ xvpn_verify_fw_zone }}"
+      - "--query-port={{ ansible_port | default(22) }}/tcp"
+  register: xvpn_verify_fw_ssh_port
+  changed_when: false
+  failed_when: false
+
+- name: Assert SSH is still allowed
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_fw_ssh_service.rc == 0 or xvpn_verify_fw_ssh_port.rc == 0
+    fail_msg: "SSH is not allowed in zone {{ xvpn_verify_fw_zone }}"
+    quiet: true
+
+- name: Check that firewalld is active
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - firewalld
+  register: xvpn_verify_fw_active
+  changed_when: false
+  when: xvpn_verify_fw_cmd == 'firewall-cmd'
+
+- name: Assert firewalld is active
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_fw_active.stdout | trim == 'active'
+    quiet: true
+  when: xvpn_verify_fw_cmd == 'firewall-cmd'

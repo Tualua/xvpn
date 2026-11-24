@@ -11,6 +11,11 @@
         # The container tier activates no unit, so :80 is free and probed directly.
         xvpn_verify_bind_probe_ports: [80, 443]
 
+    - name: Verify the host baseline (SELinux, firewalld ports, SSH)
+      ansible.builtin.include_tasks: ../shared/verify_common.yml
+      vars:
+        xvpn_verify_firewall_cmd: firewall-offline-cmd
+
     # xvpn_negative_case: broken-unit
     - name: Negative case broken-unit
       block:
@@ -110,9 +115,152 @@
             # the assert runs in a loop, so the text sits in the per-item results
             - "'template_src must be an absolute path' in (ansible_failed_result | to_json)"
 
+    # xvpn_negative_case: no-ssh-zone
+    - name: Create a zone without ssh
+      ansible.builtin.command:
+        argv:
+          - firewall-offline-cmd
+          - --new-zone=xvpn-nossh
+      register: xvpn_verify_nossh_zone
+      changed_when: xvpn_verify_nossh_zone.rc == 0
+      failed_when: xvpn_verify_nossh_zone.rc != 0 and 'NAME_CONFLICT' not in xvpn_verify_nossh_zone.stderr
+
+    - name: Bind a dummy interface to the zone without ssh
+      ansible.builtin.command:
+        argv:
+          - firewall-offline-cmd
+          - --zone=xvpn-nossh
+          - --add-interface=xvpndummy0
+      register: xvpn_verify_nossh_bind
+      changed_when: xvpn_verify_nossh_bind.rc == 0
+      failed_when: xvpn_verify_nossh_bind.rc != 0 and 'ZONE_ALREADY_SET' not in xvpn_verify_nossh_bind.stderr
+
+    - name: Resolve the zone of the dummy interface
+      ansible.builtin.command:
+        argv:
+          - firewall-offline-cmd
+          - --get-zone-of-interface=xvpndummy0
+      register: xvpn_verify_nossh_resolved
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the dummy interface resolves to the zone without ssh
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_nossh_resolved.rc == 0
+          - xvpn_verify_nossh_resolved.stdout | trim == 'xvpn-nossh'
+        fail_msg: >-
+          firewall-offline-cmd --get-zone-of-interface did not resolve xvpn-nossh (flagged assumption);
+          roles/common would fall back to the default zone
+        quiet: true
+
+    - name: Negative case no-ssh-zone
+      block:
+        - name: Run common against the zone without ssh
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.common
+          vars:
+            xvpn_common_firewalld_offline: true
+            xvpn_public_interface: xvpndummy0
+            xvpn_common_firewall_ports: ["8088/tcp"]
+        - name: Fail when the missing ssh was accepted
+          ansible.builtin.fail:
+            msg: "negative case no-ssh-zone was accepted"
+      rescue:
+        - name: Record that the zone without ssh was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['no-ssh-zone'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'is not allowed in firewalld zone xvpn-nossh' in (ansible_failed_result | to_json)"
+
+    - name: List the ports of the zone without ssh
+      ansible.builtin.command:
+        argv:
+          - firewall-offline-cmd
+          - --zone=xvpn-nossh
+          - --list-ports
+      register: xvpn_verify_nossh_ports
+      changed_when: false
+
+    - name: Assert no port was added to the zone without ssh
+      ansible.builtin.assert:
+        that:
+          - "'8088' not in xvpn_verify_nossh_ports.stdout"
+        fail_msg: "8088/tcp was added to xvpn-nossh although ssh is not allowed there"
+        quiet: true
+
+    # xvpn_negative_case: port-without-protocol
+    - name: Negative case port-without-protocol
+      block:
+        - name: Run common with a port entry without protocol
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.common
+          vars:
+            xvpn_common_firewalld_offline: true
+            xvpn_common_firewall_ports: ["80"]
+        - name: Fail when the port entry was accepted
+          ansible.builtin.fail:
+            msg: "negative case port-without-protocol was accepted"
+      rescue:
+        - name: Record that the port entry was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['port-without-protocol'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            # the assert runs in a loop, so the text sits in the per-item results
+            - "'Invalid firewall port entry' in (ansible_failed_result | to_json)"
+
+    # xvpn_negative_case: selinux-permissive
+    - name: Write the fake Permissive mode
+      ansible.builtin.copy:
+        content: "Permissive\n"
+        dest: /etc/xvpn-test-selinux-mode
+        mode: "0644"
+
+    - name: Negative case selinux-permissive
+      block:
+        - name: Run common while getenforce reports Permissive
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.common
+          vars:
+            xvpn_common_firewalld_offline: true
+            xvpn_common_firewall_ports: ["8089/tcp"]
+        - name: Fail when Permissive was accepted
+          ansible.builtin.fail:
+            msg: "negative case selinux-permissive was accepted"
+      rescue:
+        - name: Record that Permissive was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['selinux-permissive'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'SELinux must be Enforcing' in (ansible_failed_result.msg | string)"
+      always:
+        - name: Restore the fake Enforcing mode
+          ansible.builtin.copy:
+            content: "Enforcing\n"
+            dest: /etc/xvpn-test-selinux-mode
+            mode: "0644"
+
+    - name: List the ports of the default zone
+      ansible.builtin.command:
+        argv:
+          - firewall-offline-cmd
+          - --list-ports
+      register: xvpn_verify_default_ports
+      changed_when: false
+
+    - name: Assert no port was added while SELinux was Permissive
+      ansible.builtin.assert:
+        that:
+          - "'8089' not in xvpn_verify_default_ports.stdout"
+        fail_msg: "8089/tcp was added although SELinux reported Permissive"
+        quiet: true
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
-          - (xvpn_negative_rejected | default([])) | sort == ['bad-user-name', 'broken-unit', 'relative-template']
+          - (xvpn_negative_rejected | default([])) | sort == ['bad-user-name', 'broken-unit', 'no-ssh-zone', 'port-without-protocol', 'relative-template', 'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
         quiet: true
