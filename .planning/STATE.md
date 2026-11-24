@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
 status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-11-24T06:05:14.057Z"
+stopped_at: Completed 01-11-PLAN.md
+last_updated: "2026-11-24T06:18:36.540Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase 01 execution started
-state_head: c85cb9a5cd282310e8a21e8d60332be7f2a93888
+state_head: be18c177576fcc4bb54b12f8db26123b7e3163eb
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
-Plan: 10 of 12
+Plan: 11 of 12
 Status: Ready to execute
 Last activity: 2026-11-24 — Phase 01 execution started
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P06 | 25m | 2 tasks | 7 files |
 | Phase 01 P07 | n/a | 2 tasks | 9 files |
 | Phase 01 P08 | n/a | 2 tasks | 7 files |
+| Phase 01 P11 | 25 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Preflight regexes avoid backslashes (Jinja escapes); getent ahosts misses are {domain: null}
 - [Phase 01]: 01-07: SSH guard inlined twice in roles/common/tasks/firewalld.yml; FND-05 left open until VM-tier zero-AVC proof
 - [Phase 01]: 01-08: failed case messages recorded as to_json of ansible_failed_result (loop asserts)
+- [Phase 01]: VM boxes pinned via community.vagrant box_download_checksum(_type); box_checksum is not a driver key
 
 ### Pending Todos
 
@@ -107,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T06:05:13.965Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-11-24T06:18:36.474Z
+Stopped at: Completed 01-11-PLAN.md
 Resume file: None
