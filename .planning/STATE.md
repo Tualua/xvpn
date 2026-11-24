@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-11-24T04:46:20.780Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-11-24T04:53:53.150Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase 01 execution started
-state_head: c6fa697bc7a8bc55cf12ce34e611f66c6dabbe0f
+state_head: 9561da1bf6535437b9fd1144d82fe6cdfe4edc2f
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
-Plan: 3 of 12
+Plan: 4 of 12
 Status: Ready to execute
 Last activity: 2026-11-24 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 12 min | 1 tasks | 9 files |
 | Phase 01 P02 | 30min | 3 tasks | 6 files |
+| Phase 01 P03 | n/a | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,7 @@ Recent decisions affecting current work:
 - [Research]: Pinned versions — backend 3.4.11, node 3.4.6, subscription-page 8.0.1, Postgres 18.4, Valkey 9, Traefik v3.7.19; Traefik and remnanode on `Network=host`; Reality dest `127.0.0.1:8443`, `xver: 0`; env files (0600) instead of Podman secrets in v1
 - [Phase 01]: containers.podman declared only because LSR 2.5.0 needs it at runtime; podman_rootless fails fast when useradd allocates no subids; passt-selinux optional
 - [Phase 01]: Container Molecule scenario ships without verify step; Plan 04 adds it with verify.yml
+- [Phase 01]: ansible-lint production profile with var-naming[no-role-prefix] skip is the accepted lint bar; yamllint mandatory in CI
 
 ### Pending Todos
 
@@ -94,6 +96,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T04:46:20.701Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-11-24T04:53:53.087Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
