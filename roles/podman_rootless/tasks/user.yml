@@ -14,11 +14,17 @@
     key: "{{ xvpn_podman_rootless_user.name }}"
     fail_key: false
 
-- name: Refuse to adopt a pre-existing system account
+- name: Refuse to adopt an account that this collection did not create
   ansible.builtin.assert:
     that:
       - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][1] | int >= 1000
-    fail_msg: "Service user {{ xvpn_podman_rootless_user.name }} must have a regular uid >= 1000 (D-08)"
+      - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][4]
+        == xvpn_podman_rootless_home_root ~ '/' ~ xvpn_podman_rootless_user.name
+      - ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name][5] in ['/sbin/nologin', '/usr/sbin/nologin']
+    fail_msg: >-
+      Account {{ xvpn_podman_rootless_user.name }} already exists and does not look like a service user
+      managed by this collection (uid >= 1000, home {{ xvpn_podman_rootless_home_root }}/{{ xvpn_podman_rootless_user.name }},
+      nologin shell); refusing to rewrite its shell, password and home (D-08)
     quiet: true
   when: ansible_facts['getent_passwd'][xvpn_podman_rootless_user.name] is not none
 
