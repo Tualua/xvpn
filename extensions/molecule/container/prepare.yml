@@ -5,8 +5,8 @@
   tasks:
     - name: Bootstrap python3, sudo, iproute and procps-ng
       ansible.builtin.raw: >-
-        test -x /usr/bin/python3 && command -v sudo && command -v ss ||
-        dnf -y install python3 sudo iproute procps-ng
+        /bin/sh -c 'test -x /usr/bin/python3 && command -v sudo && command -v ss ||
+        dnf -y install python3 sudo iproute procps-ng'
       register: xvpn_bootstrap
       changed_when: "'Installed' in xvpn_bootstrap.stdout or 'Complete!' in xvpn_bootstrap.stdout"
 
