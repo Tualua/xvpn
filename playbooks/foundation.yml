@@ -13,4 +13,5 @@
   become: true
   gather_facts: true
   roles:
+    - xvpn.remnawave.common
     - xvpn.remnawave.podman_rootless

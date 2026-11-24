@@ -261,6 +261,8 @@
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
-          - (xvpn_negative_rejected | default([])) | sort == ['bad-user-name', 'broken-unit', 'no-ssh-zone', 'port-without-protocol', 'relative-template', 'selinux-permissive']
+          - >-
+            (xvpn_negative_rejected | default([])) | sort ==
+            ['bad-user-name', 'broken-unit', 'no-ssh-zone', 'port-without-protocol', 'relative-template', 'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
         quiet: true
