@@ -1,7 +1,7 @@
 ---
 argument_specs:
   main:
-    short_description: Read-only OS and SELinux checks with one aggregated failure
+    short_description: Read-only OS, SELinux, Podman, port and DNS checks with one aggregated failure
     options:
       xvpn_preflight_supported_distributions:
         description: Supported distribution names as reported by Ansible facts.
@@ -19,3 +19,41 @@ argument_specs:
         elements: str
         default:
           - "10"
+      xvpn_preflight_podman_min_version:
+        description: Minimum supported Podman version (installed, or newest available from enabled repositories).
+        type: str
+        default: "5.4"
+      xvpn_preflight_ports:
+        description: TCP ports that must be free or held by an accepted service user.
+        type: list
+        elements: int
+        default:
+          - 80
+          - 443
+      xvpn_preflight_service_users:
+        description: >-
+          User names whose listeners on the checked ports are accepted (re-run on a converged host).
+          The effective set is this list plus every name in xvpn_podman_rootless_users.
+        type: list
+        elements: str
+        default:
+          - rw-edge
+          - rw-panel
+          - rw-node
+      xvpn_preflight_domains:
+        description: Domains whose A record must point to this host. Empty list skips the A-record check with a warning.
+        type: list
+        elements: str
+        default: []
+      xvpn_preflight_dns_check:
+        description: Set to false to skip every DNS check.
+        type: bool
+        default: true
+      xvpn_public_interface:
+        description: Interface whose IPv4 addresses are the expected public IPs. Empty means the default-route interface.
+        type: str
+        default: ""
+      xvpn_public_ip:
+        description: Expected public IPv4 address. When set it takes precedence over xvpn_public_interface.
+        type: str
+        default: ""

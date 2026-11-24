@@ -4,3 +4,17 @@ xvpn_preflight_supported_distributions:
   - AlmaLinux
 xvpn_preflight_supported_major_versions:
   - "10"
+xvpn_preflight_podman_min_version: "5.4"
+xvpn_preflight_ports:
+  - 80
+  - 443
+# The effective accepted set also includes every name in xvpn_podman_rootless_users (see tasks/main.yml).
+xvpn_preflight_service_users:
+  - rw-edge
+  - rw-panel
+  - rw-node
+xvpn_preflight_domains: []
+xvpn_preflight_dns_check: true
+# Single owner of the shared names; role common reads them with | default('').
+xvpn_public_interface: ""
+xvpn_public_ip: ""

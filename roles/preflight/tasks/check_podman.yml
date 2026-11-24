@@ -1,0 +1,45 @@
+---
+# Read-only: nothing is installed here.
+- name: Preflight podman | read installed packages
+  ansible.builtin.package_facts:
+    manager: rpm
+  check_mode: false
+
+- name: Preflight podman | compare the installed version with the floor
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: >-
+      {{ xvpn_preflight_errors + ['Podman ' ~ ansible_facts.packages.podman[0].version
+      ~ ' is installed; minimum supported is ' ~ xvpn_preflight_podman_min_version] }}
+  when:
+    - "'podman' in ansible_facts.packages"
+    - ansible_facts.packages.podman[0].version is version(xvpn_preflight_podman_min_version, '<')
+
+- name: Preflight podman | list available Podman versions
+  ansible.builtin.dnf:
+    list: podman
+  register: xvpn_preflight_podman_list
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: "'podman' not in ansible_facts.packages"
+
+- name: Preflight podman | collect available versions
+  ansible.builtin.set_fact:
+    xvpn_preflight_podman_available: >-
+      {{ xvpn_preflight_podman_list.results | default([])
+      | selectattr('yumstate', 'defined') | selectattr('yumstate', 'equalto', 'available')
+      | map(attribute='version') | list }}
+  when: "'podman' not in ansible_facts.packages"
+
+- name: Preflight podman | require an available Podman at or above the floor
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: >-
+      {{ xvpn_preflight_errors + ['No Podman >= ' ~ xvpn_preflight_podman_min_version
+      ~ ' is installed or available from the enabled repositories (found: '
+      ~ (xvpn_preflight_podman_available | join(', ') if xvpn_preflight_podman_available | length > 0 else 'none')
+      ~ ')'] }}
+  when:
+    - "'podman' not in ansible_facts.packages"
+    - >-
+      (xvpn_preflight_podman_available
+      | select('version', xvpn_preflight_podman_min_version, '>=') | list | length) == 0

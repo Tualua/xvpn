@@ -1,0 +1,50 @@
+---
+# Read-only. A listener owned by an accepted service user passes so a converged host re-runs cleanly (D-05).
+- name: Preflight ports | read the user table
+  ansible.builtin.getent:
+    database: passwd
+  check_mode: false
+
+- name: Preflight ports | list listeners per port
+  ansible.builtin.command:
+    argv: [ss, -H, -ltnpe, sport, "=", ":{{ item }}"]
+  register: xvpn_preflight_ss
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: "{{ xvpn_preflight_ports }}"
+
+# Jinja string literals process escapes: use character classes (no backslashes).
+- name: Preflight ports | parse listener lines
+  ansible.builtin.set_fact:
+    xvpn_preflight_listeners: >-
+      {{ xvpn_preflight_listeners | default([]) + [{
+      'port': item.0.item,
+      'process': (item.1 | regex_findall('users:[(][(]"([^"]+)"') | default([''], true) | first),
+      'pid': (item.1 | regex_findall('pid=([0-9]+)') | default([''], true) | first),
+      'uid': (item.1 | regex_findall('(?:^|[ ])uid:([0-9]+)') | default(['0'], true) | first)
+      }] }}
+  loop: "{{ xvpn_preflight_ss.results | subelements('stdout_lines') }}"
+  loop_control:
+    label: "{{ item.0.item }}"
+
+# FLAGGED ASSUMPTION: ss prints no uid: field for root-owned sockets; a missing uid is treated as 0.
+- name: Preflight ports | map uids to user names
+  ansible.builtin.set_fact:
+    xvpn_preflight_listeners_named: >-
+      {{ xvpn_preflight_listeners_named | default([]) + [item | combine({'user': (ansible_facts.getent_passwd | dict2items
+      | selectattr('value.1', 'equalto', item.uid) | map(attribute='key') | first | default('unknown'))})] }}
+  loop: "{{ xvpn_preflight_listeners | default([]) }}"
+
+- name: Preflight ports | report listeners owned by foreign users
+  ansible.builtin.set_fact:
+    xvpn_preflight_errors: >-
+      {{ xvpn_preflight_errors + [
+      'Port ' ~ item.port ~ '/tcp is in use by '
+      ~ (('%s (pid %s, uid %s %s)' % (item.process, item.pid, item.uid, item.user))
+      if item.process != '' else 'an unidentified process')
+      ~ ('; free the port or stop that service' if item.process != '' else '')] }}
+  when: item.process == '' or item.user not in xvpn_preflight_accepted_users
+  loop: "{{ xvpn_preflight_listeners_named | default([]) }}"
+  loop_control:
+    label: "{{ item.port }}"
