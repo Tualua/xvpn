@@ -28,11 +28,12 @@
 - name: Validate home root
   ansible.builtin.assert:
     that:
-      - xvpn_podman_rootless_home_root is match('^/[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*$')
-      - "'..' not in xvpn_podman_rootless_home_root"
+      - xvpn_podman_rootless_home_root is match('^/[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$')
       - xvpn_podman_rootless_home_root not in
         ['/usr', '/etc', '/var', '/var/lib', '/opt', '/srv', '/home', '/root', '/boot',
-         '/bin', '/sbin', '/lib', '/lib64', '/run', '/tmp', '/dev', '/proc', '/sys']
+         '/bin', '/sbin', '/lib', '/lib64', '/run', '/tmp', '/dev', '/proc', '/sys',
+         '/var/log', '/var/cache', '/var/tmp', '/var/run', '/var/spool', '/usr/local', '/usr/bin', '/usr/sbin',
+         '/usr/lib', '/usr/lib64', '/usr/share', '/var/lib/containers', '/var/lib/systemd', '/var/lib/selinux']
     fail_msg: "Invalid home root: {{ xvpn_podman_rootless_home_root }}"
     quiet: true
 
