@@ -1,0 +1,37 @@
+---
+- name: Verify the rootless fundament after the reboot (VM tier)
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Read the binary policy checksum recorded before the reboot
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/policy_before_reboot
+      register: xvpn_verify_policy_before
+
+    - name: Checksum the same binary policy file after the reboot
+      ansible.builtin.stat:
+        path: "{{ (xvpn_verify_policy_before.content | b64decode | trim).split()[0] }}"
+        checksum_algorithm: sha256
+      register: xvpn_verify_policy_after
+
+    - name: Assert the boot-time policy is the one proven dontaudit-free
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_policy_after.stat.exists
+          - xvpn_verify_policy_after.stat.checksum == (xvpn_verify_policy_before.content | b64decode | trim).split()[1]
+        fail_msg: "binary policy changed across the reboot; the boot-time policy is not the one proven dontaudit-free"
+        quiet: true
+
+    - name: Verify the rootless plumbing and the bind probes after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_rootless.yml
+      vars:
+        xvpn_verify_bind_probe_ports: [443]
+
+    - name: Verify the host baseline after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_common.yml
+
+    - name: Verify the runtime after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_runtime.yml

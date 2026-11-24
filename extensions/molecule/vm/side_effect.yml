@@ -1,0 +1,168 @@
+---
+- name: Reboot the VM and re-prove the runtime (FND-04)
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Read the uid of the service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-edge
+
+    - name: Set the user manager runtime directory
+      ansible.builtin.set_fact:
+        xvpn_side_effect_env:
+          XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-edge'][1] }}"
+
+    # D-10(c), unchanged-unit half: the idempotence re-run must not have restarted the unit.
+    # Compared BEFORE this file restarts it on purpose.
+    - name: Read the InvocationID recorded after the first converge
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/invocation_after_first_converge
+      register: xvpn_side_effect_recorded
+
+    - name: Read the current InvocationID of the fixture unit
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - xvpn-fixture.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+      register: xvpn_side_effect_current
+      changed_when: false
+
+    - name: Assert the idempotence re-run left the unchanged unit alone
+      ansible.builtin.assert:
+        that:
+          - (xvpn_side_effect_recorded.content | b64decode | trim) | length > 0
+          - xvpn_side_effect_current.stdout | trim | length > 0
+          - (xvpn_side_effect_recorded.content | b64decode | trim) == (xvpn_side_effect_current.stdout | trim)
+        fail_msg: "the idempotence re-run restarted the unchanged unit xvpn-fixture.service (D-10 condition c)"
+        quiet: true
+
+    - name: Verify the rootless plumbing and the bind probes before the reboot
+      ansible.builtin.include_tasks: ../shared/verify_rootless.yml
+      vars:
+        # :80 is held by the fixture, so only the privileged-range port is probed.
+        xvpn_verify_bind_probe_ports: [443]
+
+    - name: Verify the host baseline before the reboot
+      ansible.builtin.include_tasks: ../shared/verify_common.yml
+
+    - name: Verify the runtime before the reboot
+      ansible.builtin.include_tasks: ../shared/verify_runtime.yml
+
+    # SC2: Ansible controls the user unit through systemctl --user, not only observes it.
+    - name: Read the InvocationID before the restart
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - xvpn-fixture.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+      register: xvpn_side_effect_before
+      changed_when: false
+
+    - name: Restart the fixture unit in the user manager
+      ansible.builtin.systemd_service:
+        name: xvpn-fixture.service
+        scope: user
+        state: restarted
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+
+    - name: Read the InvocationID after the restart
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - xvpn-fixture.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+      register: xvpn_side_effect_after
+      changed_when: false
+
+    - name: Assert the restart created a new invocation
+      ansible.builtin.assert:
+        that:
+          - xvpn_side_effect_after.stdout | trim | length > 0
+          - xvpn_side_effect_after.stdout | trim != xvpn_side_effect_before.stdout | trim
+        fail_msg: "systemctl --user restart did not create a new invocation"
+        quiet: true
+
+    - name: Verify the runtime after the restart
+      ansible.builtin.include_tasks: ../shared/verify_runtime.yml
+
+    # B-2 boot window: remember the binary policy that was just proven dontaudit-free.
+    - name: Find the binary policy files before the reboot
+      ansible.builtin.find:
+        paths: /etc/selinux/targeted/policy
+        patterns: "policy.*"
+      register: xvpn_side_effect_policy_files
+
+    - name: Assert a binary policy file exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_side_effect_policy_files.files | length > 0
+        fail_msg: "no /etc/selinux/targeted/policy/policy.* file found"
+        quiet: true
+
+    - name: Checksum the newest binary policy file
+      ansible.builtin.stat:
+        path: "{{ (xvpn_side_effect_policy_files.files | sort(attribute='mtime') | last).path }}"
+        checksum_algorithm: sha256
+      register: xvpn_side_effect_policy_stat
+
+    - name: Record the binary policy checksum before the reboot
+      ansible.builtin.copy:
+        content: "{{ xvpn_side_effect_policy_stat.stat.path }} {{ xvpn_side_effect_policy_stat.stat.checksum }}\n"
+        dest: /var/lib/xvpn-molecule/policy_before_reboot
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Reboot the VM
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+
+    - name: Wait for the fixture unit in the user manager after the reboot
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - is-active
+          - xvpn-fixture.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-edge'][1] }}"
+      register: xvpn_side_effect_post_reboot
+      until: xvpn_side_effect_post_reboot.stdout | trim == 'active'
+      retries: 60
+      delay: 10
+      changed_when: false

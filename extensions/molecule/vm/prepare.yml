@@ -9,6 +9,7 @@
         name:
           - audit
           - setools-console
+          - policycoreutils-python-utils
         state: present
 
     - name: Enable and start auditd
