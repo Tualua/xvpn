@@ -10,11 +10,11 @@
 ### Foundation (FND)
 
 - [ ] **FND-01**: Оператор получает понятную ошибку preflight, если хост не Rocky/Alma 10, SELinux не enforcing, Podman ниже 5.4 или порты 80/443 заняты
-- [x] **FND-02**: Каждый сервис работает под выделенным rootless-пользователем с linger, subuid/subgid и доступным `systemctl --user` из Ansible
-- [x] **FND-03**: Rootless-контейнеры могут слушать порты 80/443 (persistent sysctl `ip_unprivileged_port_start`), что проверяется в verify
-- [x] **FND-04**: Quadlet-юниты рендерятся из шаблонов, проходят dry-run генератора, переживают перезагрузку хоста
+- [ ] **FND-02**: Каждый сервис работает под выделенным rootless-пользователем с linger, subuid/subgid и доступным `systemctl --user` из Ansible
+- [ ] **FND-03**: Rootless-контейнеры могут слушать порты 80/443 (persistent sysctl `ip_unprivileged_port_start`), что проверяется в verify
+- [ ] **FND-04**: Quadlet-юниты рендерятся из шаблонов, проходят dry-run генератора, переживают перезагрузку хоста
 - [ ] **FND-05**: Роли настраивают firewalld и SELinux (контексты томов, booleans/порты только по доказанной необходимости) без перевода SELinux в permissive и без AVC-denial'ов
-- [x] **FND-06**: Коллекция имеет `galaxy.yml` (`xvpn.remnawave`), `argument_specs` для всех ролей и Galaxy-ready структуру
+- [ ] **FND-06**: Коллекция имеет `galaxy.yml` (`xvpn.remnawave`), `argument_specs` для всех ролей и Galaxy-ready структуру
 - [ ] **FND-07**: Preflight проверяет, что A-запись каждого домена указывает на IP внешнего интерфейса хоста (жёсткий fail, отключаемый флагом; детекция Cloudflare не делается — DNS в ответственности оператора)
 
 ### Edge / Traefik (EDGE)
@@ -136,11 +136,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FND-01 | Phase 1 | Pending |
-| FND-02 | Phase 1 | Complete |
-| FND-03 | Phase 1 | Complete |
-| FND-04 | Phase 1 | Complete |
+| FND-02 | Phase 1 | Pending |
+| FND-03 | Phase 1 | Pending |
+| FND-04 | Phase 1 | Pending |
 | FND-05 | Phase 1 | Pending |
-| FND-06 | Phase 1 | Complete |
+| FND-06 | Phase 1 | Pending |
 | FND-07 | Phase 1 | Pending |
 | EDGE-01 | Phase 2 | Pending |
 | EDGE-02 | Phase 2 | Pending |
