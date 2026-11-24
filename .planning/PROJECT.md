@@ -75,6 +75,7 @@
 | Имя коллекции `xvpn.remnawave` (временное) | Сменить перед публикацией | — Pending |
 | Общение GSD/Claude с пользователем на русском (`response_language: ru`) | Предпочтение пользователя; код и технические термины на английском | ✓ Good |
 | Rocky 10 в VM-тире Molecule — официальный libvirt Vagrant box с dl.rockylinux.org (версионированный, sha256 из CHECKSUM), а не nightly cloud-image job из CLAUDE.md | D-18 требует Alma и Rocky в самом VM-тире; box `rockylinux/10` в Vagrant Cloud устарел. Принято пользователем 2026-11-23 (Phase 1, планы 01-11/01-12) | ✓ Принято |
+| CI Phase 1 только на ansible-core 2.21; нога 2.22 отложена до QA-06 (Phase 5), а не матрица {2.21, 2.22} из CLAUDE.md | Сознательное отступление от CLAUDE.md: фокус Phase 1 на фундаменте и VM-тире; `check.sh` локально уже идёт на 2.22. Решение пользователя 2026-11-24, D-23 (Phase 1, план 01-09) | ✓ Принято |
 
 ## Evolution
 

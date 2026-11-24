@@ -49,11 +49,19 @@ Hardening (SSH, fail2ban, dnf-automatic) — Phase 5. LAN-зона firewalld —
 - **D-17:** Репозиторий — GitHub, CI — GitHub Actions (`.github/workflows`).
 - **D-18:** VM-тир покрывает и AlmaLinux 10, и Rocky 10.
 
+### Решения пользователя, принятые во время планирования (датированы)
+- **D-19 (2026-11-23, ответ «Явный warning» в сессии планирования):** если `xvpn_preflight_dns_check: true`, а `xvpn_preflight_domains` пуст, preflight не падает, а продолжает работу и печатает видимое предупреждение `A-record check skipped: xvpn_preflight_domains is empty`. Проверка A-записи активна только когда оператор задал домены (в Phase 1 домены задаёт оператор; роли panel/node заполнят их в Phases 2-4). — **Reversibility:** reversible
+- **D-20 (2026-11-24):** пользователь принимает, что эквивалентность home `/var/lib/xvpn` (D-08) и SELinux-контексты проверяются только в VM-тире (wave 9, планы 01-11/01-12), без раннего spike. Любой AVC по-прежнему эскалируется через `checkpoint:decision` (без автопочинки, без смены D-08 без решения пользователя). Фазы 2-4 планируются только после завершения Phase 1. — **Reversibility:** costly (риск принят пользователем; при AVC решение пересматривается через checkpoint)
+- **D-21 (2026-11-24):** репозиторий `Tualua/xvpn` уже PUBLIC, `origin/main` (3b54bcc) уже содержит историю `.planning/`; пользователь решил оставить его публичным. План 01-09 не создаёт репозиторий и не добавляет remote, а проверяет существующее состояние (`git remote get-url origin` == `https://github.com/Tualua/xvpn.git`, `gh repo view Tualua/xvpn --json visibility` == `PUBLIC`, `gh auth status` == 0) и пушит локальные коммиты. Риск раскрытия `.planning/` принят пользователем. — **Reversibility:** one-way (история уже опубликована)
+- **D-22 (2026-11-23, решение пользователя в сессии планирования; ранее записано только в RESEARCH Open Question 3, перенесено сюда 2026-11-24):** VM-тир Phase 1 гоняет обе ноги (AlmaLinux 10, Rocky 10) на Podman 6.1.x; отдельной VM-ноги на Podman 5.4-5.8 (EL10.0-10.2) нет. Пол 5.4 обеспечивается только version-check в preflight (план 01-06, негативный кейс в 01-08). Пользователь принимает риск, что ключ Quadlet или поведение LSR, отличающиеся на Podman 5.x, не ловятся CI до QA-06 (Phase 5). README (план 01-12) раскрывает этот остаточный риск. Планы 01-11/01-12 ссылаются на это решение. — **Reversibility:** reversible (нога добавляется в QA-06)
+- **D-23 (2026-11-24, решение пользователя):** нога CI-матрицы на ansible-core 2.22 откладывается до QA-06 (Phase 5) — сознательное отступление от строки CLAUDE.md «Matrix: ansible-core {2.21, 2.22}». CI Phase 1 пинит только ansible-core 2.21 (`requirements-dev.txt`: `ansible-core>=2.21,<2.22`, план 01-09); `scripts/check.sh` локально в devcontainer идёт на 2.22. Записано также как Key Decision в `.planning/PROJECT.md`. — **Reversibility:** reversible (нога добавляется в QA-06)
+
 ### Claude's Discretion
 - Драйвер VM для Molecule: Vagrant+libvirt (box `almalinux/10`, Rocky из cloud-образа) или delegated + официальные GenericCloud-образы через virt-install/cloud-init — выбирает research по стабильности на GitHub-раннерах.
 - Резолвер для проверки A-записи (системный резолвер хоста по умолчанию; Cloudflare-детекции нет).
 - Использовать ли LSR `firewall`/`selinux` роли вместо `ansible.posix.firewalld`/`seboolean` — при условии соблюдения D-13 (только добавлять своё).
 - Формат сообщений preflight и структура переменных (`xvpn_<role>_*`).
+- Обработка AAAA-записей в preflight: только warning, никогда не fail (RESEARCH A13, Open Question 6 RESOLVED). Это выбор Claude в рамках discretion, а не решение пользователя.
 
 </decisions>
 
