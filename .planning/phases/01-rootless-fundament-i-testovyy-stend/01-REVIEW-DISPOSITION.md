@@ -17,7 +17,7 @@ findings:
     title: "Защита от «усыновления» аккаунта не сверяет явно заданный `uid`"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Негативный контроль «порт 79 привилегирован» ломается при допустимых значениях sysctl"
   - id: IN-01
     severity: info
@@ -59,9 +59,9 @@ findings:
     severity: info
     disposition: fixed
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 6
+open: 5
 total: 14
-recorded: 2026-11-24T11:48:31.981Z
+recorded: 2026-11-24T11:57:19.508Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -71,7 +71,7 @@ recorded: 2026-11-24T11:48:31.981Z
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
 | WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
+| WR-04 | warning | fixed | 01-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | WR-05 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
