@@ -5,35 +5,35 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Роль «усыновляет» любую существующую учётную запись с uid >= 1000 и перезаписывает её shell, пароль и home"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Валидация `xvpn_podman_rootless_home_root` допускает `..` и системные каталоги, затем идут chmod/chown и рекурсивный restorecon"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`restorecon` запускается только если `sefcontext` изменился, поэтому прерванный первый прогон оставляет неверные метки навсегда"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Задача `lint` в `lint.yml` не имеет `timeout-minutes`"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "SELinux-гейт в роли `common` стоит после установки пакетов и не защищает `podman_rootless` при отдельном запуске"
   - id: WR-06
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Валидация Quadlet изолирует спеки одного вызова, поэтому юниты со ссылками на `.network`/`.volume` из другого вызова будут ложно отклонены; проверка «ожидаемый сервис» подстрочная"
   - id: WR-07
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Проверка DNS в preflight падает необработанной ошибкой шаблона, если факты выбранного интерфейса отсутствуют"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: skipped
     title: "Воркфлоу `molecule-vm` ставит vagrant-libvirt и ключ HashiCorp без проверки отпечатка и запускается на каждом PR"
   - id: IN-01
     severity: info
@@ -59,23 +59,23 @@ findings:
     severity: info
     disposition: open
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 14
+open: 6
 total: 14
-recorded: 2026-11-24T09:29:12.260Z
+recorded: 2026-11-24T09:52:55.003Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
-| WR-07 | warning | open | - |
-| WR-08 | warning | open | - |
+| WR-01 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-05 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-06 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-07 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-08 | warning | skipped | 01-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
