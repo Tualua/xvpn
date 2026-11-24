@@ -76,6 +76,7 @@
     - xvpn_common_fw_ssh_before_service.rc != 0
     - xvpn_common_fw_ssh_before_port.rc != 0
 
+# The task below only adds ports and can never remove ssh from the zone, so no second SSH check follows it.
 - name: Common | open the declared ports (add-only)
   ansible.posix.firewalld:
     zone: "{{ xvpn_common_fw_zone }}"
@@ -85,34 +86,3 @@
     offline: "{{ xvpn_common_firewalld_offline }}"
     state: enabled
   loop: "{{ xvpn_common_firewall_ports }}"
-
-- name: Common | after - query the ssh service in the zone
-  ansible.builtin.command:
-    argv:
-      - "{{ xvpn_common_fw_cmd }}"
-      - "--zone={{ xvpn_common_fw_zone }}"
-      - --query-service=ssh
-  register: xvpn_common_fw_ssh_after_service
-  changed_when: false
-  check_mode: false
-  failed_when: false
-
-- name: Common | after - query the SSH port in the zone
-  ansible.builtin.command:
-    argv:
-      - "{{ xvpn_common_fw_cmd }}"
-      - "--zone={{ xvpn_common_fw_zone }}"
-      - "--query-port={{ ansible_port | default(22) }}/tcp"
-  register: xvpn_common_fw_ssh_after_port
-  changed_when: false
-  check_mode: false
-  failed_when: false
-
-- name: Common | after - refuse to continue without SSH access
-  ansible.builtin.fail:
-    msg: >-
-      SSH (service ssh or port {{ ansible_port | default(22) }}/tcp) is not allowed in firewalld zone
-      {{ xvpn_common_fw_zone }}; refusing to touch the firewall so you do not lose access
-  when:
-    - xvpn_common_fw_ssh_after_service.rc != 0
-    - xvpn_common_fw_ssh_after_port.rc != 0
