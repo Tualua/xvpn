@@ -16,6 +16,12 @@ argument_specs:
         description: Manage only the permanent firewalld configuration, without a running firewalld.
         type: bool
         default: false
+      xvpn_common_ssh_port:
+        description: >-
+          sshd port on the target host, used by the SSH lockout guard.
+          Defaults to C(ansible_port) or 22; set it when the Ansible connection port differs from the sshd port.
+        type: int
+        default: 22
       xvpn_public_interface:
         description: Owned by role preflight; empty means the default-route interface.
         type: str

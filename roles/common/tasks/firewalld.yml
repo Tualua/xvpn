@@ -61,7 +61,7 @@
     argv:
       - "{{ xvpn_common_fw_cmd }}"
       - "--zone={{ xvpn_common_fw_zone }}"
-      - "--query-port={{ ansible_port | default(22) }}/tcp"
+      - "--query-port={{ xvpn_common_ssh_port }}/tcp"
   register: xvpn_common_fw_ssh_before_port
   changed_when: false
   check_mode: false
@@ -70,7 +70,7 @@
 - name: Common | before - refuse to continue without SSH access
   ansible.builtin.fail:
     msg: >-
-      SSH (service ssh or port {{ ansible_port | default(22) }}/tcp) is not allowed in firewalld zone
+      SSH (service ssh or port {{ xvpn_common_ssh_port }}/tcp) is not allowed in firewalld zone
       {{ xvpn_common_fw_zone }}; refusing to touch the firewall so you do not lose access
   when:
     - xvpn_common_fw_ssh_before_service.rc != 0

@@ -12,3 +12,5 @@ xvpn_common_firewall_ports: []
 # Manage only the permanent configuration without a running firewalld (image builds, container tier).
 xvpn_common_firewalld_offline: false
 # xvpn_public_interface is owned by role preflight; this role reads it with | default('').
+# sshd port on the target host used by the SSH lockout guard; differs from ansible_port behind NAT, a bastion or a port-forward.
+xvpn_common_ssh_port: "{{ ansible_port | default(22) }}"
