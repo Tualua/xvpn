@@ -1,0 +1,28 @@
+---
+# Pin justification (Galaxy is not covered by the PyPI legitimacy seam; see
+# 01-RESEARCH.md Package Legitimacy Audit). These collections run as root on
+# targets, so every version is exact and human-approved before first install.
+#   fedora.linux_system_roles 2.5.0 - publisher namespace fedora (linux-system-roles, Red Hat),
+#     github.com/linux-system-roles; tarball downloaded and roles/podman read in RESEARCH.
+#   ansible.posix 2.2.2 - Ansible core team, github.com/ansible-collections/ansible.posix;
+#     resolved from the Galaxy API.
+#   community.general 14.0.1 - Ansible community, github.com/ansible-collections/community.general;
+#     resolved from the Galaxy API.
+#   containers.podman 1.21.2 - Podman project, github.com/containers/ansible-podman-collections;
+#     resolved from the Galaxy API; needed only as a runtime dependency of
+#     fedora.linux_system_roles 2.5.0 (its MANIFEST.json lists it; roles/podman/tasks/
+#     handle_images.yml and handle_secret.yml call containers.podman.*), pinned exactly
+#     so the transitive install cannot float.
+#   community.vagrant 1.0.1 - Ansible community, github.com/ansible-collections/community.vagrant;
+#     module source read in RESEARCH (VM tier driver only).
+collections:
+  - name: fedora.linux_system_roles
+    version: 2.5.0
+  - name: ansible.posix
+    version: 2.2.2
+  - name: community.general
+    version: 14.0.1
+  - name: containers.podman
+    version: 1.21.2
+  - name: community.vagrant
+    version: 1.0.1
