@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
+current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-11-23T15:09:27.885Z"
-last_activity: 2026-11-23
-last_activity_desc: Roadmap created (5 phases, 54/54 requirements mapped)
-state_head: e593bca954b651fc769e02583cc557751fb8f1ba
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-11-24T04:21:27.133Z"
+last_activity: 2026-11-24
+last_activity_desc: Phase 01 execution started
+state_head: 433f7c7174ef7da8261beeb6a166c2816e00d5b5
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-23)
 
 **Core value:** Из inventory одной командой получается рабочая, защищённая и идемпотентная инсталляция Remnawave на RHEL 10 с SELinux enforcing: Panel за прокси с защищённым входом, ноды авто-регистрируются через API, Reality self-steal.
-**Current focus:** Phase 1 — Rootless-фундамент и тестовый стенд
+**Current focus:** Phase 01 — Rootless-фундамент и тестовый стенд
 
 ## Current Position
 
-Phase: 1 (Rootless-фундамент и тестовый стенд) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
+Plan: 2 of 12
 Status: Ready to execute
-Last activity: 2026-11-23 — Roadmap created (5 phases, 54/54 requirements mapped)
+Last activity: 2026-11-24 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 12 min | 1 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -64,6 +69,7 @@ Recent decisions affecting current work:
 - [Roadmap]: Molecule container tier + VM tier (EL10, SELinux enforcing) built in Phase 1; every later phase is verified on it
 - [Roadmap]: Pebble/LE staging (QA-05) introduced in Phase 2 together with the first ACME usage; DOC-04 (no_log/placeholder asserts) introduced in Phase 2 with the first secrets
 - [Research]: Pinned versions — backend 3.4.11, node 3.4.6, subscription-page 8.0.1, Postgres 18.4, Valkey 9, Traefik v3.7.19; Traefik and remnanode on `Network=host`; Reality dest `127.0.0.1:8443`, `xver: 0`; env files (0600) instead of Podman secrets in v1
+- [Phase 01]: containers.podman declared only because LSR 2.5.0 needs it at runtime; podman_rootless fails fast when useradd allocates no subids; passt-selinux optional
 
 ### Pending Todos
 
@@ -86,6 +92,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-23T10:36:46.483Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-rootless-fundament-i-testovyy-stend/01-CONTEXT.md
+Last session: 2026-11-24T04:21:27.039Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
