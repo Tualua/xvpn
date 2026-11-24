@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Rootless-фундамент и тестовый стенд
 status: executing
-stopped_at: Completed 01-09-PLAN.md
-last_updated: "2026-11-24T05:18:21.534Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-11-24T05:32:31.458Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase 01 execution started
-state_head: 09c539307add4f5b1de240dfb4f560c28828bd43
+state_head: a797e488b23d4b0eed9975cb4a9c56240b2a5518
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: 01 (Rootless-фундамент и тестовый стенд) — EXECUTING
-Plan: 5 of 12
+Plan: 6 of 12
 Status: Ready to execute
 Last activity: 2026-11-24 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 30min | 3 tasks | 6 files |
 | Phase 01 P03 | n/a | 2 tasks | 7 files |
 | Phase 1 P09 | n/a | 3 tasks | 5 files |
+| Phase 01 P04 | n/a | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Container Molecule scenario ships without verify step; Plan 04 adds it with verify.yml
 - [Phase 01]: ansible-lint production profile with var-naming[no-role-prefix] skip is the accepted lint bar; yamllint mandatory in CI
 - [Phase 1]: CI runs ansible-core 2.21 only; container scenario starts systemd-logind in prepare (01-09)
+- [Phase 01]: Generator dry-run rc is non-zero on a bad unit (A5 confirmed in CI); loop assert failures matched via whole failed result
 
 ### Pending Todos
 
@@ -98,6 +100,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T05:18:21.469Z
-Stopped at: Completed 01-09-PLAN.md
+Last session: 2026-11-24T05:32:31.392Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None

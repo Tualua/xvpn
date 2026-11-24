@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. После прогона на чистом EL10 тестовый Quadlet-сервис под выделенным rootless-пользователем слушает порт 80, управляется через `systemctl --user` из Ansible и снова поднимается после перезагрузки хоста
   3. VM-тир Molecule (AlmaLinux 10 и Rocky 10, SELinux enforcing) проходит converge, идемпотентность (`changed=0`), reboot-тест и проверку нуля AVC-denial'ов; firewalld открывает только нужные порты
   4. Контейнерный тир Molecule, ansible-lint и yamllint проходят в CI; коллекция собирается из `galaxy.yml` (`xvpn.remnawave`), у ролей есть `argument_specs`
-**Plans:** 4/12 plans executed
+**Plans:** 5/12 plans executed
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Tracer: collection identity, podman_rootless (users, home, sysctl, linger) + LSR Quadlet interface, foundation playbook (wave 1)
@@ -45,7 +45,7 @@ Plans:
 - [x] 01-09-PLAN.md — CI definitions + first CI run: pinned dev tooling, lint + container workflows, PyPI/gem/apt legitimacy + GitHub prerequisites checkpoint, repository alignment, tracer green in CI (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01-04-PLAN.md — Unit/input guards: generator dry-run before LSR, container verify with :443 bind probe and negative cases (wave 5)
+- [x] 01-04-PLAN.md — Unit/input guards: generator dry-run before LSR, container verify with :443 bind probe and negative cases (wave 5)
 - [ ] 01-05-PLAN.md — Preflight base: OS/SELinux read-only first play + standalone xvpn.remnawave.preflight playbook (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
@@ -125,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Rootless-фундамент и тестовый стенд | 4/12 | In Progress | - |
+| 1. Rootless-фундамент и тестовый стенд | 5/12 | In Progress | - |
 | 2. Panel за Traefik с защищённым входом | 0/3 | Not started | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
