@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: Dmitry Popovich
+  description: Host baseline - packages, SELinux enforcing gate and add-only firewalld with an SSH guard
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.20"
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+  galaxy_tags: []
+dependencies: []

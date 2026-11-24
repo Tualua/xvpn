@@ -1,0 +1,22 @@
+---
+argument_specs:
+  main:
+    short_description: Host baseline packages, SELinux enforcing gate, add-only firewalld with SSH guard
+    options:
+      xvpn_common_packages:
+        description: Baseline packages installed with dnf.
+        type: list
+        elements: str
+      xvpn_common_firewall_ports:
+        description: Ports to open in the zone of the public interface, each C(<number>/<tcp|udp>). Only added, never removed.
+        type: list
+        elements: str
+        default: []
+      xvpn_common_firewalld_offline:
+        description: Manage only the permanent firewalld configuration, without a running firewalld.
+        type: bool
+        default: false
+      xvpn_public_interface:
+        description: Owned by role preflight; empty means the default-route interface.
+        type: str
+        required: false

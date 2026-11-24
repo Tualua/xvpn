@@ -1,0 +1,14 @@
+---
+xvpn_common_packages:
+  - firewalld
+  - python3-firewall
+  - audit
+  - python3-libselinux
+  - python3-policycoreutils
+  - policycoreutils-python-utils
+  - libselinux-utils
+# Ports in <number>/<tcp|udp> form that the collection adds to the public zone. Never removes anything (D-13).
+xvpn_common_firewall_ports: []
+# Manage only the permanent configuration without a running firewalld (image builds, container tier).
+xvpn_common_firewalld_offline: false
+# xvpn_public_interface is owned by role preflight; this role reads it with | default('').

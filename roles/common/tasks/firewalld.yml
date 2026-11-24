@@ -1,0 +1,118 @@
+---
+- name: Common | select the firewall command
+  ansible.builtin.set_fact:
+    xvpn_common_fw_cmd: "{{ 'firewall-offline-cmd' if xvpn_common_firewalld_offline else 'firewall-cmd' }}"
+    xvpn_common_fw_iface: >-
+      {{ (xvpn_public_interface | default(''))
+         if (xvpn_public_interface | default('')) | length > 0
+         else (ansible_facts['default_ipv4']['interface'] | default('')) }}
+
+- name: Common | require a public interface
+  ansible.builtin.fail:
+    msg: Cannot determine the public interface; set xvpn_public_interface
+  when: xvpn_common_fw_iface | length == 0
+
+- name: Common | note the implicit interface fallback
+  ansible.builtin.debug:
+    msg: >-
+      NOTICE: xvpn_public_interface is empty; using default-route interface {{ xvpn_common_fw_iface }}
+      for the firewalld zone
+  when: (xvpn_public_interface | default('')) | length == 0
+
+- name: Common | find the zone of the public interface
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_common_fw_cmd }}"
+      - "--get-zone-of-interface={{ xvpn_common_fw_iface }}"
+  register: xvpn_common_fw_zone_of_iface
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Common | find the default zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_common_fw_cmd }}"
+      - --get-default-zone
+  register: xvpn_common_fw_default_zone
+  changed_when: false
+  check_mode: false
+
+- name: Common | select the zone
+  ansible.builtin.set_fact:
+    xvpn_common_fw_zone: >-
+      {{ (xvpn_common_fw_zone_of_iface.stdout | trim)
+         if (xvpn_common_fw_zone_of_iface.rc == 0 and (xvpn_common_fw_zone_of_iface.stdout | trim) | length > 0)
+         else (xvpn_common_fw_default_zone.stdout | trim) }}
+
+- name: Common | before - query the ssh service in the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_common_fw_cmd }}"
+      - "--zone={{ xvpn_common_fw_zone }}"
+      - --query-service=ssh
+  register: xvpn_common_fw_ssh_before_service
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Common | before - query the SSH port in the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_common_fw_cmd }}"
+      - "--zone={{ xvpn_common_fw_zone }}"
+      - "--query-port={{ ansible_port | default(22) }}/tcp"
+  register: xvpn_common_fw_ssh_before_port
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Common | before - refuse to continue without SSH access
+  ansible.builtin.fail:
+    msg: >-
+      SSH (service ssh or port {{ ansible_port | default(22) }}/tcp) is not allowed in firewalld zone
+      {{ xvpn_common_fw_zone }}; refusing to touch the firewall so you do not lose access
+  when:
+    - xvpn_common_fw_ssh_before_service.rc != 0
+    - xvpn_common_fw_ssh_before_port.rc != 0
+
+- name: Common | open the declared ports (add-only)
+  ansible.posix.firewalld:
+    zone: "{{ xvpn_common_fw_zone }}"
+    port: "{{ item }}"
+    permanent: true
+    immediate: "{{ not xvpn_common_firewalld_offline }}"
+    offline: "{{ xvpn_common_firewalld_offline }}"
+    state: enabled
+  loop: "{{ xvpn_common_firewall_ports }}"
+
+- name: Common | after - query the ssh service in the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_common_fw_cmd }}"
+      - "--zone={{ xvpn_common_fw_zone }}"
+      - --query-service=ssh
+  register: xvpn_common_fw_ssh_after_service
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Common | after - query the SSH port in the zone
+  ansible.builtin.command:
+    argv:
+      - "{{ xvpn_common_fw_cmd }}"
+      - "--zone={{ xvpn_common_fw_zone }}"
+      - "--query-port={{ ansible_port | default(22) }}/tcp"
+  register: xvpn_common_fw_ssh_after_port
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Common | after - refuse to continue without SSH access
+  ansible.builtin.fail:
+    msg: >-
+      SSH (service ssh or port {{ ansible_port | default(22) }}/tcp) is not allowed in firewalld zone
+      {{ xvpn_common_fw_zone }}; refusing to touch the firewall so you do not lose access
+  when:
+    - xvpn_common_fw_ssh_after_service.rc != 0
+    - xvpn_common_fw_ssh_after_port.rc != 0
