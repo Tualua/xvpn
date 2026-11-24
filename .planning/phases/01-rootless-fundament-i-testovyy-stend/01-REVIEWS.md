@@ -1,7 +1,10 @@
 ---
 phase: 1
 reviewers: [opencode, qwen]
-reviewed_at: 2026-11-23T15:25:32Z
+reviewed_at: 2026-11-24T01:45:45Z
+reviewed_at_by_lane:
+  qwen: 2026-11-23T15:25:32Z
+  opencode: 2026-11-24T01:45:45Z
 plans_reviewed: [01-01-PLAN.md, 01-02-PLAN.md, 01-03-PLAN.md, 01-04-PLAN.md, 01-05-PLAN.md, 01-06-PLAN.md, 01-07-PLAN.md, 01-08-PLAN.md, 01-09-PLAN.md, 01-10-PLAN.md, 01-11-PLAN.md, 01-12-PLAN.md]
 models:
   opencode: "unknown"
@@ -19,15 +22,280 @@ model_sources:
 
 ## OpenCode Review
 
-opencode review failed or returned empty output. stderr:
-[93m[1m! [0mpermission requested: external_directory (/home/dev/.ansible/collections/ansible_collections/fedora/linux_system_roles/roles/podman/*); auto-rejecting
-[93m[1m! [0mpermission requested: external_directory (/home/dev/.ansible/collections/ansible_collections/xvpn/remnawave/*); auto-rejecting
+> Re-run on 2026-11-24 after granting OpenCode `external_directory` read access to `~/.ansible/**` (the first run auto-rejected those reads and returned no output). Source-grounded: cites installed LSR 2.5.0 files by `path:line`.
 
-Raw response body:
-OpenCode review returned no assistant text (#1936: agent ended its turn with no final message).
-Diagnostic: stop reason=tool-calls, output tokens=197
-Diagnosis: opencode ran at effort=high and exited cleanly inside the timeout — a clean exit that produced no output is most often a model ending its turn without writing a final message rather than a crash; if this lane carries a reasoning effort, raising it is the usual fix.
+# Cross-AI Plan Review — Phase 1 (12 plans)
 
+**Verification basis:** the repo is greenfield (`/workspaces/xvpn` contains only `.planning/`, `.claude/`, `.devcontainer/` — confirmed via directory listing), so product-file claims were checked against the planning artifacts (`SKELETON.md`, `01-PATTERNS.md`, `01-CONTEXT.md`, `01-RESEARCH.md`) and, where plans assert external-role behavior, against the **actually installed** `fedora.linux_system_roles` 2.5.0 source in the devcontainer. Environment claims spot-checked: `ansible --version` = core 2.22.0, `ansible-lint` on PATH, no `yamllint`/`podman`/`molecule` on PATH, stale `~/.ansible/collections/ansible_collections/xvpn` scratch build present (matches Plan 01's housekeeping step exactly).
+
+**Cross-plan checks performed:** dependency graph vs. waves (all consistent: 04/05←{03,09}; 06←05; 07←{04,05}; 08←06; 09←03; 10←{07,08,09}; 11←{04,05,06,07}; 12←{10,11}); requirement coverage (FND-01…07, QA-01…03 all mapped to ≥1 plan); file-ownership overlap between parallel waves (04 vs 05: disjoint; verified); verify-command executability (parsed each `<automated>` block for syntax/logic).
+
+---
+
+## 01-01
+
+**Summary:** Solid tracer plan: collection identity + `podman_rootless` with the user/SELinux/sysctl/linger plumbing and the single LSR-backed `quadlet` entry point. Correctly sequences the fcontext equivalence before user creation and sysctl before any unit install.
+
+**Strengths**
+- Claims verified against real LSR source: `podman_pull_image: false` is genuinely required — `roles/podman/tasks/handle_images.yml:11` of the installed collection shows `force: true` on every image task. The plan's central mitigation is grounded, not assumed.
+- The stale scratch-collection housekeeping step matches the actual devcontainer state (`~/.ansible/collections/ansible_collections/xvpn` exists right now) — Pitfall 12 handled concretely.
+- argv-only commands, name-regex asserts before any account mutation, `nologin`/`password_lock` — the threat-model mitigations are executable gates, with the executed negative test deferred to Plan 04 (declared, not lost).
+- uid>=1000 asserted both before `user` runs (explicit uid and pre-existing accounts) and after (allocated uid) — closes the "system account silently adopted" hole.
+
+**Concerns**
+- **MEDIUM:** `xvpn_podman_rootless_packages` includes `passt-selinux` unconditionally. Research states passt-selinux is "present on 10.3" — on an EL10.0/10.2 host (allowed by the 5.4 preflight floor) this package may be absent and `dnf` fails mid-converge. Plan 11's `verify_rootless.yml` even asserts `rpm -q passt passt-selinux` rc 0, hard-coding the 10.3 assumption into the shared verify.
+- **LOW:** `user@<uid>.service` start + `wait_for /run/user/<uid>/systemd/private` rests on A2 (manager readiness); already flagged as a FLAGGED ASSUMPTION with VM-tier proof — acceptable.
+- **LOW:** `verify` uses `grep -c 'podman_rootless'` on `--list-tasks` output; a task *name* containing the string would also count. Cosmetic, given the other gates.
+
+**Suggestions**
+- Guard `passt-selinux` (and the `rpm -q` verify) behind a package-presence check or drop it from the Phase-1 default set; Phase 2/3 roles that actually need pasta should own it.
+- State in SUMMARY explicitly that `containers.podman` is a transitive-only pin (the plan already instructs this — keep it).
+
+**Risk Assessment: LOW-MEDIUM** — well-grounded; the passt-selinux version skew is the only real defect vector.
+
+---
+
+## 01-02
+
+**Summary:** Pins all five Galaxy collections exactly with a written justification header and a *blocking* human approval before the first install; builds the container Molecule scenario that drives the Plan-01 tracer with a clever getenforce test-double via sudo `secure_path`.
+
+**Strengths**
+- Supply-chain discipline is unusually good: pin justification → Galaxy API confirmation → blocking checkpoint → only then install (Task 3's verify is the first install). This closes a real gap (Galaxy not covered by the PyPI seam).
+- The getenforce double + sudoers `secure_path` design solves a genuine problem (container tier shares the runner kernel with SELinux off) and asserts its own reachability ("fails loudly if the double is still not reached") — self-checking harness.
+- I verified the container-tier approach against LSR source: `create_update_quadlet_spec.yml:116-118,147-151` gates all systemd user-scope tasks on `__podman_is_booted` **and** `__podman_activate_systemd_unit` — so `podman_activate_systemd_unit: false` plus `manage_user_manager: false` genuinely avoids user-bus calls in the container. The `activate: false` container-tier design is sound, not hopeful.
+
+**Concerns**
+- **MEDIUM:** the scenario's `test_sequence` includes `verify` from Plan 02, but `verify.yml` arrives in Plan 04 — the first green CI run (Plan 09) happens *before* verify exists. The FLAGGED ASSUMPTION plus pre-decided fallback (temporary sequence without verify) covers it, but consider just omitting `verify` from the initial sequence and letting Plan 04 add it; removes a known flake from the first-push path.
+- **LOW:** `converge.yml` imports `playbooks/foundation.yml` via a relative path — Plan 05/07 later add plays to that file, silently changing what the container tier converges. This is intentional (tracer drifts forward), but Plan 10's guards don't pin the container converge's play inventory; acceptable.
+- **LOW:** the acceptance gate `grep -c 'systemd: always' >= 2` is satisfied by one platform with two occurrences; a one-platform regression would pass.
+
+**Suggestions**
+- In Task 3, add a one-line comment in `molecule.yml` that `verify` is a placeholder until Plan 04, so the Plan-09 fallback decision is traceable.
+
+**Risk Assessment: LOW** — the riskiest part (first install of root-running collections) is behind a blocking human gate.
+
+---
+
+## 01-03
+
+**Summary:** Quality gate (`check.sh`) with a CI-hard yamllint rule, lint configs from verified scratch runs, GPL-3 LICENSE, README stub. The "missing linter in CI is a failure, never a skip" invariant is exactly right.
+
+**Strengths**
+- Lint-config claims are backed by the research session's actual scratch runs (Pitfalls 1–3 with verified fixes), and the `var-naming[no-role-prefix]` skip preserves the locked `xvpn_<role>_*` convention instead of renaming user-facing vars — correct trade-off, documented.
+- The Task-1 verify constructs a yamllint-free PATH with shims so *both* branches (CI-fail / local-notice) execute regardless of local tooling — a well-engineered verify.
+
+**Concerns**
+- **MEDIUM:** `scripts/check.sh` syntax-checks "every existing `extensions/molecule/*/{converge,prepare,verify,side_effect,create,destroy}.yml`". Bash globs that match nothing expand to the literal pattern (no `nullglob` in the plan's `set -euo pipefail`), so at Plan-03 time — when `container/verify.yml` does not yet exist — `ansible-playbook --syntax-check extensions/molecule/container/verify.yml` fails and the whole gate goes red. Task 2's verify (`bash scripts/check.sh` must end `check.sh: OK`) would surface it, but the executor may "fix" it by excluding extensions entirely, silently dropping Molecule files from syntax coverage in later plans. The plan should specify the mechanism (nullglob or a per-file existence test) and an acceptance gate that extensions stay covered.
+- **LOW:** Task-1's verify tolerates `local-missing-exit` non-zero "only because of lint findings Task 2 fixes" — but per the above it could equally be the glob bug; the fails_when wording can't distinguish them.
+
+**Suggestions**
+- Add an acceptance criterion like `bash -c 'shopt -s nullglob; ...'` or `for f in ...; do [ -e "$f" ] || continue; done` in the action text, plus a guard that at least one extensions playbook was syntax-checked.
+
+**Risk Assessment: MEDIUM** — small defect, but it sits on the path every later plan uses as its verify, so it would be discovered late and expensively.
+
+---
+
+## 01-04
+
+**Summary:** Puts teeth on the tracer: generator dry-run before LSR, and a container verify with three executed negative cases (broken unit, injected user name, relative template path) plus the shared rootless verify with the FND-03 bind probes (:80/:443 pass, :79 EACCES negative control).
+
+**Strengths**
+- The negative-case design (block/rescue, `# xvpn_negative_case:` markers, expected-message matching that *rejects unrelated failures* like sudo errors) is the strongest test design in the set — guards fail loudly when removed, and Plan 10's diff-based guards then protect them from regression.
+- The dry-run verdict pattern (`failed_when: false` on the command, stable message from a follow-up `fail`) avoids Ansible's noisy default error rendering and gives the negative case a matchable prefix.
+- Bind probe design is correct: exit-13-on-PermissionError + the :79 negative control genuinely proves FND-03 rather than inferring it, and the port list is a variable so Phase 2+ can override when :443 becomes occupied.
+
+**Concerns**
+- **MEDIUM:** the dry-run stderr check `search('(?i)error|converting')` is a known false-positive source (A5 is explicitly unverified). The plan handles it correctly — Plan 10 fallback (c) requires a `checkpoint:decision`, no silent edit — but expect this to trigger; it is the single most likely CI-blocking item in waves 5–8.
+- **LOW:** acceptance `grep -c '443' verify_rootless.yml >= 1` is trivially satisfiable by a comment; the GUARD MUTATION intent isn't enforced. The Plan-10 diff guard covers regressions better.
+- **LOW:** `bad-user-name` asserts `getent passwd` rc 2 afterwards — but the role's `main` asserts *before* `dnf install`; if the assert fires first as designed, no side effects occur. Verified consistent with the Plan-01 task order (asserts first in `tasks/main.yml` action). Good.
+
+**Suggestions**
+- Narrow the stderr pattern now to Quadlet's known error prefixes and keep the rc check as the primary signal, so the checkpoint is less likely to be needed.
+
+**Risk Assessment: MEDIUM** — high design quality; residual risk is concentrated in one flagged assumption with a proper escalation path.
+
+---
+
+## 01-05
+
+**Summary:** Read-only preflight first play with aggregated single-fail, wired as play 1 of `foundation.yml` with `any_errors_fatal`, plus the standalone `xvpn.remnawave.preflight` entry point (D-09). Smallest plan; correctly scoped.
+
+**Strengths**
+- The "separate first play" anti-pattern guidance from RESEARCH is implemented structurally *and* verified structurally (the Task-2 python check compares play dicts, and Plan 08 re-asserts identity later — consistent duplication).
+- Correctly rejects `ansible_facts.selinux` (missing python3-libselinux yields a misleading fact) in favor of `getenforce`, with a guard mutation forbidding the fact — evidence-based choice carried through to an executable gate.
+
+**Concerns**
+- **LOW:** `tags: [preflight]` on play 1 means `--tags preflight` skips play 2 — desirable, but nothing documents that play 2 needs `--skip-tags` inverse behavior awareness; Phase 2 roles must remember to carry tags or accept default-tag behavior.
+- **LOW:** play-1/preflight.yml identity is asserted as YAML equality (`s[0]==f[0]`); any future cosmetic divergence (e.g., a comment) passes silently — fine, since Plan 08 re-checks.
+
+**Suggestions**
+- None material.
+
+**Risk Assessment: LOW**
+
+---
+
+## 01-06
+
+**Summary:** Completes preflight: Podman floor, port-owner check via `ss -H -ltnpe`, DNS A-record vs public-IP set, AAAA warn-only, input validation with five named messages, W-5 merged service-user allow-list, README docs.
+
+**Strengths**
+- W-5 (preflight's accepted port-owner set = its own list ∪ `xvpn_podman_rootless_users` from inventory) is the kind of cross-role coupling usually missed; it's explicitly reasoned (role defaults not visible across plays) and executed as case 18 in Plan 08.
+- `iface | replace('-', '_')` for fact lookup shows real Ansible-fact awareness (fact keys munge dashes); the "missing uid field → uid 0" parse fallback is flagged rather than hidden.
+- Named-message validation ("Invalid port", "Invalid domain", …) is executed as five negative cases in Plan 08 with exact-substring matching — validation that cannot rot silently.
+
+**Concerns**
+- **MEDIUM:** `check_dns.yml` runs a second `getent database=ahostsv6` per domain and parses `ansible_facts[iface].ipv6[]` — extra complexity in the most environment-variable part of the role, for a warn-only check that D-03/D-04 didn't require. If the AAAA parse misbehaves (interface without `ipv6` key, v4-mapped edge cases), preflight fails on hosts that should pass. Suggest making the AAAA comparison fully exception-tolerant or deferring it.
+- **LOW:** the domain regex is reasonable but anchors little about IDN/punycode; inventory with punycode domains may false-fail "Invalid domain". Acceptable for v1; document.
+- **LOW:** `xvpn_preflight_service_users` default hard-codes `rw-panel`/`rw-node` before those users exist in Phase 1 — harmless (allow-list), but the README table should say they're forward-declared.
+
+**Suggestions**
+- Wrap the AAAA section in `block/rescue` that downgrades any error to a warning, matching its warn-only contract.
+
+**Risk Assessment: MEDIUM** — correct and thorough; the AAAA gold-plating is the main flake source on real hosts.
+
+---
+
+## 01-07
+
+**Summary:** Role `common`: baseline packages, SELinux enforcing gate (defence-in-depth), add-only firewalld in the public-interface zone with an SSH lock-out guard, wired into foundation play 2 and the container scenario with three more executed negative cases (6 total).
+
+**Strengths**
+- D-13/D-14 are enforced by machine-checkable gates, not prose: acceptance criteria forbid `state: disabled/absent`, forbid the whole-state LSR firewall role, forbid a second owner of `xvpn_public_interface` — the shared-variable ownership rule (preflight owns, common reads with `default('')`) is guarded.
+- SSH guard runs twice (before and after the port loop) and the `no-ssh-zone` negative case *pre-asserts the zone resolution* outside the rescue, so a wrong offline-cmd assumption fails loudly rather than vacuously — the flagged assumption has a real tripwire.
+- `coupling_justified` for the 01-06 shared default is correctly argued (role defaults don't cross plays; order-independent).
+
+**Concerns**
+- **MEDIUM:** verify_common's exact-set port check (`--list-ports == declared set`) will fail on any *operator* pre-existing port in the zone on real hosts — correct per D-13's spirit for managed targets, but this verify runs on operator machines too (local VM tier is fine; a user's workstation run of `molecule test -s vm` is fine; but if a Phase-2 role later adds ports, it must update the declared set — a maintenance coupling). Document that `xvpn_verify_expected_ports` is the cross-phase contract.
+- **LOW:** `--add-interface=xvpndummy0` in permanent config for a nonexistent interface — plausible but unverified; already flagged, and the precondition assert contains the blast radius.
+- **LOW:** `immediate: "{{ not xvpn_common_firewalld_offline }}"` — `ansible.posix.firewalld` historically warns/errors when `immediate: false` with a running firewalld; ensure the module accepts the boolean expression rendering.
+
+**Suggestions**
+- Add one sentence to the README (or the role doc) that the exact-set verify is the declaration contract later phases extend.
+
+**Risk Assessment: MEDIUM** — strong plan; the residual risks are all container-tier environment assumptions with tripwires.
+
+---
+
+## 01-08
+
+**Summary:** Dedicated preflight Molecule scenario: 18 cases (13 behavior + 5 invalid-input) run through a reusable `run_case.yml` block/rescue runner, plus a nothing-changed verify, read-only module allow-list assertion, and controller-side structural checks of the playbooks. This is what makes success criterion 1 an executable test.
+
+**Strengths**
+- The nothing-changed proof is thorough: user absent, `/var/lib/xvpn` absent, sysctl file absent, linger absent, *podman package state compared against a recorded before-JSON* — the last one catches dnf side effects other verifications would miss.
+- Controller-side parse of `roles/preflight/tasks/*.yml` asserting the read-only module allow-list (and `dnf` only with `list:`) converts D-06 from a convention into a regression test. Genuinely excellent.
+- The QA-02 deviation (no idempotence step in a case-runner scenario) is recorded rather than papered over.
+
+**Concerns**
+- **MEDIUM:** `systemd-run --unit=xvpn-case-listener --uid=<user> --property=Type=simple …` — `systemd-run` with `--uid` and a `Type=` property implies a service unit; this generally works, but inside a `systemd: always` podman container systemd-run is another untested path (dbus, varlink). It's within the same risk class as the rest of the container tier (Plan 09/10 fix rules cover harness fixes), but it's a second exotic mechanism in one scenario; a plain `become_user` + `nohup`/`setsid` fallback would be simpler if it trips.
+- **LOW:** the module-key extraction in verify.yml relies on a hardcoded list of "task keywords"; a task using an unlisted keyword (e.g. `retries`, `delay`, `register` is listed…) would be misclassified. Low blast radius (verify only), but the list should include `retries/delay/until/ignore_errors/loop_control/throttle`.
+- **LOW:** `/etc/hosts` stand-in with `unsafe_writes` for the DNS check is sound, but the verify's nothing-changed check doesn't exclude `/etc/hosts` mutation — prepare writes it, verify compares only the listed artifacts; consistent.
+
+**Suggestions**
+- Add a fallback listener mechanism (documented one-liner) in case systemd-run fails in the container.
+
+**Risk Assessment: MEDIUM** — the most complex test code in the phase, but its failure modes are contained to CI.
+
+---
+
+## 01-09
+
+**Summary:** CI definitions (pinned, least-privilege), combined blocking checkpoint (PyPI/RubyGems/HashiCorp legitimacy + GitHub prerequisites + public-push consent), repository alignment, and the first behavioural tracer run in CI — deliberately placed before Plans 04–08 build on it (W-6). Right sequencing.
+
+**Strengths**
+- The W-6 decision (tracer green in CI before dependent plans start) is the single best process property of the whole plan set: it converts "FLAGGED ASSUMPTION: no local Podman" from a phase-end surprise into a wave-4 checkpoint with 5 plans of slack.
+- Actions pinned by full SHA resolved via unauthenticated `git ls-remote` — correct given `gh` isn't authenticated yet; `permissions: contents: read` everywhere; explicit public-push consent for `.planning/` (T-01-18) is a thoughtful disclosure step most reviews would have missed.
+- Pre-decided fallbacks (a)–(c) are symptom-scoped, and any assertion-weakening change is excluded from pre-authorization — the anti-"green at any cost" guard (T-01-25) has both a prohibition and SUMMARY-traceability.
+
+**Concerns**
+- **MEDIUM:** Task 3 is a debug loop (push → watch → fix → repeat) with a node_repair budget of 2 fix rounds *per distinct failure* — the first-ever run of the podman driver on a hosted runner plausibly exceeds this across multiple distinct failures. The budget should be per-attempt-cycle with an explicit escalation to the user rather than a hard stop mid-wave; otherwise waves 5–9 block on a stalled plan.
+- **LOW:** pushing to `main` directly from a detached-HEAD working copy (`git push origin HEAD:refs/heads/main`) is functional but fragile (no branch protection can be assumed on a brand-new repo; concurrent local work could diverge). Acceptable for a solo public repo; note it.
+- **LOW:** lint.yml triggers on all-branch push *and* PR — duplicate runs on PR branches; cost only.
+
+**Suggestions**
+- Define the Task-3 stop condition as "2 rounds per distinct failure, then `checkpoint:human-verify` with log excerpts" instead of bare stop — the text already reports excerpts; make the handoff explicit.
+
+**Risk Assessment: MEDIUM** — the plan is well-designed; the risk is environmental (first podman-driver run) and already has fallbacks, but the repair budget is tight.
+
+---
+
+## 01-10
+
+**Summary:** Append `preflight` to the CI matrix and drive lint + container workflows to green with all guards from Plans 04–08 active, using PLAN_START-scoped diff guards so no negative case or shared-verify weakening can slip through.
+
+**Strengths**
+- The acceptance gates are unusually concrete: a diff over `PLAN_START..HEAD` that must contain *zero removed* `# xvpn_negative_case:` lines, and a gate on edits to `verify_rootless.yml`/`quadlet_validate.yml` that requires a quoted user checkpoint answer in SUMMARY — this is mechanical enforcement of the "no guard weakened for green" prohibition.
+- Correctly avoids re-applying Plan-09 fallbacks (references 01-09-SUMMARY).
+
+**Concerns**
+- **LOW:** the diff guard only detects *removed* marker lines; a case whose *expected message* is loosened (e.g. broadened `expected text`) passes the gate. Acceptable — the SUMMARY traceability requirement covers the rest.
+- **LOW:** fallback (c) in this plan duplicates the Plan-10-fix of Plan 04's stderr concern — consistent, but ensure only one plan owns the final pattern text.
+
+**Suggestions**
+- None material.
+
+**Risk Assessment: LOW** — this is a convergence plan whose main risk (inherited CI flakiness) is bounded by Plan 09's already-green baseline.
+
+---
+
+## 01-11
+
+**Summary:** The VM scenario: pinned/checksummed Alma+Rocky boxes, dontaudit-off *proven* via seinfo counts (not assumed), binary-policy sha256 across the reboot to cover boot-window denials, the InvocationID restart round-trip proving Ansible *manages* the user unit (SC2), and runtime/label/AVC verifies shared as reusable task files.
+
+**Strengths**
+- The B-2 design (positive control `Dontaudit > 0` before `-DB`, `== 0` asserted at every ausearch window *without re-disabling*, plus policy sha256 across reboot) is the most rigorous SELinux test design I've seen in an Ansible plan set — it correctly identifies that "we ran semodule -DB once" proves nothing if a policy rebuild re-enables dontaudit, and turns that into loud failures.
+- Guard mutations are extensive and meaningful (`box_checksum` count == 2, no `latest` symlink, no `manage_user_manager`/`home_root` overrides in VM converge, no `ignore_errors`, no `semodule` in verify_runtime, marker written after dontaudit proven off — ordering checked by index comparison).
+- AVC policy: escalation to `checkpoint:decision` with options, never auto-fix, D-08 immutable without the user — exactly right for a `Reversibility: costly` decision.
+- Box sourcing verified: versioned Vagrant Cloud URL for Alma + checksummed `dl.rockylinux.org` box for Rocky (the stale `rockylinux/10` Vagrant Cloud box is documented and avoided), matching the recorded Key Decision.
+
+**Concerns**
+- **MEDIUM:** `seinfo` Dontaudit-count semantics (loaded-policy reporting, count reaching 0 after `-DB`) is [ASSUMED] with a positive control — good — but if `seinfo`'s default policy source is a file rather than the kernel policy, the positive control could pass while the check measures the wrong artifact. The first VM run will disambiguate; ensure the checkpoint on that failure is pre-scripted (it partially is, via the fail_msg).
+- **MEDIUM:** same `passt-selinux`/EL10.3 skew as Plan 01 — `verify_rootless.yml` asserts `rpm -q passt passt-selinux` on VMs that are 10.3 today; if a future leg pins an older minor (the deferred QA-06 matrix), this verify fails spuriously.
+- **LOW:** `ausearch -ts <date> <time>` with `LC_ALL=C` marker format is the classic locale-sensitive pattern; the plan handles format but a re-created VM (fresh marker per molecule run) is required — the "only if file does not exist" logic assumes persistent `/var/lib/xvpn-molecule` across molecule reruns on the same VM instance; after `destroy/create` it's fresh. Consistent, just subtle.
+
+**Suggestions**
+- Add to the Plan-12 decision rules: "seinfo positive control fails → checkpoint with observed seinfo output", so the disambiguation path is pre-authorized.
+
+**Risk Assessment: MEDIUM** — highest technical sophistication in the set; assumptions are flagged and tripwired, execution reality is the unknown.
+
+---
+
+## 01-12
+
+**Summary:** VM CI workflow with a fail-loud KVM gate, ordered decision rules (KVM-missing → local-only per D-16; Vagrant failure ×2 → delegated GenericCloud fallback), README Testing disclosures, and git-log gates proving no SELinux/D-08 change since PLAN_START.
+
+**Strengths**
+- Decision rules are pre-ordered with evidence requirements and SUMMARY recording — the fallback machinery (GenericCloud qcow2 + CHECKSUM-verified sha256 + cloud-init) is fully specified rather than hand-waved, and keeps the same image-integrity posture as the primary path.
+- The D-16 local-fallback path is honest: it demands a `checkpoint:human-action` with pasted local evidence and encodes it as `VM-LOCAL-FALLBACK:` in SUMMARY that the verify accepts — no silent downgrade.
+- README discloses exactly the right residuals: Podman 5.4–5.8 untested beyond preflight, host-wide sysctl trade-off, `iptables-nft` surprise package (verified present in the installed LSR `vars/Rocky_10.yml:5`), KVM udev rule scope warning.
+- Git-log gates (`-G seboolean`, `-G 'semodule -i'`, `-G xvpn_podman_rootless_home_root` empty) enforce the prohibitions archaeologically — cheap and effective.
+
+**Concerns**
+- **MEDIUM:** the "not a required merge check until 5 consecutive green runs" policy is flagged as *pending user confirmation* at verify-work — fine, but the README will state it before the user confirms; if the user changes the policy, README+workflow both need edits. Acceptable churn.
+- **LOW:** 90-minute job timeout per leg with box download (~1 GB for Rocky) + image pull + converge + idempotence + reboot + post-reboot wait (up to ~10 min of retries alone) is tight on a 4-vCPU public runner; TCG fallback (no KVM) would blow it — but the KVM gate failing loudly makes that moot.
+- **LOW:** decision rule 2's `create.yml` uses `virsh domifaddr` lease waiting — dnsmasq on the default network is installed, good; note that `ebtables` on newer Ubuntu is a no-op transitional package (harmless).
+
+**Suggestions**
+- Consider `timeout-minutes: 120` headroom or move the box download into a cached step.
+
+**Risk Assessment: MEDIUM** — dominated by the already-flagged A11/A14 environment unknowns, with pre-decided, integrity-preserving fallbacks.
+
+---
+
+## Cross-Plan Assessment
+
+**Coverage:** all 12 plan ids reviewed; requirement traceability is complete (FND-01→05/06/08, FND-02→01/04/11, FND-03→01/04/11, FND-04→01/02/04/11, FND-05→07/11, FND-06→01/03/05/07, FND-07→06/08, QA-01→03/09/10, QA-02→02/08/09/10, QA-03→11/12), and all four phase success criteria have executable tests. Dependency graph and waves are internally consistent; parallel waves (04∥05, 06∥07-partially, 08∥11) own disjoint files.
+
+**Systemic strengths:** (1) verification is consistently *executed* rather than asserted, with guard mutations against removal; (2) supply-chain gating is layered (Galaxy→Plan 02, PyPI/gem/apt→Plan 09, both blocking before first install); (3) SELinux testing (dontaudit proven, boot-window covered, escalation-not-autofix) is best-in-class; (4) the W-6 early-tracer-in-CI decision de-risks the whole wave structure.
+
+**Systemic risks (ranked):**
+1. **MEDIUM** — `scripts/check.sh` unmatched-glob bug potential (01-03) sits on every later plan's verify path; specify nullglob/existence filtering now.
+2. **MEDIUM** — `passt-selinux` unconditional package + `rpm -q` verify hard-codes EL10.3 while the supported floor is 10.0 (01-01, inherited by 01-04/11).
+3. **MEDIUM** — first-run CI debug loops (01-09 Task 3, 01-10, 01-12 Task 2) with tight repair budgets; make the escalation-to-user handoff explicit.
+4. **MEDIUM** — dry-run stderr false-positive (01-04→01-10 fallback c) and `systemd-run` in the preflight scenario (01-08) are the two most likely CI tripwires; both have correct escalation paths.
+5. **LOW** — AAAA warn-only check complexity (01-06); task-keyword list brittleness (01-08).
+
+**Overall risk: MEDIUM.** The plan set is exceptionally internally consistent, evidence-grounded (several central claims verified against the installed LSR 2.5.0 source in this container), and defensively engineered. The residual risk is concentrated exactly where the plans themselves say it is: environment-dependent first executions (rootless podman driver on hosted runners, Vagrant+libvirt, enforcing-VM SELinux behavior), each of which carries a flagged assumption, a tripwire, and a pre-decided fallback that does not weaken the product.
 
 ---
 
@@ -420,19 +688,30 @@ The plans are exceptionally well-designed, with thorough research, clear depende
 
 ## Consensus Summary
 
-Only one lane produced a review. OpenCode failed: it auto-rejected reads outside the repo (`~/.ansible/collections/...`) and ended its turn without a final message (stub above). Qwen covered all 12 plans but carries the `[reviewed-without-source-citations]` marker — it reviewed the plan text only, with no `file:line` evidence — so its verdict is not weighted as a grounded review. There is no cross-reviewer consensus; treat the items below as single-reviewer, unconfirmed input.
+Two lanes produced reviews. **OpenCode** (re-run) is source-grounded: it verified central claims against the installed `fedora.linux_system_roles` 2.5.0 (`handle_images.yml:11` `force: true` → `podman_pull_image: false` is required; `create_update_quadlet_spec.yml:116-118,147-151` → container-tier `activate: false` design avoids user-bus calls; `vars/Rocky_10.yml:5` → `iptables-nft`). Overall verdict MEDIUM. **Qwen** carries `[reviewed-without-source-citations]` and is down-weighted. Neither reviewer rates any concern HIGH after weighting: OpenCode has no HIGH items; Qwen's four HIGH items are uncorroborated by the grounded reviewer.
 
 ### Agreed Strengths
-None (single reviewer). Qwen's main strengths: wave/dependency structure, read-only preflight aggregation with `any_errors_fatal`, add-only firewalld with SSH guard, proven-not-assumed dontaudit handling and boot-policy hash in 01-11, SHA-pinned actions and human legitimacy checkpoints.
+- Wave/dependency structure is consistent; the W-6 decision (tracer green in CI in wave 4, before plans 04-08 build on it) de-risks the whole phase.
+- Executed negative cases with regression guards; read-only preflight with aggregated fail and `any_errors_fatal`.
+- Add-only firewalld with SSH lock-out guard (D-13/D-14 machine-checked).
+- 01-11 SELinux design: dontaudit proven off with positive control, binary-policy sha256 across reboot, AVC → `checkpoint:decision`, never auto-fix.
+- Supply chain: SHA-pinned actions, exact Galaxy pins, blocking legitimacy checkpoints before first install.
 
 ### Agreed Concerns
-None corroborated. Qwen's HIGH items (single-reviewer, unconfirmed):
-- 01-02: test-only sudoers `secure_path` drop-in should be provably container-scoped.
-- 01-09: first behavioural run of the tracer happens only in CI; the 2-round fix budget may be tight.
-- 01-11: D-08 (`/var/lib/xvpn` home + SELinux equivalence) is proven only in wave 7 — expensive if AVCs appear.
-- 01-12: Vagrant + vagrant-libvirt on hosted runners is unproven (dormant upstream); fallback adds complexity.
+- **01-09 first-run CI repair budget (MEDIUM, both reviewers; Qwen rated HIGH).** 2 fix rounds per distinct failure on the first-ever podman-driver run is tight; make the stop condition an explicit `checkpoint:human-verify` with log excerpts rather than a bare stop (OpenCode applies the same to 01-10 and 01-12 Task 2).
+- **01-12 Vagrant/libvirt on hosted runners (MEDIUM; Qwen HIGH).** Already a flagged assumption with an integrity-preserving GenericCloud fallback; OpenCode adds timeout headroom (`timeout-minutes: 120` or cached box download).
+- **01-11 assumptions resolved only in the VM tier (MEDIUM).** Qwen: D-08 proven only in wave 7. OpenCode: `seinfo` may measure the policy file, not the loaded policy; pre-authorize "positive control fails → checkpoint with observed seinfo output" in 01-12's decision rules.
+- **01-04 dry-run stderr pattern `(?i)error|converting` (MEDIUM).** Most likely CI tripwire; narrow to Quadlet error prefixes and keep rc as the primary signal.
 
-Most of these restate risks already flagged in the plans (FLAGGED ASSUMPTION lines, pre-decided fallbacks, checkpoint:decision on AVC). Notable new MEDIUM/LOW suggestions: guard `getenforce` absence on a bare host (01-05); warn when `xvpn_public_interface` is empty and the default route is used (01-07); root-owned port holder case for the `ss` uid parsing (01-06/01-08); positive assertion of `xvpn-fixture.service` in generator dry-run output (01-04).
+### New grounded concerns (OpenCode only)
+- **01-01 / 01-04 / 01-11: `passt-selinux` unconditional (MEDIUM).** Present on EL10.3 only per research; the 5.4 preflight floor admits 10.0-10.2, where `dnf` would fail and `verify_rootless.yml`'s `rpm -q passt passt-selinux` would fail spuriously. Verified: `01-01-PLAN.md:156` lists it in defaults, `01-04-PLAN.md:152` asserts it.
+- **01-03 `check.sh` unmatched glob (MEDIUM).** The plan text says "every *existing*" molecule playbook (`01-03-PLAN.md:119`) but specifies no mechanism (`nullglob` or `[ -e ]`); under `set -euo pipefail` a literal unmatched pattern fails the gate before `verify.yml` exists. Specify the mechanism plus a guard that extensions stay covered.
+- **01-02:** drop `verify` from the initial `test_sequence` until 01-04 adds `verify.yml`, or comment it as a placeholder.
+- **01-06:** wrap the AAAA comparison in `block/rescue` that downgrades errors to a warning (warn-only contract).
+- **01-08:** documented fallback listener if `systemd-run --uid` fails in the container; extend the task-keyword list (`retries/delay/until/ignore_errors/loop_control/throttle`).
+- **01-07:** document `xvpn_verify_expected_ports` as the cross-phase contract later phases extend.
 
 ### Divergent Views
-None (single reviewer).
+- **01-02 sudoers `secure_path` drop-in:** Qwen HIGH (must be provably container-scoped); OpenCode LOW-risk plan, calls the getenforce double a self-checking harness and verified the container-tier design against LSR source.
+- **Overall risk:** Qwen flags four HIGH items; OpenCode rates the set MEDIUM and "exceptionally internally consistent", with residual risk exactly where the plans already flag it.
+- Qwen-only suggestions (unconfirmed): guard `getenforce` absence on a bare host (01-05); warn on empty `xvpn_public_interface` (01-07); root-owned port holder case (01-06/01-08); positive `xvpn-fixture.service` assertion in the dry-run output (01-04).
