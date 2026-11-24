@@ -25,6 +25,13 @@
   check_mode: false
   failed_when: false
 
+- name: Common | fail when the SELinux mode cannot be read
+  ansible.builtin.fail:
+    msg: >-
+      getenforce is unavailable or failed (rc={{ xvpn_common_getenforce.rc | default('n/a') }}); install libselinux-utils
+      on the host or check that SELinux is enabled; this collection never changes the SELinux mode
+  when: xvpn_common_getenforce.rc | default(0) != 0
+
 - name: Common | require SELinux Enforcing
   ansible.builtin.fail:
     msg: >-
