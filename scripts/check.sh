@@ -64,6 +64,14 @@ check_acme_ca() {
 }
 check_acme_ca
 
+# DOC-04: every role task that touches a secret has no_log (and diff: false for template/copy).
+# Run with the interpreter of ansible-playbook: it ships PyYAML, which a bare python3 may lack locally.
+ANSIBLE_PYTHON="$(head -1 "$(command -v ansible-playbook)" | sed -n 's/^#![[:space:]]*//p' | awk '{print $1}')"
+if [ -z "$ANSIBLE_PYTHON" ] || ! "$ANSIBLE_PYTHON" -c 'import yaml' >/dev/null 2>&1; then
+  ANSIBLE_PYTHON=python3
+fi
+"$ANSIBLE_PYTHON" scripts/check_no_log.py
+
 shopt -s nullglob
 playbooks=(playbooks/*.yml)
 ext_playbooks=(extensions/molecule/*/{converge,prepare,verify,side_effect,create,destroy}.yml)
