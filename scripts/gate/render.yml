@@ -1,0 +1,59 @@
+---
+# Renders the PRODUCTION edge and Panel route templates for the gate regression (scripts/gate/run.sh).
+# Nothing is copied or re-typed: the templates are read from the roles. The fixed gate values below are non-secret
+# test fixtures, valid only on the CI runner against a throwaway Pebble CA; they never protect a real Panel.
+# Input: xvpn_gate_work (work directory, extra var).
+- name: Gate regression | render the production templates
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    xvpn_gate_root: "{{ playbook_dir }}/../.."
+    xvpn_edge_http_address: ":8080"
+    xvpn_edge_https_address: ":8443"
+    xvpn_edge_acme_ca: custom
+    xvpn_edge_acme_ca_server: https://127.0.0.1:14000/dir
+    xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem
+    xvpn_edge_acme_email: ""
+    xvpn_edge_decoy_port: 18080
+    xvpn_panel_domain: panel.test
+    xvpn_panel_gate_cookie_max_age_resolved: 2592000
+    xvpn_panel_gate_cookie_samesite_resolved: Strict
+    xvpn_panel_secrets:
+      gate_path: xvpnGateTestPathFixed0123456789AbCdEf  # xvpn-test-fixture: non-secret
+      gate_cookie_name: xvpn_gate_test_cookie  # xvpn-test-fixture: non-secret
+      gate_cookie_value: xvpnGateTestCookieValueFixed01  # xvpn-test-fixture: non-secret
+  tasks:
+    - name: Gate regression | require the work directory
+      ansible.builtin.assert:
+        that:
+          - xvpn_gate_work is defined
+          - xvpn_gate_work | length > 0
+        quiet: true
+
+    - name: Gate regression | create the work directories
+      ansible.builtin.file:
+        path: "{{ xvpn_gate_work }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - static
+        - dynamic
+
+    - name: Gate regression | render the Traefik static configuration
+      ansible.builtin.template:
+        src: "{{ xvpn_gate_root }}/roles/edge/templates/traefik.yml.j2"
+        dest: "{{ xvpn_gate_work }}/static/traefik.yml"
+        mode: "0644"
+
+    - name: Gate regression | render the shared edge dynamic configuration
+      ansible.builtin.template:
+        src: "{{ xvpn_gate_root }}/roles/edge/templates/00-edge.yml.j2"
+        dest: "{{ xvpn_gate_work }}/dynamic/00-edge.yml"
+        mode: "0644"
+
+    - name: Gate regression | render the Panel routes
+      ansible.builtin.template:
+        src: "{{ xvpn_gate_root }}/roles/panel/templates/panel-routes.yml.j2"
+        dest: "{{ xvpn_gate_work }}/dynamic/panel.yml"
+        mode: "0644"

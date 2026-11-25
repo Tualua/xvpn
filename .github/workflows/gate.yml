@@ -1,0 +1,41 @@
+---
+name: gate
+
+"on":
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      break:
+        description: "Deliberate-break proof: auth-regex breaks the auth exclusion regex and the run must fail"
+        type: choice
+        options: [none, auth-regex]
+        default: none
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install tooling
+        run: python -m pip install -r requirements-dev.txt
+      - name: Podman info
+        run: podman info
+      - name: Gate regression
+        env:
+          XVPN_GATE_BREAK: ${{ github.event_name == 'workflow_dispatch' && inputs.break != 'none' && inputs.break || '' }}
+        run: bash scripts/gate/run.sh
