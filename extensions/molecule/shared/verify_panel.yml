@@ -1,0 +1,122 @@
+---
+# Panel stack verify for the VM tier (real enforcing host).
+# Inputs:
+#   xvpn_verify_secrets_checksum_file  file holding the expected sha256 of panel-secrets.yml, read with slurp at
+#                                      verify time and never cached in a fact across plays (default
+#                                      /var/lib/xvpn-molecule/secrets_checksum_after_first_converge).
+# Contract: a harness step that legitimately rewrites panel-secrets.yml (the Plan 02-07 gate rotation) must
+# re-point that file at the new checksum with force: true, as Plan 02-06 does for the token checksum.
+- name: Resolve the Panel verify inputs
+  ansible.builtin.set_fact:
+    xvpn_verify_pn_user: rw-panel
+    xvpn_verify_pn_home: /var/lib/xvpn/rw-panel
+    xvpn_verify_pn_checksum_file: >-
+      {{ xvpn_verify_secrets_checksum_file | default('/var/lib/xvpn-molecule/secrets_checksum_after_first_converge') }}
+
+- name: Read the Panel service user account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_verify_pn_user }}"
+
+- name: Set the Panel user manager runtime directory
+  ansible.builtin.set_fact:
+    xvpn_verify_pn_env:
+      XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_verify_pn_user][1] }}"
+
+- name: Wait until the Panel stack units are active in the user manager
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - is-active
+      - "{{ item }}"
+  become: true
+  become_user: "{{ xvpn_verify_pn_user }}"
+  become_method: ansible.builtin.sudo
+  environment: "{{ xvpn_verify_pn_env }}"
+  register: xvpn_verify_pn_active
+  until: xvpn_verify_pn_active.stdout | trim == 'active'
+  retries: 60
+  delay: 10
+  changed_when: false
+  loop: "{{ xvpn_verify_pn_units }}"
+  vars:
+    xvpn_verify_pn_units: "{{ ['remnawave-db.service'] + (xvpn_verify_pn_extra_units | default([])) }}"
+
+- name: Run the Postgres healthcheck
+  ansible.builtin.command:
+    argv:
+      - podman
+      - healthcheck
+      - run
+      - remnawave-db
+  become: true
+  become_user: "{{ xvpn_verify_pn_user }}"
+  become_method: ansible.builtin.sudo
+  environment: "{{ xvpn_verify_pn_env }}"
+  changed_when: false
+
+- name: List listeners on the internal ports
+  ansible.builtin.command:
+    argv:
+      - ss
+      - -H
+      - -ltn
+      - "sport = :{{ item }}"
+  register: xvpn_verify_pn_listeners
+  changed_when: false
+  loop: [5432, 3001]
+
+- name: Assert Postgres and the metrics port are not published
+  ansible.builtin.assert:
+    that:
+      - item.stdout | trim | length == 0
+    fail_msg: "port {{ item.item }} has a listener on the Panel host: {{ item.stdout }}"
+    quiet: true
+  loop: "{{ xvpn_verify_pn_listeners.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Stat the Panel secrets and env paths
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    checksum_algorithm: sha256
+  register: xvpn_verify_pn_stats
+  loop:
+    - "{{ xvpn_verify_pn_home }}/secrets"
+    - "{{ xvpn_verify_pn_home }}/secrets/panel-secrets.yml"
+    - "{{ xvpn_verify_pn_home }}/env"
+    - "{{ xvpn_verify_pn_home }}/env/postgres.env"
+    - "{{ xvpn_verify_pn_home }}/.local/share/containers/storage/volumes/remnawave-db-data"
+
+- name: Assert owners and modes of the secrets and env paths
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.pw_name == xvpn_verify_pn_user
+      - item.stat.mode == (('0700') if (item.item is search('/(secrets|env)$')) else ('0600'))
+    fail_msg: "wrong owner or mode on {{ item.item }}"
+    quiet: true
+  loop: "{{ xvpn_verify_pn_stats.results[0:4] }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Assert the database volume path of the lost-secrets guard exists
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_stats.results[4].stat.exists
+      - xvpn_verify_pn_stats.results[4].stat.isdir
+    fail_msg: "volumes/remnawave-db-data is missing; the Plan 02-04 lost-secrets guard would not trigger"
+    quiet: true
+
+- name: Read the expected secrets checksum at verify time
+  ansible.builtin.slurp:
+    src: "{{ xvpn_verify_pn_checksum_file }}"
+  register: xvpn_verify_pn_expected
+
+- name: Assert the secrets file is unchanged
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_stats.results[1].stat.checksum == (xvpn_verify_pn_expected.content | b64decode | trim)
+    fail_msg: "panel-secrets.yml changed since the recorded checksum ({{ xvpn_verify_pn_checksum_file }})"
+    quiet: true

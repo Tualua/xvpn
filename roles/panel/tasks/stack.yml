@@ -1,0 +1,62 @@
+---
+# Panel stack (PANEL-01): Postgres, Valkey and the backend as rootless Quadlet units of the service user on the
+# user-defined network remnawave. Secrets reach the containers only through 0600 env files (D-07, D-11).
+- name: Panel stack | validate the JWT lifetime
+  ansible.builtin.assert:
+    that:
+      - xvpn_panel_jwt_auth_lifetime | int >= 12
+      - xvpn_panel_jwt_auth_lifetime | int <= 168
+    fail_msg: "xvpn_panel_jwt_auth_lifetime must be between 12 and 168 hours"
+    quiet: true
+
+- name: Panel stack | create the env directory
+  ansible.builtin.file:
+    path: "{{ xvpn_panel_env_dir }}"
+    state: directory
+    owner: "{{ xvpn_panel_user }}"
+    group: "{{ xvpn_panel_user }}"
+    mode: "0700"
+
+- name: Panel stack | render the Postgres env file
+  ansible.builtin.template:
+    src: postgres.env.j2
+    dest: "{{ xvpn_panel_env_dir }}/postgres.env"
+    owner: "{{ xvpn_panel_user }}"
+    group: "{{ xvpn_panel_user }}"
+    mode: "0600"
+  register: xvpn_panel_postgres_env
+  diff: false
+  no_log: true
+
+# role_path is resolved here, before the include: inside an include_role vars block it would be evaluated
+# lazily in the context of the included role (podman_rootless).
+- name: Panel stack | build the Quadlet specs
+  ansible.builtin.set_fact:
+    xvpn_panel_quadlet_specs:
+      - template_src: "{{ role_path }}/templates/remnawave.network.j2"
+      - template_src: "{{ role_path }}/templates/remnawave-db.volume.j2"
+      - template_src: "{{ role_path }}/templates/remnawave-db.container.j2"
+
+- name: Panel stack | deploy the Quadlet units
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: quadlet
+  vars:
+    xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
+    xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_quadlet_specs }}"
+    xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
+
+# The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7).
+- name: Panel stack | restart Postgres after an env file change
+  ansible.builtin.systemd_service:
+    name: remnawave-db.service
+    scope: user
+    state: restarted
+  become: true
+  become_user: "{{ xvpn_panel_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
+  when:
+    - xvpn_panel_activate | bool
+    - xvpn_panel_postgres_env is changed

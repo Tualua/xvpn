@@ -1,0 +1,27 @@
+[Unit]
+Description=xvpn Panel Postgres
+
+[Container]
+Image={{ xvpn_panel_postgres_image }}
+ContainerName=remnawave-db
+HostName=remnawave-db
+Network=remnawave.network
+Volume=remnawave-db.volume:/var/lib/postgresql
+EnvironmentFile={{ xvpn_panel_env_dir }}/postgres.env
+Environment=TZ=UTC
+ShmSize=512m
+Ulimit=nofile=1048576:1048576
+HealthCmd=pg_isready -U {{ xvpn_panel_postgres_user }} -d {{ xvpn_panel_postgres_db }}
+HealthInterval=3s
+HealthRetries=10
+HealthStartPeriod=30s
+Notify=healthy
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

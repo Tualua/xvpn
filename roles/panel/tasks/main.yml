@@ -37,6 +37,9 @@
 - name: Panel | generate-once secrets file
   ansible.builtin.include_tasks: secrets.yml
 
-# Plan 02-05 inserts the stack between secrets and routes, Plan 02-06 the bootstrap after the stack.
+- name: Panel | deploy the Postgres, Valkey and backend stack
+  ansible.builtin.include_tasks: stack.yml
+
+# Plan 02-06 inserts the bootstrap after the stack.
 - name: Panel | publish the Panel-domain routes through the edge
   ansible.builtin.include_tasks: routes.yml

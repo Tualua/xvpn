@@ -47,3 +47,6 @@
       ansible.builtin.include_tasks: ../shared/verify_edge.yml
       vars:
         xvpn_verify_edge_domain: panel.xvpn.test
+
+    - name: Verify the Panel stack after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_panel.yml

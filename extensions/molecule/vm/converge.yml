@@ -60,3 +60,27 @@
         group: root
         mode: "0600"
         force: false
+
+    # PANEL-02: the generate-once secrets file must be byte-identical after the idempotence run and the reboot.
+    - name: Stat the Panel secrets file
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+        checksum_algorithm: sha256
+      register: xvpn_converge_secrets_stat
+
+    - name: Assert the Panel secrets file exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_converge_secrets_stat.stat.exists
+          - xvpn_converge_secrets_stat.stat.checksum | length > 0
+        fail_msg: "panel-secrets.yml is missing after the first converge"
+        quiet: true
+
+    - name: Record the secrets checksum after the first converge
+      ansible.builtin.copy:
+        content: "{{ xvpn_converge_secrets_stat.stat.checksum }}\n"
+        dest: /var/lib/xvpn-molecule/secrets_checksum_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: false
