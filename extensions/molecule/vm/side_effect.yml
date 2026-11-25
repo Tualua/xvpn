@@ -97,6 +97,205 @@
     - name: Verify the Panel stack before the reboot
       ansible.builtin.include_tasks: ../shared/verify_panel.yml
 
+    # PANEL-04 / T-02-19: a lost token heals on the next run, the old one is revoked and exactly one token of the
+    # name remains. All token handling is no_log. The second part proves a divergent admin password fails early.
+    - name: Token recovery | start the clock
+      ansible.builtin.command:
+        argv:
+          - date
+          - +%s
+      register: xvpn_se_tr_start
+      changed_when: false
+
+    - name: Token recovery | load the VM-tier Panel values
+      ansible.builtin.include_vars: vars/panel.yml
+
+    - name: Token recovery | read the current token
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-panel/secrets/api-token
+      register: xvpn_se_tr_old
+      no_log: true
+
+    - name: Token recovery | read the checksum recorded after the first converge
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/token_checksum_after_first_converge
+      register: xvpn_se_tr_recorded
+
+    - name: Token recovery | delete the token file
+      ansible.builtin.file:
+        path: /var/lib/xvpn/rw-panel/secrets/api-token
+        state: absent
+
+    - name: Token recovery | re-run the Panel role
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.panel
+
+    - name: Token recovery | stat the recreated token file
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-panel/secrets/api-token
+        checksum_algorithm: sha256
+      register: xvpn_se_tr_new_stat
+
+    - name: Token recovery | assert the new token file differs from the first one
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_tr_new_stat.stat.exists
+          - xvpn_se_tr_new_stat.stat.pw_name == 'rw-panel'
+          - xvpn_se_tr_new_stat.stat.mode == '0600'
+          - xvpn_se_tr_new_stat.stat.checksum != (xvpn_se_tr_recorded.content | b64decode | trim)
+        fail_msg: "the token file was not recreated with a new content, owner rw-panel and mode 0600"
+        quiet: true
+
+    - name: Token recovery | read the new token
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-panel/secrets/api-token
+      register: xvpn_se_tr_new
+      no_log: true
+
+    - name: Token recovery | the new token is accepted
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/nodes
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_se_tr_new.content | b64decode | trim }}"
+        status_code: 200
+      changed_when: false
+      no_log: true
+
+    - name: Token recovery | the old token is rejected
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/nodes
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_se_tr_old.content | b64decode | trim }}"
+        status_code: [401, 403]
+      changed_when: false
+      no_log: true
+
+    - name: Token recovery | read the stored admin credentials
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+      register: xvpn_se_tr_secrets
+      no_log: true
+
+    - name: Token recovery | log in with a fresh session
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/auth/login
+        method: POST
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+        body_format: json
+        body:
+          username: rwoperator
+          password: "{{ (xvpn_se_tr_secrets.content | b64decode | from_yaml).admin_password }}"
+        return_content: true
+        status_code: [200, 201]
+      register: xvpn_se_tr_login
+      changed_when: false
+      no_log: true
+
+    - name: Token recovery | list the tokens
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/tokens
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          X-Remnawave-Client-Type: browser
+          Authorization: "Bearer {{ xvpn_se_tr_login.json.response.accessToken }}"
+        return_content: true
+        status_code: 200
+      register: xvpn_se_tr_list
+      changed_when: false
+      no_log: true
+
+    - name: Token recovery | assert exactly one token of the name exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_tr_list.json.response.tokens | selectattr('name', 'equalto', 'xvpn-automation') | list | length == 1
+        fail_msg: "expected exactly one API token named xvpn-automation"
+        quiet: true
+
+    - name: Token recovery | re-run the Panel role once more
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.panel
+
+    - name: Token recovery | stat the token file after the converged run
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-panel/secrets/api-token
+        checksum_algorithm: sha256
+      register: xvpn_se_tr_again_stat
+
+    - name: Token recovery | assert the recovery converged
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_tr_again_stat.stat.checksum == xvpn_se_tr_new_stat.stat.checksum
+        fail_msg: "the token file changed on the run after the recovery"
+        quiet: true
+
+    # The post-reboot verify.yml compares against the recovered token.
+    - name: Token recovery | record the recovered token checksum
+      ansible.builtin.copy:
+        content: "{{ xvpn_se_tr_new_stat.stat.checksum }}\n"
+        dest: /var/lib/xvpn-molecule/token_checksum_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: true
+
+    # A policy-valid admin password that differs from the stored one fails before any HTTP call (D-10).
+    - name: Token recovery | a divergent admin password is rejected
+      block:
+        - name: Token recovery | run the Panel role with a different admin password
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.panel
+          vars:
+            xvpn_panel_admin_password: Qw7ErTy2UiOp5AsDf8GhJk3Lz
+
+        - name: Token recovery | the divergent run must not succeed
+          ansible.builtin.set_fact:
+            xvpn_se_tr_divergent_rejected: false
+      rescue:
+        - name: Token recovery | record that the divergent run failed
+          ansible.builtin.set_fact:
+            xvpn_se_tr_divergent_rejected: "{{ 'admin_password' in (ansible_failed_result.msg | default('')) }}"
+
+    - name: Token recovery | assert the divergent password failed naming the key
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_tr_divergent_rejected | bool
+        fail_msg: "a divergent admin password was not rejected with a message naming admin_password"
+        quiet: true
+
+    - name: Token recovery | log in with the stored password again
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/auth/login
+        method: POST
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+        body_format: json
+        body:
+          username: rwoperator
+          password: "{{ (xvpn_se_tr_secrets.content | b64decode | from_yaml).admin_password }}"
+        status_code: [200, 201]
+      changed_when: false
+      no_log: true
+
+    - name: Token recovery | stop the clock
+      ansible.builtin.command:
+        argv:
+          - date
+          - +%s
+      register: xvpn_se_tr_end
+      changed_when: false
+
+    - name: Token recovery | report the duration
+      ansible.builtin.debug:
+        msg: "Token recovery block took {{ (xvpn_se_tr_end.stdout | int) - (xvpn_se_tr_start.stdout | int) }} s"
+
     - name: Verify the rootless plumbing and the bind probes before the reboot
       ansible.builtin.include_tasks: ../shared/verify_rootless.yml
       vars:
