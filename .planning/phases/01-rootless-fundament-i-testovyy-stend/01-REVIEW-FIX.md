@@ -1,59 +1,51 @@
 ---
 phase: 01-rootless-fundament-i-testovyy-stend
-fixed_at: 2026-11-24T00:00:00Z
-review_path: .planning/phases/01-rootless-fundament-i-testovyy-stend/01-REVIEW.md
+fixed_at: 2026-11-25T00:00:00Z
+review_path: /workspaces/xvpn/.planning/phases/01-rootless-fundament-i-testovyy-stend/01-REVIEW.md
 iteration: 1
-findings_in_scope: 4
-fixed: 4
-skipped: 0
-status: all_fixed
+findings_in_scope: 3
+fixed: 2
+skipped: 1
+status: partial
 ---
 
 # Phase 1: Отчёт об исправлениях по code review
 
-**Fixed at:** 2026-11-24
-**Source review:** .planning/phases/01-rootless-fundament-i-testovyy-stend/01-REVIEW.md
+**Fixed at:** 2026-11-25
+**Source review:** 01-REVIEW.md
 **Iteration:** 1
 
 **Summary:**
-- Findings in scope: 4 (fix_scope: critical_warning; IN-01 и IN-02 вне области)
-- Fixed: 4
-- Skipped: 0
+- Findings in scope: 3
+- Fixed: 2
+- Skipped: 1
 
-Проверка: после каждого исправления выполнялся `bash scripts/check.sh` (lint, yamllint, syntax-check, сборка) в основном checkout, без worktree (запуск на ветке main). Результат: `check.sh: OK` для всех четырёх. Molecule локально недоступен (нет podman/VM), его прогонит CI.
+Проверка: Tier 1 (повторное чтение diff). `ansible-lint` в окружении завис по таймауту (вероятно, из-за сетевых запросов), Python-модули `yaml`/`ansible` и `yamllint` недоступны, поэтому синтаксический чек не выполнялся. Правки выполнялись в изолированном worktree, затем fast-forward в `main`; worktree и временная ветка удалены.
 
 ## Fixed Issues
 
-### WR-01: Валидация `xvpn_podman_rootless_home_root` обходится сегментом `.` и неполным denylist (недоработка WR-02 прошлого ревью)
+### IN-01: Регэксп `home_root` пропускает завершающий перевод строки
 
 **Files modified:** `roles/podman_rootless/tasks/main.yml`
-**Commit:** 3282765
-**Applied fix:** regex сегментов сужен до `[A-Za-z0-9_-]+` (точки запрещены целиком, проверка `'..'` стала лишней и убрана); denylist расширен (`/var/log`, `/var/cache`, `/var/tmp`, `/var/run`, `/var/spool`, `/usr/local`, `/usr/bin`, `/usr/sbin`, `/usr/lib`, `/usr/lib64`, `/usr/share`, `/var/lib/containers`, `/var/lib/systemd`, `/var/lib/selinux`). Выбран вариант «убрать `.`», а не allowlist, чтобы не ограничивать допустимые корни. Подкаталоги других системных каталогов (например `/etc/ssh`) по-прежнему проходят; полный allowlist остаётся решением владельца.
-Статус: fixed: requires human verification (логика валидации).
+**Commit:** 43280f1, ea4f207
+**Applied fix:** проверка переписана на `is regex('^/[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*', match_type='fullmatch')`, так что значение с хвостовым `\n` больше не проходит валидацию. Первый вариант (`\Z` в 43280f1) заменён: обратный слэш в Jinja-литерале держится на устаревшем поведении `unicode-escape`, а проект избегает обратных слэшей в regex.
 
-### WR-02: SELinux-гейт теперь стоит до установки `libselinux-utils`, при отсутствии `getenforce` ошибка вводит в заблуждение
+### IN-02: Ужесточение регэкспа ломает корни с точкой в имени
 
-**Files modified:** `roles/common/tasks/main.yml`, `roles/podman_rootless/tasks/main.yml`
-**Commit:** eb8c45e
-**Applied fix:** перед проверкой Enforcing добавлена отдельная задача `fail`, срабатывающая при `getenforce.rc != 0`, с сообщением «getenforce is unavailable or failed; install libselinux-utils ...». Теперь отсутствие бинаря отличается от режима не-Enforcing.
-Статус: fixed: requires human verification (логика гейта).
+**Files modified:** `roles/podman_rootless/defaults/main.yml`, `roles/podman_rootless/meta/argument_specs.yml`
+**Commit:** dc57c25
+**Applied fix:** ограничение (сегменты только `[A-Za-z0-9_-]`, без точек, системные каталоги запрещены) добавлено в комментарий defaults и в `description` переменной `xvpn_podman_rootless_home_root` в `argument_specs.yml`. В README переменная не упоминается, поэтому он не менялся.
 
-### WR-03: Защита от «усыновления» аккаунта не сверяет явно заданный `uid`
+## Skipped Issues
 
-**Files modified:** `roles/podman_rootless/tasks/user.yml`
-**Commit:** e448be3
-**Applied fix:** в assert добавлено условие, что заданный `uid` совпадает с текущим uid существующей учётной записи; текст `fail_msg` обновлён.
-Статус: fixed: requires human verification (логика условия).
+### IN-03: Гейт `getenforce` стоит до установки `libselinux-utils`
 
-### WR-04: Негативный контроль «порт 79 привилегирован» ломается при допустимых значениях sysctl
-
-**Files modified:** `extensions/molecule/shared/verify_rootless.yml`
-**Commit:** 12333db
-**Applied fix:** порт для негативной проверки берётся как `xvpn_verify_sysctl_value - 1`; проба и assert пропускаются при значении 1 (порта ниже нет). Имена задач и сообщение обновлены.
-Статус: fixed: requires human verification (проверяется только Molecule в CI).
+**File:** `roles/common/tasks/main.yml:28-34`, `roles/podman_rootless/tasks/main.yml:10-16`
+**Reason:** skipped: архитектурное решение, а не дефект. Ревьюер назвал это известным ограничением порядка задач и не регрессией. Ранняя установка пакета до гейта меняет порядок действий роли («до любых изменений хоста»), а в README нет раздела с предварительными требованиями, куда можно было бы вписать замечание. Сообщение об ошибке уже указывает установить `libselinux-utils`. Решение оставлено человеку.
+**Original issue:** `libselinux-utils` ставится после проверки `getenforce`, поэтому на хосте без бинаря роль падает вместо того, чтобы поставить пакет.
 
 ---
 
-_Fixed: 2026-11-24_
+_Fixed: 2026-11-25_
 _Fixer: Claude (gsd-code-fixer)_
 _Iteration: 1_
