@@ -67,24 +67,36 @@
       ansible.builtin.command:
         argv:
           - journalctl
-          - --user
           - --no-pager
           - -n
-          - "60"
-          - -u
-          - "remnawave*"
+          - "80"
+          - "_UID={{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
+      register: xvpn_panel_start_journal
+      changed_when: false
+      failed_when: false
+
+    - name: Panel stack | collect the container logs of the failed start
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          podman ps -a --format '{{ '{{' }}.Names{{ '}}' }} {{ '{{' }}.Status{{ '}}' }}'
+          for c in remnawave-db remnawave-redis remnawave; do echo "== $c"; podman logs --tail 20 "$c" 2>&1; done
+        executable: /bin/bash
       become: true
       become_user: "{{ xvpn_panel_user }}"
       become_method: ansible.builtin.sudo
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
-      register: xvpn_panel_start_journal
+      register: xvpn_panel_start_logs
       changed_when: false
       failed_when: false
 
     - name: Panel stack | fail with the unit journals
       ansible.builtin.fail:
-        msg: "Panel stack start failed: {{ ansible_failed_result.msg | default('') }} journal: {{ xvpn_panel_start_journal.stdout | default('') }}"
+        msg: >-
+          Panel stack start failed: {{ ansible_failed_result.msg | default('') }}
+          journal: {{ xvpn_panel_start_journal.stdout | default('') }}
+          containers: {{ xvpn_panel_start_logs.stdout | default('') }}
 
 # The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7).
 - name: Panel stack | restart Postgres after an env file change
