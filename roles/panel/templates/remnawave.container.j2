@@ -1,0 +1,29 @@
+[Unit]
+Description=xvpn Panel Remnawave backend
+Requires=remnawave-db.service remnawave-redis.service
+After=remnawave-db.service remnawave-redis.service
+
+[Container]
+Image={{ xvpn_panel_backend_image }}
+ContainerName=remnawave
+HostName=remnawave
+Network=remnawave.network
+PublishPort=127.0.0.1:3000:3000
+Volume=remnawave-valkey.volume:/var/run/valkey
+EnvironmentFile={{ xvpn_panel_env_dir }}/backend.env
+Ulimit=nofile=524288:524288
+HealthCmd=curl -f http://localhost:3001/health
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=20
+HealthStartPeriod=60s
+Notify=healthy
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

@@ -11,6 +11,11 @@
         database: passwd
         key: rw-edge
 
+    - name: Read the uid of the Panel service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-panel
+
     - name: Set the user manager runtime directory
       ansible.builtin.set_fact:
         xvpn_side_effect_env:
@@ -48,6 +53,40 @@
           - (xvpn_side_effect_recorded.content | b64decode | trim) == (xvpn_side_effect_current.stdout | trim)
         fail_msg: "the idempotence re-run restarted the unchanged unit traefik.service (D-10 condition c)"
         quiet: true
+
+    - name: Read the backend InvocationID recorded after the first converge
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/invocation_backend_after_first_converge
+      register: xvpn_side_effect_backend_recorded
+
+    - name: Read the current InvocationID of the backend unit
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - remnawave.service
+      become: true
+      become_user: rw-panel
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-panel'][1] }}"
+      register: xvpn_side_effect_backend_current
+      changed_when: false
+
+    - name: Assert the idempotence re-run left the backend unit alone
+      ansible.builtin.assert:
+        that:
+          - (xvpn_side_effect_backend_recorded.content | b64decode | trim) | length > 0
+          - (xvpn_side_effect_backend_recorded.content | b64decode | trim) == (xvpn_side_effect_backend_current.stdout | trim)
+        fail_msg: "the idempotence re-run restarted the unchanged unit remnawave.service (PANEL-02)"
+        quiet: true
+
+    - name: Verify the Panel stack before the reboot
+      ansible.builtin.include_tasks: ../shared/verify_panel.yml
 
     - name: Verify the rootless plumbing and the bind probes before the reboot
       ansible.builtin.include_tasks: ../shared/verify_rootless.yml

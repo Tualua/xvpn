@@ -41,7 +41,7 @@
   changed_when: false
   loop: "{{ xvpn_verify_pn_units }}"
   vars:
-    xvpn_verify_pn_units: "{{ ['remnawave-db.service'] + (xvpn_verify_pn_extra_units | default([])) }}"
+    xvpn_verify_pn_units: "{{ ['remnawave-db.service', 'remnawave-redis.service', 'remnawave.service'] }}"
 
 - name: Run the Postgres healthcheck
   ansible.builtin.command:
@@ -55,6 +55,46 @@
   become_method: ansible.builtin.sudo
   environment: "{{ xvpn_verify_pn_env }}"
   changed_when: false
+
+- name: Query the backend through the loopback port with proxy headers
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/auth/status
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+    return_content: true
+    status_code: 200
+  register: xvpn_verify_pn_status
+  until: xvpn_verify_pn_status.status == 200
+  retries: 60
+  delay: 5
+  changed_when: false
+
+- name: Assert the auth status carries the login flags
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_status.json.response is mapping
+      - xvpn_verify_pn_status.json.response.isRegisterAllowed is defined or xvpn_verify_pn_status.json.response.isLoginAllowed is defined
+    fail_msg: "GET /api/auth/status answered 200 without isRegisterAllowed/isLoginAllowed"
+    quiet: true
+
+- name: List listeners on port 3000
+  ansible.builtin.command:
+    argv:
+      - ss
+      - -H
+      - -ltn
+      - "sport = :3000"
+  register: xvpn_verify_pn_listen3000
+  changed_when: false
+
+- name: Assert port 3000 is bound to loopback only
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_listen3000.stdout_lines | length > 0
+      - xvpn_verify_pn_listen3000.stdout_lines | select('search', '127[.]0[.]0[.]1:3000') | list | length == xvpn_verify_pn_listen3000.stdout_lines | length
+    fail_msg: "port 3000 is not bound to 127.0.0.1 only: {{ xvpn_verify_pn_listen3000.stdout }}"
+    quiet: true
 
 - name: List listeners on the internal ports
   ansible.builtin.command:
@@ -87,6 +127,7 @@
     - "{{ xvpn_verify_pn_home }}/secrets/panel-secrets.yml"
     - "{{ xvpn_verify_pn_home }}/env"
     - "{{ xvpn_verify_pn_home }}/env/postgres.env"
+    - "{{ xvpn_verify_pn_home }}/env/backend.env"
     - "{{ xvpn_verify_pn_home }}/.local/share/containers/storage/volumes/remnawave-db-data"
 
 - name: Assert owners and modes of the secrets and env paths
@@ -97,15 +138,15 @@
       - item.stat.mode == (('0700') if (item.item is search('/(secrets|env)$')) else ('0600'))
     fail_msg: "wrong owner or mode on {{ item.item }}"
     quiet: true
-  loop: "{{ xvpn_verify_pn_stats.results[0:4] }}"
+  loop: "{{ xvpn_verify_pn_stats.results[0:5] }}"
   loop_control:
     label: "{{ item.item }}"
 
 - name: Assert the database volume path of the lost-secrets guard exists
   ansible.builtin.assert:
     that:
-      - xvpn_verify_pn_stats.results[4].stat.exists
-      - xvpn_verify_pn_stats.results[4].stat.isdir
+      - xvpn_verify_pn_stats.results[5].stat.exists
+      - xvpn_verify_pn_stats.results[5].stat.isdir
     fail_msg: "volumes/remnawave-db-data is missing; the Plan 02-04 lost-secrets guard would not trigger"
     quiet: true
 

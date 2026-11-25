@@ -1,0 +1,24 @@
+[Unit]
+Description=xvpn Panel Valkey (unix socket only)
+
+[Container]
+Image={{ xvpn_panel_valkey_image }}
+ContainerName=remnawave-redis
+HostName=remnawave-redis
+Network=remnawave.network
+Volume=remnawave-valkey.volume:/var/run/valkey
+Exec=valkey-server --save "" --appendonly no --maxmemory-policy noeviction --loglevel warning --unixsocket /var/run/valkey/valkey.sock --unixsocketperm 777 --port 0
+HealthCmd=valkey-cli -s /var/run/valkey/valkey.sock ping
+HealthInterval=3s
+HealthRetries=10
+HealthStartPeriod=10s
+Notify=healthy
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

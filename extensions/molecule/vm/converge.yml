@@ -84,3 +84,43 @@
         group: root
         mode: "0600"
         force: false
+
+    - name: Read the uid of the Panel service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-panel
+
+    - name: Read the InvocationID of the backend unit
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - remnawave.service
+      become: true
+      become_user: rw-panel
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-panel'][1] }}"
+      register: xvpn_converge_backend_invocation
+      changed_when: false
+      check_mode: false
+
+    - name: Assert the backend unit has an invocation
+      ansible.builtin.assert:
+        that:
+          - xvpn_converge_backend_invocation.stdout | trim | length > 0
+        fail_msg: "remnawave.service has no InvocationID after the converge; the unit did not start"
+        quiet: true
+
+    - name: Record the backend InvocationID after the first converge
+      ansible.builtin.copy:
+        content: "{{ xvpn_converge_backend_invocation.stdout | trim }}\n"
+        dest: /var/lib/xvpn-molecule/invocation_backend_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: false

@@ -28,6 +28,17 @@
   diff: false
   no_log: true
 
+- name: Panel stack | render the backend env file
+  ansible.builtin.template:
+    src: backend.env.j2
+    dest: "{{ xvpn_panel_env_dir }}/backend.env"
+    owner: "{{ xvpn_panel_user }}"
+    group: "{{ xvpn_panel_user }}"
+    mode: "0600"
+  register: xvpn_panel_backend_env
+  diff: false
+  no_log: true
+
 # role_path is resolved here, before the include: inside an include_role vars block it would be evaluated
 # lazily in the context of the included role (podman_rootless).
 - name: Panel stack | build the Quadlet specs
@@ -36,15 +47,44 @@
       - template_src: "{{ role_path }}/templates/remnawave.network.j2"
       - template_src: "{{ role_path }}/templates/remnawave-db.volume.j2"
       - template_src: "{{ role_path }}/templates/remnawave-db.container.j2"
+      - template_src: "{{ role_path }}/templates/remnawave-valkey.volume.j2"
+      - template_src: "{{ role_path }}/templates/remnawave-redis.container.j2"
+      - template_src: "{{ role_path }}/templates/remnawave.container.j2"
 
+# A failed start is reported together with the unit journals, so the cause is visible in the run output.
 - name: Panel stack | deploy the Quadlet units
-  ansible.builtin.include_role:
-    name: xvpn.remnawave.podman_rootless
-    tasks_from: quadlet
-  vars:
-    xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
-    xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_quadlet_specs }}"
-    xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
+  block:
+    - name: Panel stack | run the Quadlet deployment
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.podman_rootless
+        tasks_from: quadlet
+      vars:
+        xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
+        xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_quadlet_specs }}"
+        xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
+  rescue:
+    - name: Panel stack | collect the unit journals of the failed start
+      ansible.builtin.command:
+        argv:
+          - journalctl
+          - --user
+          - --no-pager
+          - -n
+          - "60"
+          - -u
+          - "remnawave*"
+      become: true
+      become_user: "{{ xvpn_panel_user }}"
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
+      register: xvpn_panel_start_journal
+      changed_when: false
+      failed_when: false
+
+    - name: Panel stack | fail with the unit journals
+      ansible.builtin.fail:
+        msg: "Panel stack start failed: {{ ansible_failed_result.msg | default('') }} journal: {{ xvpn_panel_start_journal.stdout | default('') }}"
 
 # The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7).
 - name: Panel stack | restart Postgres after an env file change
@@ -60,3 +100,17 @@
   when:
     - xvpn_panel_activate | bool
     - xvpn_panel_postgres_env is changed
+
+- name: Panel stack | restart the backend after an env file change
+  ansible.builtin.systemd_service:
+    name: remnawave.service
+    scope: user
+    state: restarted
+  become: true
+  become_user: "{{ xvpn_panel_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
+  when:
+    - xvpn_panel_activate | bool
+    - xvpn_panel_backend_env is changed

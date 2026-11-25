@@ -10,7 +10,7 @@ Volume=remnawave-db.volume:/var/lib/postgresql
 EnvironmentFile={{ xvpn_panel_env_dir }}/postgres.env
 Environment=TZ=UTC
 ShmSize=512m
-Ulimit=nofile=1048576:1048576
+Ulimit=nofile=524288:524288
 HealthCmd=pg_isready -U {{ xvpn_panel_postgres_user }} -d {{ xvpn_panel_postgres_db }}
 HealthInterval=3s
 HealthRetries=10
