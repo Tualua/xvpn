@@ -19,9 +19,9 @@
 
 ### Edge / Traefik (EDGE)
 
-- [ ] **EDGE-01**: Traefik v3 работает как rootless Quadlet-сервис (host network, file provider, без Podman socket) на Panel- и Node-хостах
-- [ ] **EDGE-02**: Traefik получает сертификаты Let's Encrypt через HTTP-01 на порту 80 с переключателем staging/production и персистентным `acme.json`
-- [ ] **EDGE-03**: Traefik видит реальный IP клиента (проверяется по access log)
+- [x] **EDGE-01**: Traefik v3 работает как rootless Quadlet-сервис (host network, file provider, без Podman socket) на Panel- и Node-хостах
+- [x] **EDGE-02**: Traefik получает сертификаты Let's Encrypt через HTTP-01 на порту 80 с переключателем staging/production и персистентным `acme.json`
+- [x] **EDGE-03**: Traefik видит реальный IP клиента (проверяется по access log)
 
 ### Panel (PANEL)
 
@@ -87,7 +87,7 @@
 - [x] **QA-02**: Molecule: быстрый контейнерный тир (синтаксис, шаблоны, идемпотентность) для каждой роли
 - [x] **QA-03**: Molecule: VM-тир на Alma/Rocky 10 с SELinux enforcing, проверкой нуля AVC, идемпотентности и перезагрузки
 - [ ] **QA-04**: Повторный прогон полного playbook даёт `changed=0`
-- [ ] **QA-05**: CI использует Pebble (или LE staging), никогда не обращаясь к production Let's Encrypt
+- [x] **QA-05**: CI использует Pebble (или LE staging), никогда не обращаясь к production Let's Encrypt
 - [ ] **QA-06**: CI-матрица покрывает ansible-core 2.21 и 2.22
 
 ### Documentation (DOC)
@@ -142,9 +142,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-05 | Phase 1 | Complete |
 | FND-06 | Phase 1 | Complete |
 | FND-07 | Phase 1 | Complete |
-| EDGE-01 | Phase 2 | Pending |
-| EDGE-02 | Phase 2 | Pending |
-| EDGE-03 | Phase 2 | Pending |
+| EDGE-01 | Phase 2 | Complete |
+| EDGE-02 | Phase 2 | Complete |
+| EDGE-03 | Phase 2 | Complete |
 | PANEL-01 | Phase 2 | Pending |
 | PANEL-02 | Phase 2 | Pending |
 | PANEL-03 | Phase 2 | Pending |
@@ -183,7 +183,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QA-02 | Phase 1 | Complete |
 | QA-03 | Phase 1 | Complete |
 | QA-04 | Phase 5 | Pending |
-| QA-05 | Phase 2 | Pending |
+| QA-05 | Phase 2 | Complete |
 | QA-06 | Phase 5 | Pending |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |

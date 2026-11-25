@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-11-25T08:31:39.184Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-11-25T09:47:50.201Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 02 execution started
-state_head: 8fed51a12c460a8cbcde489b0fe92407cafc6c4a
+state_head: a611fd742d6e2a867ecbbbe469389663e5c2f64f
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 23
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
-Plan: 3 of 11
+Plan: 4 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 02 execution started
 
@@ -70,6 +70,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01 P12 | 3h | 2 tasks | 5 files |
 | Phase 02 P01 | 45 min | 2 tasks | 14 files |
 | Phase 02 P02 | 25 min | 2 tasks | 14 files |
+| Phase 02 P03 | 150 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Traefik pinned to v3.7.20 (three advisories fixed over v3.7.19); container tier always uses the staging ACME CA
 - [Phase 02]: Traefik access log drops RequestPath and all headers except User-Agent (D-19)
 - [Phase 02]: Panel :80 router has accessLogs false so the gate secret path never reaches the access log (T-02-38)
+- [Phase 02]: Pebble root is stored on the VM by the first verify_edge run because Pebble builds a new CA at every start (reboot)
+- [Phase 02]: Controller address for the real-IP proof is read as SSH_CLIENT in the SSH session without become
 
 ### Pending Todos
 
@@ -119,6 +122,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-25T08:31:38.975Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-11-25T09:47:50.012Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
