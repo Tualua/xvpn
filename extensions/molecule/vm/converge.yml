@@ -124,3 +124,28 @@
         group: root
         mode: "0600"
         force: false
+
+    # PANEL-04: the token file written by the first converge must stay byte-identical across the idempotence run
+    # and the reboot (side_effect.yml re-points this file after the deliberate recovery).
+    - name: Stat the Panel API token file
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-panel/secrets/api-token
+        checksum_algorithm: sha256
+      register: xvpn_converge_token_stat
+
+    - name: Assert the Panel API token file exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_converge_token_stat.stat.exists
+          - xvpn_converge_token_stat.stat.checksum | length > 0
+        fail_msg: "the API token file is missing after the first converge"
+        quiet: true
+
+    - name: Record the token checksum after the first converge
+      ansible.builtin.copy:
+        content: "{{ xvpn_converge_token_stat.stat.checksum }}\n"
+        dest: /var/lib/xvpn-molecule/token_checksum_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: false

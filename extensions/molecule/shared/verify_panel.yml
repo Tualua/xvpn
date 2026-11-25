@@ -4,6 +4,9 @@
 #   xvpn_verify_secrets_checksum_file  file holding the expected sha256 of panel-secrets.yml, read with slurp at
 #                                      verify time and never cached in a fact across plays (default
 #                                      /var/lib/xvpn-molecule/secrets_checksum_after_first_converge).
+#   xvpn_verify_token_checksum_file    file holding the expected sha256 of the API token file (default
+#                                      /var/lib/xvpn-molecule/token_checksum_after_first_converge).
+#   xvpn_verify_token_probe_route      backend route that accepts the token (default /api/nodes, the role default).
 # Contract: a harness step that legitimately rewrites panel-secrets.yml (the Plan 02-07 gate rotation) must
 # re-point that file at the new checksum with force: true, as Plan 02-06 does for the token checksum.
 - name: Resolve the Panel verify inputs
@@ -12,6 +15,9 @@
     xvpn_verify_pn_home: /var/lib/xvpn/rw-panel
     xvpn_verify_pn_checksum_file: >-
       {{ xvpn_verify_secrets_checksum_file | default('/var/lib/xvpn-molecule/secrets_checksum_after_first_converge') }}
+    xvpn_verify_pn_token_checksum_file: >-
+      {{ xvpn_verify_token_checksum_file | default('/var/lib/xvpn-molecule/token_checksum_after_first_converge') }}
+    xvpn_verify_pn_probe_route: "{{ xvpn_verify_token_probe_route | default('/api/nodes') }}"
 
 # id -u instead of getent: getent_passwd is one fact that each lookup replaces, and the edge verifiers read it.
 - name: Read the uid of the Panel service user
@@ -191,4 +197,58 @@
     that:
       - xvpn_verify_pn_stats.results[1].stat.checksum == (xvpn_verify_pn_expected.content | b64decode | trim)
     fail_msg: "panel-secrets.yml changed since the recorded checksum ({{ xvpn_verify_pn_checksum_file }})"
+    quiet: true
+
+# PANEL-03: after the bootstrap the Panel has its admin, so registration is closed and login is open.
+- name: Assert registration is closed and login is open
+  ansible.builtin.assert:
+    that:
+      - not (xvpn_verify_pn_status.json.response.isRegisterAllowed | bool)
+      - xvpn_verify_pn_status.json.response.isLoginAllowed | bool
+    fail_msg: "auth status after the bootstrap: isRegisterAllowed must be false and isLoginAllowed true"
+    quiet: true
+
+# PANEL-04: the token file, its mode and a working Bearer request on loopback.
+- name: Stat the API token file
+  ansible.builtin.stat:
+    path: "{{ xvpn_verify_pn_home }}/secrets/api-token"
+    checksum_algorithm: sha256
+  register: xvpn_verify_pn_token_stat
+
+- name: Assert the API token file owner and mode
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_token_stat.stat.exists
+      - xvpn_verify_pn_token_stat.stat.pw_name == xvpn_verify_pn_user
+      - xvpn_verify_pn_token_stat.stat.mode == '0600'
+    fail_msg: "the API token file is missing or has the wrong owner or mode"
+    quiet: true
+
+- name: Read the API token
+  ansible.builtin.slurp:
+    src: "{{ xvpn_verify_pn_home }}/secrets/api-token"
+  register: xvpn_verify_pn_token
+  no_log: true
+
+- name: Call the backend with the API token
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:3000{{ xvpn_verify_pn_probe_route }}"
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_verify_pn_token.content | b64decode | trim }}"
+    status_code: 200
+  changed_when: false
+  no_log: true
+
+- name: Read the expected token checksum at verify time
+  ansible.builtin.slurp:
+    src: "{{ xvpn_verify_pn_token_checksum_file }}"
+  register: xvpn_verify_pn_token_expected
+
+- name: Assert the token file is unchanged
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_token_stat.stat.checksum == (xvpn_verify_pn_token_expected.content | b64decode | trim)
+    fail_msg: "the API token file changed since the recorded checksum ({{ xvpn_verify_pn_token_checksum_file }})"
     quiet: true

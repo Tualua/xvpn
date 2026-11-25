@@ -40,6 +40,15 @@
 - name: Panel | deploy the Postgres, Valkey and backend stack
   ansible.builtin.include_tasks: stack.yml
 
-# Plan 02-06 inserts the bootstrap after the stack.
+# PANEL-03: the admin is registered on loopback before the Panel route file exists.
+- name: Panel | register the first admin and create the API token
+  ansible.builtin.include_tasks: bootstrap.yml
+  when: xvpn_panel_activate | bool
+
 - name: Panel | publish the Panel-domain routes through the edge
   ansible.builtin.include_tasks: routes.yml
+
+- name: Panel | report where the secrets and the token live
+  ansible.builtin.debug:
+    msg: "Panel secrets: {{ xvpn_panel_secrets_file }}; API token: {{ xvpn_panel_api_token_file }} (read on the Panel host only)"
+  when: xvpn_panel_activate | bool

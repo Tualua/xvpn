@@ -1,0 +1,230 @@
+---
+# Loopback bootstrap (PANEL-03, PANEL-04): auth status -> register or login -> token validate/create -> 0600 token
+# file. Runs on the Panel host against 127.0.0.1:3000 before the Panel route file is written. The backend rejects
+# requests without proxy headers (RESEARCH Pitfall 1), so every call carries them. Nothing here leaves the host.
+- name: Panel bootstrap | wait for the backend auth status
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/auth/status
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+    return_content: true
+    status_code: [200, -1, 400, 401, 403, 404, 500, 502, 503]
+  register: xvpn_panel_bs_status
+  until:
+    - xvpn_panel_bs_status.status | default(-1) == 200
+    - >-
+      xvpn_panel_bs_status.json.response.isRegisterAllowed | default(false)
+      or xvpn_panel_bs_status.json.response.isLoginAllowed | default(false)
+  retries: "{{ xvpn_panel_bootstrap_retries }}"
+  delay: 5
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Panel bootstrap | fail when the backend did not answer
+  ansible.builtin.fail:
+    msg: >-
+      backend did not answer /api/auth/status within {{ (xvpn_panel_bootstrap_retries | int) * 5 }} s
+      (last HTTP status {{ xvpn_panel_bs_status.status | default(-1) }}); check remnawave.service
+  when: xvpn_panel_bs_status.status | default(-1) != 200
+
+- name: Panel bootstrap | fail on an inconsistent admin state
+  ansible.builtin.fail:
+    msg: >-
+      inconsistent admin state: neither register nor login allowed (more than one admin? see the backend log
+      'restart Remnawave to clear unknown admins')
+  when:
+    - not (xvpn_panel_bs_status.json.response.isRegisterAllowed | default(false))
+    - not (xvpn_panel_bs_status.json.response.isLoginAllowed | default(false))
+
+# Register only when the backend says so and a login is not possible (never a second admin, T-02-17).
+- name: Panel bootstrap | register the first admin
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/auth/register
+    method: POST
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+    body_format: json
+    body:
+      username: "{{ xvpn_panel_admin_username }}"
+      password: "{{ xvpn_panel_secrets.admin_password }}"
+    return_content: true
+    status_code: [200, 201, -1, 400, 401, 403, 404, 409, 500, 502, 503]
+  register: xvpn_panel_bs_register
+  failed_when: false
+  changed_when: true
+  no_log: true
+  when:
+    - xvpn_panel_bs_status.json.response.isRegisterAllowed | default(false)
+    - not (xvpn_panel_bs_status.json.response.isLoginAllowed | default(false))
+
+- name: Panel bootstrap | fail when the registration was refused
+  ansible.builtin.fail:
+    msg: "register failed with HTTP {{ xvpn_panel_bs_register.status | default(-1) }}"
+  when:
+    - xvpn_panel_bs_register is not skipped
+    - xvpn_panel_bs_register.status | default(-1) not in [200, 201]
+
+- name: Panel bootstrap | remember the admin session of the registration
+  ansible.builtin.set_fact:
+    xvpn_panel_admin_jwt: "{{ xvpn_panel_bs_register.json.response.accessToken }}"
+  no_log: true
+  when: xvpn_panel_bs_register is not skipped
+
+- name: Panel bootstrap | log in as the admin
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/auth/login
+    method: POST
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+    body_format: json
+    body:
+      username: "{{ xvpn_panel_admin_username }}"
+      password: "{{ xvpn_panel_secrets.admin_password }}"
+    return_content: true
+    status_code: [200, 201, -1, 400, 401, 403, 404, 409, 500, 502, 503]
+  register: xvpn_panel_bs_login
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: xvpn_panel_bs_register is skipped
+
+# A crashed backend is not reported as a password problem.
+- name: Panel bootstrap | fail when the backend broke during the login
+  ansible.builtin.fail:
+    msg: >-
+      login failed with HTTP {{ xvpn_panel_bs_login.status | default(-1) }}: backend error, check remnawave.service
+      and retry; this is not a password problem
+  when:
+    - xvpn_panel_bs_login is not skipped
+    - xvpn_panel_bs_login.status | default(-1) == -1 or xvpn_panel_bs_login.status | default(-1) >= 500
+
+- name: Panel bootstrap | fail when the stored admin password was rejected
+  ansible.builtin.fail:
+    msg: >-
+      login with {{ xvpn_panel_bootstrap_password_key }} from {{ xvpn_panel_secrets_file }} was rejected
+      (HTTP {{ xvpn_panel_bs_login.status }}): the admin password was changed outside Ansible or password login
+      is disabled; v1 does not rotate it (D-10)
+  when:
+    - xvpn_panel_bs_login is not skipped
+    - xvpn_panel_bs_login.status | default(-1) in [400, 401, 403]
+
+- name: Panel bootstrap | fail on an unexpected login answer
+  ansible.builtin.fail:
+    msg: "login returned unexpected HTTP {{ xvpn_panel_bs_login.status | default(-1) }}"
+  when:
+    - xvpn_panel_bs_login is not skipped
+    - xvpn_panel_bs_login.status | default(-1) not in [200, 201]
+
+- name: Panel bootstrap | remember the admin session of the login
+  ansible.builtin.set_fact:
+    xvpn_panel_admin_jwt: "{{ xvpn_panel_bs_login.json.response.accessToken }}"
+  no_log: true
+  when: xvpn_panel_bs_login is not skipped
+
+- name: Panel bootstrap | stat the API token file
+  ansible.builtin.stat:
+    path: "{{ xvpn_panel_api_token_file }}"
+  register: xvpn_panel_bs_token_stat
+  check_mode: false
+
+- name: Panel bootstrap | read the stored API token
+  ansible.builtin.slurp:
+    src: "{{ xvpn_panel_api_token_file }}"
+  register: xvpn_panel_bs_token_slurp
+  no_log: true
+  check_mode: false
+  when: xvpn_panel_bs_token_stat.stat.exists
+
+- name: Panel bootstrap | probe the stored API token
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:3000{{ xvpn_panel_api_token_probe_route }}"
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_panel_bs_token_slurp.content | b64decode | trim }}"
+    status_code: [200, 401, 403]
+  register: xvpn_panel_bs_token_probe
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: xvpn_panel_bs_token_stat.stat.exists
+
+- name: Panel bootstrap | decide whether the token must be created
+  ansible.builtin.set_fact:
+    xvpn_panel_token_valid: "{{ xvpn_panel_bs_token_stat.stat.exists and (xvpn_panel_bs_token_probe.status | default(0)) == 200 }}"
+
+- name: Panel bootstrap | keep the valid stored token for the later tasks
+  ansible.builtin.set_fact:
+    xvpn_panel_api_token: "{{ xvpn_panel_bs_token_slurp.content | b64decode | trim }}"
+  no_log: true
+  when: xvpn_panel_token_valid | bool
+
+# Lost or rejected token: revoke the previous one of the same name, then create a new one (T-02-19).
+- name: Panel bootstrap | create a new API token
+  when: not (xvpn_panel_token_valid | bool)
+  block:
+    - name: Panel bootstrap | list the API tokens
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/tokens
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_panel_admin_jwt }}"
+        return_content: true
+        status_code: 200
+      register: xvpn_panel_bs_tokens
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Panel bootstrap | revoke the previous token of the same name
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:3000/api/tokens/{{ item }}"
+        method: DELETE
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_panel_admin_jwt }}"
+        status_code: [200, 204]
+      changed_when: true
+      no_log: true
+      loop: "{{ xvpn_panel_bs_tokens.json.response.tokens | selectattr('name', 'equalto', xvpn_panel_api_token_name) | map(attribute='uuid') | list }}"
+
+    - name: Panel bootstrap | create the API token
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/tokens
+        method: POST
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_panel_admin_jwt }}"
+        body_format: json
+        body:
+          name: "{{ xvpn_panel_api_token_name }}"
+          expiresInDays: "{{ xvpn_panel_api_token_days | int }}"
+          scopes: ["*"]
+        return_content: true
+        status_code: [200, 201]
+      register: xvpn_panel_bs_created
+      changed_when: true
+      no_log: true
+
+    - name: Panel bootstrap | keep the new token for the later tasks
+      ansible.builtin.set_fact:
+        xvpn_panel_api_token: "{{ xvpn_panel_bs_created.json.response.token }}"
+      no_log: true
+
+    - name: Panel bootstrap | write the token file
+      ansible.builtin.copy:
+        content: "{{ xvpn_panel_api_token }}\n"
+        dest: "{{ xvpn_panel_api_token_file }}"
+        owner: "{{ xvpn_panel_user }}"
+        group: "{{ xvpn_panel_user }}"
+        mode: "0600"
+      diff: false
+      no_log: true

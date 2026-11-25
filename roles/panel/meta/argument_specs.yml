@@ -1,7 +1,7 @@
 ---
 argument_specs:
   main:
-    short_description: Remnawave Panel stack, bootstrap and gate (secrets and routes so far)
+    short_description: Remnawave Panel stack, bootstrap and gate (secrets, stack, bootstrap and routes so far)
     options:
       xvpn_panel_domain:
         description: Public FQDN of the Panel, lowercase, not an example.* placeholder.
@@ -82,6 +82,34 @@ argument_specs:
         type: str
         default: ""
         no_log: true
+      xvpn_panel_admin_username:
+        description: User name of the first administrator registered over the loopback port (not admin).
+        type: str
+        default: rwoperator
+      xvpn_panel_api_token_name:
+        description: Name of the automation API token created in the Panel.
+        type: str
+        default: xvpn-automation
+      xvpn_panel_api_token_days:
+        description: Lifetime of the automation API token, days.
+        type: int
+        default: 3650
+      xvpn_panel_bootstrap_retries:
+        description: Attempts, 5 s apart, to wait for the backend auth status before the bootstrap fails.
+        type: int
+        default: 60
+      xvpn_panel_api_token_file:
+        description: Path of the 0600 token file on the Panel host.
+        type: str
+        default: "{{ xvpn_panel_home }}/secrets/api-token"
+      xvpn_panel_api_token_probe_route:
+        description: Backend route that proves a token is accepted (internal).
+        type: str
+        default: /api/nodes
+      xvpn_panel_bootstrap_password_key:
+        description: Secrets file key named in the login failure message (internal).
+        type: str
+        default: admin_password
       xvpn_panel_home:
         description: Home of the service user (internal).
         type: str
