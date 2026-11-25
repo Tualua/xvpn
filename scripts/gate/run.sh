@@ -220,11 +220,20 @@ run_tracer_cases() {
   fi
 }
 
+# rand_alnum <length> <lower|mixed>: random token without a pipe that pipefail would turn into SIGPIPE.
+rand_alnum() {
+  python3 -c '
+import secrets, string, sys
+alphabet = string.ascii_lowercase + string.digits + (string.ascii_uppercase if sys.argv[2] == "mixed" else "")
+print("".join(secrets.choice(alphabet) for _ in range(int(sys.argv[1]))))
+' "$1" "$2"
+}
+
 run_matrix_cases() {
   local sub_id variant_ua old_path upper
-  sub_id="xvpn-probe-$(tr -dc 'a-z0-9' </dev/urandom | head -c 16)"
-  variant_ua="xvpn-gate-variant-$(tr -dc 'a-z0-9' </dev/urandom | head -c 16)"
-  old_path="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)"
+  sub_id="xvpn-probe-$(rand_alnum 16 lower)"
+  variant_ua="xvpn-gate-variant-$(rand_alnum 16 lower)"
+  old_path="$(rand_alnum 32 mixed)"
   upper="$(tr '[:lower:]' '[:upper:]' <<<"$GATE_PATH")"
   [ "$upper" = "$GATE_PATH" ] && upper="$(tr '[:upper:]' '[:lower:]' <<<"$GATE_PATH")"
 
