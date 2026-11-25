@@ -1,3 +1,40 @@
 ---
 # Public FQDN of the Remnawave Panel (D-12). Required, no default: the role fails on an empty value.
 xvpn_panel_domain: ""
+
+# Public FQDN of the subscription page (D-12). Required while the sub-page is enabled; must differ from the Panel domain.
+xvpn_subscription_domain: ""
+# Deploy the subscription page next to the Panel (D-17).
+xvpn_panel_subscription_enabled: true
+
+# Service user that owns the Panel stack (rootless Podman, created by xvpn.remnawave.podman_rootless).
+xvpn_panel_user: rw-panel
+
+# Stack images, pinned tags (consumed by the stack tasks of Plan 02-05).
+xvpn_panel_backend_image: docker.io/remnawave/backend:3.4.11
+xvpn_panel_postgres_image: docker.io/library/postgres:18.4
+xvpn_panel_valkey_image: docker.io/valkey/valkey:9-alpine
+
+xvpn_panel_postgres_user: remnawave
+xvpn_panel_postgres_db: remnawave
+# JWT access-token lifetime of the backend, hours.
+xvpn_panel_jwt_auth_lifetime: 12
+
+# false renders and validates only (container tier); the stack units are started when true.
+xvpn_panel_activate: true
+
+# Vault override inputs (D-07, D-10, D-11). Empty means: read the stored value, else generate one on first run.
+# app_secret, postgres_password, metrics_password and admin_password cannot be rotated in v1 (D-10): a value that
+# differs from the one already applied fails the run. The gate values replace the stored ones (D-06).
+xvpn_panel_app_secret: ""
+xvpn_panel_postgres_password: ""
+xvpn_panel_metrics_password: ""
+xvpn_panel_admin_password: ""
+xvpn_panel_gate_path: ""
+xvpn_panel_gate_cookie_name: ""
+xvpn_panel_gate_cookie_value: ""
+
+# Internal paths (D-07), not meant to be overridden.
+xvpn_panel_home: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}/{{ xvpn_panel_user }}"
+xvpn_panel_secrets_file: "{{ xvpn_panel_home }}/secrets/panel-secrets.yml"
+xvpn_panel_env_dir: "{{ xvpn_panel_home }}/env"

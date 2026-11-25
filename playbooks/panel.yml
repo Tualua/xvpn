@@ -6,8 +6,10 @@
   any_errors_fatal: true
   tags: [preflight]
   vars:
-    # Plan 02-04 adds the subscription domain
-    xvpn_preflight_domains: "{{ [xvpn_panel_domain] }}"
+    # D-12: the subscription page has its own domain, checked together with the Panel domain
+    xvpn_preflight_domains: >-
+      {{ [xvpn_panel_domain]
+         + ([xvpn_subscription_domain | default('')] if (xvpn_panel_subscription_enabled | default(true) | bool) else []) }}
   pre_tasks:
     - name: Require the Panel domain before any check
       ansible.builtin.assert:
@@ -15,6 +17,14 @@
           - xvpn_panel_domain | default('') | length > 0
         fail_msg: "xvpn_panel_domain is required: set the Panel FQDN in the inventory"
         quiet: true
+
+    - name: Require the subscription domain while the subscription page is enabled
+      ansible.builtin.assert:
+        that:
+          - xvpn_subscription_domain | default('') | length > 0
+        fail_msg: "xvpn_subscription_domain is required while the subscription page is enabled: set it in the inventory"
+        quiet: true
+      when: xvpn_panel_subscription_enabled | default(true) | bool
   roles:
     - xvpn.remnawave.preflight
 

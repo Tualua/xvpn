@@ -8,5 +8,35 @@
     fail_msg: "xvpn_panel_domain must be a real lowercase FQDN, got '{{ xvpn_panel_domain }}'"
     quiet: true
 
+# D-12: the subscription page gets its own domain, a different one from the Panel.
+- name: Panel | validate the subscription domain
+  ansible.builtin.assert:
+    that:
+      - xvpn_subscription_domain is regex('^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?[.])+[a-z]{2,63}$')
+      - not (xvpn_subscription_domain is regex('(^|[.])example[.](com|org|net)$'))
+      - xvpn_subscription_domain != xvpn_panel_domain
+    fail_msg: >-
+      xvpn_subscription_domain must be a real lowercase FQDN different from xvpn_panel_domain,
+      got '{{ xvpn_subscription_domain }}'
+    quiet: true
+  when: xvpn_panel_subscription_enabled | bool
+
+- name: Panel | look up the service user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_panel_user }}"
+    fail_key: false
+
+- name: Panel | require the service user
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][xvpn_panel_user] is not none
+    fail_msg: "service user {{ xvpn_panel_user }} does not exist; run xvpn.remnawave.podman_rootless with {{ xvpn_panel_user }} first"
+    quiet: true
+
+- name: Panel | generate-once secrets file
+  ansible.builtin.include_tasks: secrets.yml
+
+# Plan 02-05 inserts the stack between secrets and routes, Plan 02-06 the bootstrap after the stack.
 - name: Panel | publish the Panel-domain routes through the edge
   ansible.builtin.include_tasks: routes.yml

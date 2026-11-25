@@ -11,6 +11,8 @@
     xvpn_preflight_dns_check: false
     # render + generator dry-run only (D-14)
     xvpn_edge_activate: false
+    # render only; the stack units start in the VM tier (Plan 02-05)
+    xvpn_panel_activate: false
     xvpn_panel_domain: panel.xvpn.test
     # forward wiring: consumed from Plan 02-04 on, do not remove
     xvpn_subscription_domain: sub.xvpn.test

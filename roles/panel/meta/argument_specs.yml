@@ -1,9 +1,96 @@
 ---
 argument_specs:
   main:
-    short_description: Remnawave Panel stack, bootstrap and gate (routes only so far)
+    short_description: Remnawave Panel stack, bootstrap and gate (secrets and routes so far)
     options:
       xvpn_panel_domain:
         description: Public FQDN of the Panel, lowercase, not an example.* placeholder.
         type: str
         required: true
+      xvpn_subscription_domain:
+        description: Public FQDN of the subscription page, required while it is enabled, different from the Panel domain.
+        type: str
+        default: ""
+      xvpn_panel_subscription_enabled:
+        description: Deploy the subscription page.
+        type: bool
+        default: true
+      xvpn_panel_user:
+        description: Service user that owns the Panel stack.
+        type: str
+        default: rw-panel
+      xvpn_panel_backend_image:
+        description: Backend image with an exact tag.
+        type: str
+        default: docker.io/remnawave/backend:3.4.11
+      xvpn_panel_postgres_image:
+        description: Postgres image with an exact tag.
+        type: str
+        default: docker.io/library/postgres:18.4
+      xvpn_panel_valkey_image:
+        description: Valkey image with an exact tag.
+        type: str
+        default: docker.io/valkey/valkey:9-alpine
+      xvpn_panel_postgres_user:
+        description: Postgres user of the backend database.
+        type: str
+        default: remnawave
+      xvpn_panel_postgres_db:
+        description: Postgres database name of the backend.
+        type: str
+        default: remnawave
+      xvpn_panel_jwt_auth_lifetime:
+        description: JWT access-token lifetime of the backend, hours.
+        type: int
+        default: 12
+      xvpn_panel_activate:
+        description: Start the stack units; false only renders and validates.
+        type: bool
+        default: true
+      xvpn_panel_app_secret:
+        description: Vault override of APP_SECRET; empty means stored or generated. Cannot be rotated in v1.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_postgres_password:
+        description: Vault override of the Postgres password; empty means stored or generated. Cannot be rotated in v1.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_metrics_password:
+        description: Vault override of the metrics password; empty means stored or generated. Cannot be rotated in v1.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_admin_password:
+        description: Vault override of the first admin password; empty means stored or generated. Cannot be rotated in v1.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_gate_path:
+        description: Vault override of the secret gate path; replaces the stored value and regenerates the cookie value.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_gate_cookie_name:
+        description: Vault override of the gate cookie name; replaces the stored value.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_gate_cookie_value:
+        description: Vault override of the gate cookie value; replaces the stored value.
+        type: str
+        default: ""
+        no_log: true
+      xvpn_panel_home:
+        description: Home of the service user (internal).
+        type: str
+        default: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}/{{ xvpn_panel_user }}"
+      xvpn_panel_secrets_file:
+        description: Path of the generate-once secrets file (internal).
+        type: str
+        default: "{{ xvpn_panel_home }}/secrets/panel-secrets.yml"
+      xvpn_panel_env_dir:
+        description: Directory of the rendered environment files (internal).
+        type: str
+        default: "{{ xvpn_panel_home }}/env"

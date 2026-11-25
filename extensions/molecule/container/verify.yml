@@ -395,6 +395,43 @@
             - not (ansible_failed_result.msg | string).startswith('negative case')
             - "'xvpn_panel_domain' in (ansible_failed_result | to_json)"
 
+    - name: Stat the Panel secrets directory and file
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /var/lib/xvpn/rw-panel/secrets
+        - /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+      register: xvpn_verify_panel_secrets_stat
+
+    - name: Assert the secrets directory is 0700 and the file 0600, both owned by rw-panel (D-07)
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'rw-panel'
+          - item.stat.mode == ('0700' if item.item is search('/secrets$') else '0600')
+        fail_msg: "unexpected state of {{ item.item }}"
+        quiet: true
+      loop: "{{ xvpn_verify_panel_secrets_stat.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the Panel secrets file
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+      register: xvpn_verify_panel_secrets_slurp
+      no_log: true
+
+    - name: Assert the Panel secrets file holds exactly the eight known keys (names only)
+      ansible.builtin.assert:
+        that:
+          - >-
+            (xvpn_verify_panel_secrets_slurp.content | b64decode | from_yaml).keys() | list | sort ==
+            ['admin_password', 'app_secret', 'gate_cookie_name', 'gate_cookie_value', 'gate_path',
+             'metrics_password', 'metrics_user', 'postgres_password']
+        fail_msg: "panel-secrets.yml does not hold exactly the eight known keys"
+        quiet: true
+      no_log: true
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
