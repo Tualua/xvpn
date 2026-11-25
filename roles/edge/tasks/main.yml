@@ -80,6 +80,38 @@
     mode: "0600"
   when: xvpn_edge_acme_json.stat.exists
 
+# nginx-unprivileged runs as uid 101 inside the user namespace, not as the service user, so the public decoy
+# content must be world-readable; Traefik runs as container root (the service user) and keeps 0600/0700.
+- name: Edge | create the decoy directories
+  ansible.builtin.file:
+    path: "{{ xvpn_edge_home }}/{{ item }}"
+    state: directory
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0755"
+  loop:
+    - decoy
+    - decoy/site
+    - decoy/conf.d
+
+- name: Edge | install the decoy site
+  ansible.builtin.copy:
+    src: "{{ ((xvpn_edge_decoy_src | length) > 0) | ternary(xvpn_edge_decoy_src ~ '/', role_path ~ '/files/decoy/') }}"
+    dest: "{{ xvpn_edge_home }}/decoy/site/"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0644"
+    directory_mode: "0755"
+
+- name: Edge | render the decoy nginx configuration
+  ansible.builtin.template:
+    src: decoy-nginx.conf.j2
+    dest: "{{ xvpn_edge_home }}/decoy/conf.d/default.conf"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0644"
+  register: xvpn_edge_decoy_conf
+
 - name: Edge | publish the shared dynamic configuration through the route entry point
   ansible.builtin.include_tasks: route.yml
   vars:
@@ -94,6 +126,7 @@
   ansible.builtin.set_fact:
     xvpn_edge_quadlet_specs:
       - template_src: "{{ role_path }}/templates/traefik.container.j2"
+      - template_src: "{{ role_path }}/templates/xvpn-decoy.container.j2"
 
 - name: Edge | deploy the Quadlet units
   ansible.builtin.include_role:
@@ -118,3 +151,17 @@
   when:
     - xvpn_edge_activate | bool
     - xvpn_edge_static is changed or xvpn_edge_ca is changed
+
+- name: Edge | restart the decoy after an nginx configuration change
+  ansible.builtin.systemd_service:
+    name: xvpn-decoy.service
+    scope: user
+    state: restarted
+  become: true
+  become_user: "{{ xvpn_edge_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ xvpn_edge_getent.ansible_facts.getent_passwd[xvpn_edge_user][1] }}"
+  when:
+    - xvpn_edge_activate | bool
+    - xvpn_edge_decoy_conf is changed

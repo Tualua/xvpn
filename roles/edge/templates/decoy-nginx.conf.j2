@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+server {
+    listen 8080 default_server;
+    server_name _;
+    server_tokens off;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Every path answers 200 with the neutral page (D-02).
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

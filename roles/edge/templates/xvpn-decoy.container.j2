@@ -1,0 +1,22 @@
+[Unit]
+Description=xvpn edge decoy site (nginx-unprivileged on 127.0.0.1)
+
+[Container]
+Image={{ xvpn_edge_decoy_image }}
+ContainerName=xvpn-decoy
+Network=pasta
+PublishPort=127.0.0.1:{{ xvpn_edge_decoy_port }}:8080
+Volume={{ xvpn_edge_home }}/decoy/site:/usr/share/nginx/html:ro,Z
+Volume={{ xvpn_edge_home }}/decoy/conf.d:/etc/nginx/conf.d:ro,Z
+HealthCmd=wget -q -O /dev/null http://127.0.0.1:8080/
+Notify=healthy
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

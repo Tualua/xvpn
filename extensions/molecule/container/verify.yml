@@ -258,11 +258,108 @@
         fail_msg: "8089/tcp was added although SELinux reported Permissive"
         quiet: true
 
+    - name: Read the rendered Traefik static configuration
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/traefik/static/traefik.yml
+      register: xvpn_verify_edge_static
+
+    - name: Assert the static configuration targets the staging CA and logs no path (QA-05, D-19)
+      ansible.builtin.assert:
+        that:
+          - "'acme-staging-v02' in xvpn_verify_edge_text"
+          - "'https://acme-v02.api.letsencrypt.org/directory' not in xvpn_verify_edge_text"
+          - xvpn_verify_edge_parsed.accessLog.fields.names.RequestPath == 'drop'
+          - xvpn_verify_edge_parsed.accessLog.fields.headers.defaultMode == 'drop'
+          - "xvpn_verify_edge_parsed.accessLog.fields.headers.names == {'User-Agent': 'keep'}"
+        fail_msg: "rendered traefik.yml does not meet QA-05 / D-19"
+        quiet: true
+      vars:
+        xvpn_verify_edge_text: "{{ xvpn_verify_edge_static.content | b64decode }}"
+        xvpn_verify_edge_parsed: "{{ xvpn_verify_edge_text | from_yaml }}"
+
+    - name: Stat the edge units and the shared route file
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /var/lib/xvpn/rw-edge/.config/containers/systemd/traefik.container
+        - /var/lib/xvpn/rw-edge/.config/containers/systemd/xvpn-decoy.container
+        - /var/lib/xvpn/rw-edge/traefik/dynamic/00-edge.yml
+        - /var/lib/xvpn/rw-edge/decoy/site/index.html
+      register: xvpn_verify_edge_files
+
+    - name: Assert the edge files exist with the expected owner and mode
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'rw-edge'
+          - not (item.item is search('00-edge[.]yml$')) or item.stat.mode == '0600'
+          - not (item.item is search('index[.]html$')) or item.stat.mode == '0644'
+        fail_msg: "unexpected edge file state: {{ item.item }}"
+        quiet: true
+      loop: "{{ xvpn_verify_edge_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # xvpn_negative_case: edge-custom-ca-without-server
+    - name: Negative case edge-custom-ca-without-server
+      block:
+        - name: Run the edge role with a custom CA and no server
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.edge
+          vars:
+            xvpn_edge_activate: false
+            xvpn_edge_acme_ca: custom
+            xvpn_edge_acme_ca_server: ""
+        - name: Fail when the custom CA without a server was accepted
+          ansible.builtin.fail:
+            msg: "negative case edge-custom-ca-without-server was accepted"
+      rescue:
+        - name: Record that the custom CA without a server was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['edge-custom-ca-without-server'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_edge_acme_ca_server' in (ansible_failed_result | to_json)"
+
+    # xvpn_negative_case: edge-bad-route-name
+    - name: Negative case edge-bad-route-name
+      block:
+        - name: Write a route file with an injected name
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.edge
+            tasks_from: route
+          vars:
+            xvpn_edge_route_name: "x;y"
+            xvpn_edge_route_src: "{{ (playbook_dir ~ '/../../../roles/edge/templates/00-edge.yml.j2') | realpath }}"
+        - name: Fail when the injected route name was accepted
+          ansible.builtin.fail:
+            msg: "negative case edge-bad-route-name was accepted"
+      rescue:
+        - name: Record that the injected route name was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['edge-bad-route-name'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'Invalid route name' in (ansible_failed_result | to_json)"
+
+    - name: Stat the route file of the injected name
+      ansible.builtin.stat:
+        path: "/var/lib/xvpn/rw-edge/traefik/dynamic/x;y.yml"
+      register: xvpn_verify_edge_bad_route
+
+    - name: Assert no route file was written for the injected name
+      ansible.builtin.assert:
+        that:
+          - not xvpn_verify_edge_bad_route.stat.exists
+        fail_msg: "x;y.yml was written although the route name is invalid"
+        quiet: true
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
           - >-
             (xvpn_negative_rejected | default([])) | sort ==
-            ['bad-user-name', 'broken-unit', 'no-ssh-zone', 'port-without-protocol', 'relative-template', 'selinux-permissive']
+            ['bad-user-name', 'broken-unit', 'edge-bad-route-name', 'edge-custom-ca-without-server', 'no-ssh-zone',
+             'port-without-protocol', 'relative-template', 'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
         quiet: true
