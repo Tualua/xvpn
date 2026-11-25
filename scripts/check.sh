@@ -43,8 +43,9 @@ fi
 check_acme_ca() {
   local converge dir text ok=1
   shopt -s nullglob
-  for converge in extensions/molecule/*/converge.yml; do
-    grep -Eq 'playbooks/(panel|site)\.yml|xvpn\.remnawave\.edge' "$converge" || continue
+  # Molecule converge files and the non-Molecule renderers of the edge templates (scripts/gate/*.yml).
+  for converge in extensions/molecule/*/converge.yml scripts/gate/*.yml; do
+    grep -Eq 'playbooks/(panel|site)\.yml|xvpn\.remnawave\.edge|traefik\.yml\.j2' "$converge" || continue
     dir="$(dirname "$converge")"
     # the converge file plus the scenario vars files, comment lines removed; a scenario without vars/ reads converge alone
     text="$(cat "$converge" "$dir"/vars/*.yml 2>/dev/null | grep -Ev '^[[:space:]]*#' || true)"
@@ -82,7 +83,7 @@ if [ "${#scenarios[@]}" -gt 0 ] && [ "${#ext_playbooks[@]}" -eq 0 ]; then
   echo "no extensions/molecule playbook was syntax-checked" >&2
   exit 1
 fi
-for f in "${playbooks[@]}" "${ext_playbooks[@]}"; do
+for f in "${playbooks[@]}" "${ext_playbooks[@]}" scripts/gate/render.yml; do
   echo "syntax-check: $f"
   ansible-playbook --syntax-check -i localhost, "$f"
 done

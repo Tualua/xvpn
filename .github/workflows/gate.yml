@@ -37,5 +37,5 @@ jobs:
         run: podman info
       - name: Gate regression
         env:
-          XVPN_GATE_BREAK: ${{ github.event_name == 'workflow_dispatch' && inputs.break != 'none' && inputs.break || '' }}
+          XVPN_GATE_BREAK: ${{ inputs.break != 'none' && inputs.break || '' }}
         run: bash scripts/gate/run.sh

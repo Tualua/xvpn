@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Gate regression (PANEL-06, QA-05): renders the production edge/panel templates, runs the pinned Traefik image against
 # Pebble and loopback stub backends, and executes the verify_gate.yml case ids over HTTPS/HTTP.
-# Output: "gate-matrix: OK" or "FAIL <case id>" lines and exit 1. Rootful podman on a CI runner; SELinux is not
+# Output: the matrix verdict line, or "FAIL <case id>" lines and exit 1. Rootful podman on a CI runner; SELinux is not
 # enforced there, so this proves routing semantics only (the VM tier is the SELinux proof).
 # Hook: XVPN_GATE_BREAK=auth-regex breaks the auth exclusion regex in the rendered copy to prove the matrix fails.
 set -euo pipefail
@@ -220,7 +220,87 @@ run_tracer_cases() {
   fi
 }
 
+run_matrix_cases() {
+  local sub_id variant_ua old_path upper
+  sub_id="xvpn-probe-$(tr -dc 'a-z0-9' </dev/urandom | head -c 16)"
+  variant_ua="xvpn-gate-variant-$(tr -dc 'a-z0-9' </dev/urandom | head -c 16)"
+  old_path="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)"
+  upper="$(tr '[:lower:]' '[:upper:]' <<<"$GATE_PATH")"
+  [ "$upper" = "$GATE_PATH" ] && upper="$(tr '[:upper:]' '[:lower:]' <<<"$GATE_PATH")"
+
+  req auth-status-with-cookie /api/auth/status backend "$COOKIE"
+  req auth-status-no-cookie /api/auth/status decoy
+  req api-bearer-no-cookie /api/nodes ok200 "" "" xvpn-gate-test-bearer
+  req sub-public-no-cookie "/api/sub/${sub_id}" sub
+  req auth-uppercase /api/AUTH/status decoy
+  req api-uppercase /API/auth/status decoy
+  req auth-double-slash-lead //api/auth/status decoy
+  req auth-double-slash-inner /api//auth/status decoy
+  req auth-dot-segment /api/./auth/status decoy
+  req auth-percent-61 /api/%61uth/status decoy
+  req auth-dotdot /api/x/../auth/status decoy
+  req auth-bare /api/auth decoy
+  req login-page /login decoy
+  req dashboard-page /dashboard decoy
+  req auth-encoded-slash /api/auth%2Fstatus bad400
+  req authx /api/authx backend
+  req cookie-longer-value / decoy "${COOKIE}4"
+  req cookie-prefixed-name / decoy "x${COOKIE}"
+  req cookie-wrong-value / decoy "${COOKIE_NAME}=wrong"
+  req cookie-after-bare-separator / ok200 "a=b;${COOKIE}"
+  req cookie-in-the-middle / ok200 "a=b; ${COOKIE}; c=d"
+
+  # sniStrict: an unknown SNI gets no certificate.
+  if openssl s_client -connect 127.0.0.1:8443 -servername unknown.invalid </dev/null 2>&1 | grep -q 'BEGIN CERTIFICATE'; then
+    fail sni-strict
+  fi
+
+  # http-gate-redirect (D-01): the gate router lives on websecure only, plain :80 redirects without a cookie.
+  local http_headers
+  http_headers="$(curl --path-as-is -sS -o /dev/null -D - --resolve "${DOMAIN}:8080:127.0.0.1" \
+    "http://${DOMAIN}:8080/${GATE_PATH}" 2>/dev/null | tr -d '\r' || true)"
+  if ! { head -1 <<<"$http_headers" | grep -Eq ' (301|308)' \
+    && [ "$(grep -ci "^location: https://${DOMAIN}" <<<"$http_headers")" -eq 1 ] \
+    && [ "$(grep -ci '^set-cookie:' <<<"$http_headers")" -eq 0 ]; }; then
+    fail http-gate-redirect
+  fi
+
+  # log-gate-variants (D-19): decoy requests that miss the exact path are logged without a RequestPath key.
+  req variant-trailing-slash "/${GATE_PATH}/" decoy "" "$variant_ua"
+  req variant-appended-char "/${GATE_PATH}x" decoy "" "$variant_ua"
+  req variant-case "/${upper}" decoy "" "$variant_ua"
+  req variant-old-path "/${old_path}" decoy "" "$variant_ua"
+  local lines="" count=0
+  for _ in $(seq 1 30); do
+    lines="$(podman logs "$CONTAINER" 2>&1 | grep "$variant_ua" || true)"
+    count="$(grep -c . <<<"$lines" || true)"
+    [ "$count" -ge 4 ] && break
+    sleep 1
+  done
+  if ! LINES_IN="$lines" UA="$variant_ua" python3 -c '
+import json, os, sys
+hits = []
+for line in os.environ["LINES_IN"].splitlines():
+    if not line.startswith("{"):
+        continue
+    entry = json.loads(line)
+    if entry.get("request_User-Agent") == os.environ["UA"]:
+        hits.append(entry)
+sys.exit(0 if len(hits) == 4 and not any("RequestPath" in h for h in hits) else 1)
+'; then
+    fail log-gate-variants
+  fi
+
+  # log-no-gate-path (D-01, D-19): the gate path, its variants and the old-path stand-in are absent from the log.
+  local log_text
+  log_text="$(podman logs "$CONTAINER" 2>&1 | tr '[:upper:]' '[:lower:]')"
+  if grep -qF -e "$(tr '[:upper:]' '[:lower:]' <<<"$GATE_PATH")" -e "$(tr '[:upper:]' '[:lower:]' <<<"$old_path")" <<<"$log_text"; then
+    fail log-no-gate-path
+  fi
+}
+
 run_tracer_cases
+run_matrix_cases
 
 if [ "${#FAILED[@]}" -gt 0 ]; then
   exit 1
