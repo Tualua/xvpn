@@ -694,6 +694,33 @@
         fail_msg: "gate_path or gate_cookie_value did not follow the D-06 rules (override, regeneration, persistence)"
         quiet: true
 
+    # T-02-21/T-02-22: the rendered route follows the rotation (new path present, old path and old cookie value gone).
+    - name: Count the new path, the old path and the old cookie value in the rendered Panel route
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -c
+          - -F
+          - "{{ item }}"
+          - /var/lib/xvpn/rw-edge/traefik/dynamic/panel.yml
+      loop:
+        - "{{ xvpn_verify_new_gate_path }}"
+        - "{{ xvpn_verify_gate_before.gate_path }}"
+        - "{{ xvpn_verify_gate_before.gate_cookie_value }}"
+      register: xvpn_verify_gate_route_counts
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert the Panel route follows the rotation
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_gate_route_counts.results[0].stdout | trim | int >= 1
+          - xvpn_verify_gate_route_counts.results[1].stdout | trim | int == 0
+          - xvpn_verify_gate_route_counts.results[2].stdout | trim | int == 0
+        fail_msg: "panel.yml does not follow the gate rotation (new path missing, or old path or old cookie value still present)"
+        quiet: true
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
