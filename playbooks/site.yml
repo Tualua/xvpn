@@ -1,0 +1,4 @@
+---
+# Phase 3 appends node.yml
+- name: Panel host
+  ansible.builtin.import_playbook: panel.yml

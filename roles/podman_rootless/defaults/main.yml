@@ -1,5 +1,5 @@
 ---
-# Rootless service users, one per trust domain (D-07). Phases 2-4 append rw-panel, rw-node.
+# Phase playbooks set the users of their host type (playbooks/panel.yml: rw-edge + rw-panel); the default stays rw-edge only.
 xvpn_podman_rootless_users:
   - name: rw-edge
 # Parent of the service user homes (D-08). Segments may contain only [A-Za-z0-9_-] (no dots); system directories are rejected.

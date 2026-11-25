@@ -10,6 +10,7 @@
       vars:
         # The container tier activates no unit, so :80 is free and probed directly.
         xvpn_verify_bind_probe_ports: [80, 443]
+        xvpn_verify_quadlet_unit: traefik.container
 
     - name: Verify the host baseline (SELinux, firewalld ports, SSH)
       ansible.builtin.include_tasks: ../shared/verify_common.yml
@@ -375,12 +376,31 @@
         fail_msg: "x;y.yml was written although the route name is invalid"
         quiet: true
 
+    # xvpn_negative_case: panel-placeholder-domain
+    - name: Negative case panel-placeholder-domain
+      block:
+        - name: Run the panel role with a placeholder domain
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.panel
+          vars:
+            xvpn_panel_domain: panel.example.com
+        - name: Fail when the placeholder domain was accepted
+          ansible.builtin.fail:
+            msg: "negative case panel-placeholder-domain was accepted"
+      rescue:
+        - name: Record that the placeholder domain was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['panel-placeholder-domain'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_panel_domain' in (ansible_failed_result | to_json)"
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
           - >-
             (xvpn_negative_rejected | default([])) | sort ==
             ['bad-user-name', 'broken-unit', 'edge-bad-route-name', 'edge-custom-ca-without-server', 'no-ssh-zone',
-             'port-without-protocol', 'relative-template', 'selinux-permissive']
+             'panel-placeholder-domain', 'port-without-protocol', 'relative-template', 'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
         quiet: true

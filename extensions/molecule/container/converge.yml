@@ -16,19 +16,3 @@
     xvpn_subscription_domain: sub.xvpn.test
     # CI never talks to production Let's Encrypt (QA-05)
     xvpn_edge_acme_ca: staging
-
-- name: Deploy molecule fixture
-  hosts: all
-  become: true
-  vars:
-    ansible_pipelining: true
-  tasks:
-    - name: Deploy the fixture unit through the quadlet entry point
-      ansible.builtin.include_role:
-        name: xvpn.remnawave.podman_rootless
-        tasks_from: quadlet
-      vars:
-        xvpn_podman_rootless_quadlet_user: rw-edge
-        xvpn_podman_rootless_quadlet_activate: false
-        xvpn_podman_rootless_quadlet_specs:
-          - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-fixture.container.j2') | realpath }}"
