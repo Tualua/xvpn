@@ -2,88 +2,144 @@
 # Subscription page (D-17, SUB-01, SUB-02): env file from the bootstrap token, Quadlet unit on the Panel network,
 # restart on a token change (RESEARCH Pitfall 7) and the route file of the subscription domain. Runs after the
 # bootstrap, so the token exists before the page starts. The token never leaves the Panel host.
-- name: Panel subpage | stat the API token file
-  ansible.builtin.stat:
-    path: "{{ xvpn_panel_api_token_file }}"
-  register: xvpn_panel_sp_token_stat
-  no_log: true
-  check_mode: false
-  when: xvpn_panel_api_token is not defined
+# Disabled (xvpn_panel_subscription_enabled false): the running unit is stopped first, then the unit file, the env
+# file (it holds the API token) and the route file are removed (D-17, T-02-36).
+- name: Panel subpage | deploy the enabled subscription page
+  when: xvpn_panel_subscription_enabled | bool
+  block:
+    - name: Panel subpage | stat the API token file
+      ansible.builtin.stat:
+        path: "{{ xvpn_panel_api_token_file }}"
+      register: xvpn_panel_sp_token_stat
+      no_log: true
+      check_mode: false
+      when: xvpn_panel_api_token is not defined
 
-- name: Panel subpage | read the stored API token
-  ansible.builtin.slurp:
-    src: "{{ xvpn_panel_api_token_file }}"
-  register: xvpn_panel_sp_token_slurp
-  no_log: true
-  check_mode: false
-  when:
-    - xvpn_panel_api_token is not defined
-    - xvpn_panel_sp_token_stat.stat.exists
+    - name: Panel subpage | read the stored API token
+      ansible.builtin.slurp:
+        src: "{{ xvpn_panel_api_token_file }}"
+      register: xvpn_panel_sp_token_slurp
+      no_log: true
+      check_mode: false
+      when:
+        - xvpn_panel_api_token is not defined
+        - xvpn_panel_sp_token_stat.stat.exists
 
-- name: Panel subpage | resolve the token for the env file
-  ansible.builtin.set_fact:
-    xvpn_panel_sp_token: >-
-      {{ xvpn_panel_api_token
-         if xvpn_panel_api_token is defined
-         else ((xvpn_panel_sp_token_slurp.content | b64decode | trim) if xvpn_panel_sp_token_slurp is not skipped else '') }}
-  no_log: true
+    - name: Panel subpage | resolve the token for the env file
+      ansible.builtin.set_fact:
+        xvpn_panel_sp_token: >-
+          {{ xvpn_panel_api_token
+             if xvpn_panel_api_token is defined
+             else ((xvpn_panel_sp_token_slurp.content | b64decode | trim) if xvpn_panel_sp_token_slurp is not skipped else '') }}
+      no_log: true
 
-# The container tier does not run the bootstrap, so no token exists there: the unit is still rendered and validated.
-- name: Panel subpage | render the subscription page env file
-  ansible.builtin.template:
-    src: subpage.env.j2
-    dest: "{{ xvpn_panel_env_dir }}/subpage.env"
-    owner: "{{ xvpn_panel_user }}"
-    group: "{{ xvpn_panel_user }}"
-    mode: "0600"
-  register: xvpn_panel_subpage_env
-  diff: false
-  no_log: true
-  when: xvpn_panel_sp_token | length > 0
+    # The container tier does not run the bootstrap, so no token exists there: the unit is still rendered and validated.
+    - name: Panel subpage | render the subscription page env file
+      ansible.builtin.template:
+        src: subpage.env.j2
+        dest: "{{ xvpn_panel_env_dir }}/subpage.env"
+        owner: "{{ xvpn_panel_user }}"
+        group: "{{ xvpn_panel_user }}"
+        mode: "0600"
+      register: xvpn_panel_subpage_env
+      diff: false
+      no_log: true
+      when: xvpn_panel_sp_token | length > 0
 
-# role_path is resolved here, before the include, as in stack.yml.
-- name: Panel subpage | build the Quadlet specs
-  ansible.builtin.set_fact:
-    xvpn_panel_subpage_quadlet_specs:
-      - template_src: "{{ role_path }}/templates/remnawave-subscription-page.container.j2"
+    # role_path is resolved here, before the include, as in stack.yml.
+    - name: Panel subpage | build the Quadlet specs
+      ansible.builtin.set_fact:
+        xvpn_panel_subpage_quadlet_specs:
+          - template_src: "{{ role_path }}/templates/remnawave-subscription-page.container.j2"
 
-- name: Panel subpage | deploy the subscription page unit
-  ansible.builtin.include_role:
-    name: xvpn.remnawave.podman_rootless
-    tasks_from: quadlet
-  vars:
-    xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
-    xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_subpage_quadlet_specs }}"
-    xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
+    - name: Panel subpage | deploy the subscription page unit
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.podman_rootless
+        tasks_from: quadlet
+      vars:
+        xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
+        xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_subpage_quadlet_specs }}"
+        xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
 
-# The env file is read at container creation, so a token change needs a restart of this unit only.
-- name: Panel subpage | restart the subscription page after an env file change
-  ansible.builtin.systemd_service:
-    name: remnawave-subscription-page.service
-    scope: user
-    state: restarted
-  become: true
-  become_user: "{{ xvpn_panel_user }}"
-  become_method: ansible.builtin.sudo
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
-  when:
-    - xvpn_panel_activate | bool
-    - xvpn_panel_subpage_env is changed
+    # The env file is read at container creation, so a token change needs a restart of this unit only.
+    - name: Panel subpage | restart the subscription page after an env file change
+      ansible.builtin.systemd_service:
+        name: remnawave-subscription-page.service
+        scope: user
+        state: restarted
+      become: true
+      become_user: "{{ xvpn_panel_user }}"
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
+      when:
+        - xvpn_panel_activate | bool
+        - xvpn_panel_subpage_env is changed
 
-# role_path again resolved before the include: inside the edge role it would be the edge role's.
-- name: Panel subpage | resolve the route template path
-  ansible.builtin.set_fact:
-    xvpn_panel_subpage_routes_src: "{{ role_path }}/templates/subscription-routes.yml.j2"
+    # role_path again resolved before the include: inside the edge role it would be the edge role's.
+    - name: Panel subpage | resolve the route template path
+      ansible.builtin.set_fact:
+        xvpn_panel_subpage_routes_src: "{{ role_path }}/templates/subscription-routes.yml.j2"
 
-- name: Panel subpage | resolve the subscription port for the route
-  ansible.builtin.set_fact:
-    xvpn_panel_subpage_port_resolved: "{{ xvpn_panel_subscription_port }}"
+    - name: Panel subpage | resolve the subscription port for the route
+      ansible.builtin.set_fact:
+        xvpn_panel_subpage_port_resolved: "{{ xvpn_panel_subscription_port }}"
 
-- name: Panel subpage | write the subscription-domain route file
-  ansible.builtin.include_role:
-    name: xvpn.remnawave.edge
-    tasks_from: route
-  vars:
-    xvpn_edge_route_name: subscription
-    xvpn_edge_route_src: "{{ xvpn_panel_subpage_routes_src }}"
+    - name: Panel subpage | write the subscription-domain route file
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.edge
+        tasks_from: route
+      vars:
+        xvpn_edge_route_name: subscription
+        xvpn_edge_route_src: "{{ xvpn_panel_subpage_routes_src }}"
+
+- name: Panel subpage | switch the subscription page off
+  when: not (xvpn_panel_subscription_enabled | bool)
+  block:
+    - name: Panel subpage | stat the subscription page unit file
+      ansible.builtin.stat:
+        path: "{{ xvpn_panel_home }}/.config/containers/systemd/remnawave-subscription-page.container"
+      register: xvpn_panel_sp_unit_stat
+
+    # Removing only the unit file would leave the running page serving until the next reboot.
+    - name: Panel subpage | stop the running subscription page
+      ansible.builtin.systemd_service:
+        name: remnawave-subscription-page.service
+        scope: user
+        state: stopped
+      become: true
+      become_user: "{{ xvpn_panel_user }}"
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
+      when:
+        - xvpn_panel_activate | bool
+        - xvpn_panel_sp_unit_stat.stat.exists
+
+    - name: Panel subpage | build the Quadlet specs to remove
+      ansible.builtin.set_fact:
+        xvpn_panel_subpage_quadlet_specs:
+          - template_src: "{{ role_path }}/templates/remnawave-subscription-page.container.j2"
+            state: absent
+
+    - name: Panel subpage | remove the subscription page unit
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.podman_rootless
+        tasks_from: quadlet
+      vars:
+        xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
+        xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_subpage_quadlet_specs }}"
+        xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
+
+    - name: Panel subpage | remove the subscription page env file (it holds the API token)
+      ansible.builtin.file:
+        path: "{{ xvpn_panel_env_dir }}/subpage.env"
+        state: absent
+
+    - name: Panel subpage | remove the subscription-domain route file
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.edge
+        tasks_from: route
+      vars:
+        xvpn_edge_route_name: subscription
+        xvpn_edge_route_state: absent

@@ -477,6 +477,68 @@
         - name: Sub-page wrong-token control | both probes pass again with the restored token
           ansible.builtin.include_tasks: ../shared/verify_subpage.yml
 
+    # D-17 / T-02-36: the disable path with running units. The secrets file and the token file are untouched by the
+    # cycle, so the post-reboot verifies keep their recorded checksums.
+    - name: Sub-page toggle cycle
+      block:
+        - name: Sub-page toggle cycle | switch the subscription page off
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.panel
+          vars:
+            xvpn_panel_subscription_enabled: false
+
+        - name: Sub-page toggle cycle | read the unit state as rw-panel
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - --user
+              - is-active
+              - remnawave-subscription-page.service
+          become: true
+          become_user: rw-panel
+          become_method: ansible.builtin.sudo
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ xvpn_side_effect_panel_uid }}"
+          register: xvpn_se_tc_active
+          changed_when: false
+          failed_when: false
+
+        - name: Sub-page toggle cycle | list listeners on 3010
+          ansible.builtin.command:
+            argv:
+              - ss
+              - -H
+              - -ltn
+              - sport = :3010
+          register: xvpn_se_tc_ss
+          changed_when: false
+
+        - name: Sub-page toggle cycle | stat the files that must be gone
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - /var/lib/xvpn/rw-panel/.config/containers/systemd/remnawave-subscription-page.container
+            - /var/lib/xvpn/rw-panel/env/subpage.env
+            - /var/lib/xvpn/rw-edge/traefik/dynamic/subscription.yml
+          register: xvpn_se_tc_gone
+          no_log: true
+
+        - name: Sub-page toggle cycle | assert the page is stopped and removed
+          ansible.builtin.assert:
+            that:
+              - xvpn_se_tc_active.stdout | trim != 'active'
+              - xvpn_se_tc_ss.stdout | trim | length == 0
+              - xvpn_se_tc_gone.results | selectattr('stat.exists') | list | length == 0
+            fail_msg: "toggle off left the subscription page active, port 3010 bound, or one of its files in place"
+            quiet: true
+
+        - name: Sub-page toggle cycle | switch the subscription page back on (default)
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.panel
+
+        - name: Sub-page toggle cycle | the restored page passes the default verify
+          ansible.builtin.include_tasks: ../shared/verify_subpage.yml
+
     # SC2: Ansible controls the user unit through systemctl --user, not only observes it.
     - name: Read the InvocationID before the restart
       ansible.builtin.command:

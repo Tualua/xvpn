@@ -48,7 +48,6 @@
 # D-17: the page needs the bootstrap token, so it follows the bootstrap and precedes the route files.
 - name: Panel | deploy the subscription page
   ansible.builtin.include_tasks: subpage.yml
-  when: xvpn_panel_subscription_enabled | bool
 
 - name: Panel | publish the Panel-domain routes through the edge
   ansible.builtin.include_tasks: routes.yml

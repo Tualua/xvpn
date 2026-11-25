@@ -721,6 +721,66 @@
         fail_msg: "panel.yml does not follow the gate rotation (new path missing, or old path or old cookie value still present)"
         quiet: true
 
+    # D-17 / T-02-36 positive case panel-subpage-toggle: off removes the unit, env file and route, on restores them.
+    - name: Panel subpage toggle off (panel-subpage-toggle)
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.panel
+      vars:
+        xvpn_panel_domain: panel.xvpn.test
+        xvpn_subscription_domain: sub.xvpn.test
+        xvpn_panel_activate: false
+        xvpn_panel_subscription_enabled: false
+
+    - name: Stat the sub-page files after toggle off
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /var/lib/xvpn/rw-panel/.config/containers/systemd/remnawave-subscription-page.container
+        - /var/lib/xvpn/rw-panel/env/subpage.env
+        - /var/lib/xvpn/rw-edge/traefik/dynamic/subscription.yml
+      register: xvpn_verify_toggle_off
+      no_log: true
+
+    - name: Read backend.env after toggle off
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-panel/env/backend.env
+      register: xvpn_verify_toggle_backend
+      no_log: true
+
+    - name: Assert toggle off removed the files and switched SUB_PUBLIC_DOMAIN (panel-subpage-toggle)
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_toggle_off.results | selectattr('stat.exists') | list | length == 0
+          - >-
+            (xvpn_verify_toggle_backend.content | b64decode).splitlines()
+            | select('match', '^SUB_PUBLIC_DOMAIN=panel[.]xvpn[.]test/api/sub$') | list | length == 1
+        fail_msg: "toggle off left sub-page files in place or SUB_PUBLIC_DOMAIN is not <panel-domain>/api/sub"
+        quiet: true
+
+    - name: Panel subpage toggle on again (panel-subpage-toggle)
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.panel
+      vars:
+        xvpn_panel_domain: panel.xvpn.test
+        xvpn_subscription_domain: sub.xvpn.test
+        xvpn_panel_activate: false
+
+    - name: Stat the sub-page unit and route after toggle on
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /var/lib/xvpn/rw-panel/.config/containers/systemd/remnawave-subscription-page.container
+        - /var/lib/xvpn/rw-edge/traefik/dynamic/subscription.yml
+      register: xvpn_verify_toggle_on
+      no_log: true
+
+    - name: Assert toggle on restored the unit and the route (panel-subpage-toggle)
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_toggle_on.results | selectattr('stat.exists') | list | length == 2
+        fail_msg: "toggle on did not restore the sub-page unit file and the subscription route"
+        quiet: true
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
