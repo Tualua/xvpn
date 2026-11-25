@@ -27,8 +27,8 @@
 
 - [x] **PANEL-01**: Оператор разворачивает Remnawave backend + Postgres + Valkey как Quadlet-юниты на приватной Podman-сети с healthcheck'ами и правильным порядком запуска
 - [x] **PANEL-02**: Секреты панели (app/JWT-секреты, пароль Postgres, metrics-креды) генерируются один раз и не меняются при повторных прогонах
-- [ ] **PANEL-03**: Первый администратор создаётся на loopback до публикации роутера Traefik; повторный прогон логинится, а не регистрирует
-- [ ] **PANEL-04**: Коллекция создаёт долгоживущий API-токен для автоматизации и хранит его с правами 0600 на Panel-хосте
+- [x] **PANEL-03**: Первый администратор создаётся на loopback до публикации роутера Traefik; повторный прогон логинится, а не регистрирует
+- [x] **PANEL-04**: Коллекция создаёт долгоживущий API-токен для автоматизации и хранит его с правами 0600 на Panel-хосте
 - [ ] **PANEL-05**: Panel доступна через Traefik по HTTPS на собственном домене
 - [ ] **PANEL-06**: Админка закрыта cookie/secret-path гейтом: вход по секретному URL ставит cookie, без неё отдаётся 404; подписки и API остаются доступными
 
@@ -147,8 +147,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDGE-03 | Phase 2 | Complete |
 | PANEL-01 | Phase 2 | Complete |
 | PANEL-02 | Phase 2 | Complete |
-| PANEL-03 | Phase 2 | Pending |
-| PANEL-04 | Phase 2 | Pending |
+| PANEL-03 | Phase 2 | Complete |
+| PANEL-04 | Phase 2 | Complete |
 | PANEL-05 | Phase 2 | Pending |
 | PANEL-06 | Phase 2 | Pending |
 | SUB-01 | Phase 2 | Pending |
