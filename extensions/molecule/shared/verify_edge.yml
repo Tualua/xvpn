@@ -318,11 +318,22 @@
   changed_when: false
   no_log: true
 
+# The address the VM sees for the controller: read in the SSH session itself (no become, sudo resets the environment).
+- name: Verify edge | read the SSH_CLIENT address of the connection
+  ansible.builtin.command:
+    argv:
+      - sh
+      - -c
+      - 'echo "${SSH_CLIENT:-$SSH_CONNECTION}"'
+  become: false
+  register: xvpn_verify_edge_ssh_client
+  changed_when: false
+
 - name: Verify edge | parse the JSON access log lines
   ansible.builtin.set_fact:
     xvpn_verify_edge_log_lines: >-
       {{ xvpn_verify_edge_log.stdout_lines | select('match', '^[{]') | map('from_json') | list }}
-    xvpn_verify_edge_client: "{{ ansible_facts['env']['SSH_CLIENT'].split()[0] }}"
+    xvpn_verify_edge_client: "{{ xvpn_verify_edge_ssh_client.stdout.split()[0] }}"
 
 - name: Verify edge | select the probe line by User-Agent
   ansible.builtin.set_fact:
