@@ -140,7 +140,12 @@ for _ in $(seq 1 60); do
   curl -fsS --cacert "$WORK/pebble/certs/pebble.minica.pem" https://127.0.0.1:15000/roots/0 -o "$WORK/root.pem" 2>/dev/null && break
   sleep 1
 done
-[ -s "$WORK/root.pem" ] || { echo "FAIL pebble-root"; exit 1; }
+if [ ! -s "$WORK/root.pem" ]; then
+  tail -20 "$WORK/pebble.log" "$WORK/challtestsrv.log" || true
+  curl -sS --cacert "$WORK/pebble/certs/pebble.minica.pem" https://127.0.0.1:15000/roots/0 2>&1 | tail -3 || true
+  echo "FAIL pebble-root"
+  exit 1
+fi
 
 podman run -d --name "$CONTAINER" --network host --log-driver k8s-file \
   -v "$WORK/static:/etc/traefik/static:ro" -v "$WORK/dynamic:/etc/traefik/dynamic:ro" \
