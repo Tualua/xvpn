@@ -34,8 +34,8 @@
 
 ### Subscription page (SUB)
 
-- [ ] **SUB-01**: Клиент открывает subscription page на отдельном домене через Traefik по HTTPS
-- [ ] **SUB-02**: Subscription page подключена к Panel через API-токен без ручных шагов
+- [x] **SUB-01**: Клиент открывает subscription page на отдельном домене через Traefik по HTTPS
+- [x] **SUB-02**: Subscription page подключена к Panel через API-токен без ручных шагов
 
 ### Node (NODE)
 
@@ -151,8 +151,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PANEL-04 | Phase 2 | Complete |
 | PANEL-05 | Phase 2 | Complete |
 | PANEL-06 | Phase 2 | Complete |
-| SUB-01 | Phase 2 | Pending |
-| SUB-02 | Phase 2 | Pending |
+| SUB-01 | Phase 2 | Complete |
+| SUB-02 | Phase 2 | Complete |
 | NODE-01 | Phase 3 | Pending |
 | NODE-02 | Phase 3 | Pending |
 | NODE-03 | Phase 3 | Pending |
