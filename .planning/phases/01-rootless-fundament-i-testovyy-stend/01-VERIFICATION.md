@@ -1,6 +1,6 @@
 ---
 phase: 01-rootless-fundament-i-testovyy-stend
-verified: 2026-11-25T02:00:00Z
+verified: 2026-11-25T04:00:00Z
 status: passed
 score: 4/4 must-haves verified
 covered_files:
@@ -34,10 +34,12 @@ covered_files:
   - galaxy.yml
   - roles/common/tasks/firewalld.yml
   - roles/common/tasks/main.yml
+  - roles/podman_rootless/defaults/main.yml
+  - roles/podman_rootless/meta/argument_specs.yml
   - roles/podman_rootless/tasks/main.yml
   - roles/podman_rootless/tasks/user.yml
   - roles/preflight/tasks/check_dns.yml
-covered_digest: "v4:sha256:85451520afe88b5118052d95f8fbd705abcfe9646ed357d419a11b3e339e6d91"
+covered_digest: "v4:sha256:bca6c1c2e2603de6417f305d1bf1adfc3bc9fd7143d8ca8a4593d5703735f613"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -53,7 +55,7 @@ re_verification:
 **Цель фазы:** Оператор запускает playbook на чистом Rocky/Alma 10 и получает проверенный rootless-хост: preflight отсекает неподходящие хосты, выделенный пользователь с linger запускает тестовый Quadlet-сервис (fixture из Molecule, D-12) на порту 80, который переживает перезагрузку при SELinux enforcing без AVC; всё автоматически проверяется в Molecule и CI-линтерах.
 **Проверено:** 2026-11-25
 **Статус:** passed
-**Повторная верификация:** да, после исправлений WR-01..WR-04 из повторного ревью (изменены `verify_rootless.yml`, `common/tasks/main.yml`, `podman_rootless/tasks/main.yml`, `podman_rootless/tasks/user.yml`)
+**Повторная верификация:** да, после исправлений code review IN-01 (коммиты 43280f1, ea4f207) и IN-02 (dc57c25)
 
 ## Достижение цели
 
@@ -61,21 +63,33 @@ re_verification:
 
 | # | Истина | Статус | Доказательство |
 |---|--------|--------|----------------|
-| 1 | Preflight падает с понятным сообщением на не-EL10, SELinux не Enforcing, Podman < 5.4, занятых 80/443, неверной A-записи, ничего не изменив | VERIFIED | Роль `preflight` (`main`, `check_podman`, `check_ports`, `check_dns`) и сценарий `extensions/molecule/preflight`; `container (preflight)` зелёный в run 45521121807 на 856bde5. Новый гейт `getenforce rc != 0` в `common` и `podman_rootless` падает с понятным сообщением и не меняет режим SELinux |
-| 2 | Тестовый Quadlet-сервис под rootless-пользователем слушает :80, управляется через `systemctl --user`, поднимается после reboot | VERIFIED | VM-прогон 45524347495 (alma10 и rocky10 success) на 856bde5, который содержит все исправления WR-01..WR-04; `git diff 12333db HEAD` по roles/extensions/playbooks/.github/galaxy.yml пуст |
-| 3 | VM-тир Alma10/Rocky10 (SELinux enforcing): converge, идемпотентность changed=0, reboot, ноль AVC; firewalld открывает только нужные порты | VERIFIED | Тот же прогон 45524347495, оба job success, уже на коде после правок ревью (в том числе `verify_rootless.yml` с вычисляемым негативным портом) |
-| 4 | Контейнерный тир, ansible-lint и yamllint в CI; коллекция собирается; у ролей есть `argument_specs` | VERIFIED | `lint` 45521121714 и `molecule-container` 45521121807 success на 856bde5; локально `ansible-lint --profile production`: 0 failures, 0 warnings; `ansible-galaxy collection build` создаёт `xvpn-remnawave-0.1.0.tar.gz`; `meta/argument_specs.yml` есть у common, podman_rootless, preflight |
+| 1 | Preflight падает с понятным сообщением на не-EL10, SELinux не Enforcing, Podman < 5.4, занятых 80/443, неверной A-записи, ничего не изменив | VERIFIED | Роль `preflight` и сценарий `extensions/molecule/preflight` не менялись с 856bde5 (зелёный run 45521121807); гейты `getenforce` в `common` и `podman_rootless` на месте (`podman_rootless/tasks/main.yml:1-23`), режим SELinux не меняется |
+| 2 | Тестовый Quadlet-сервис под rootless-пользователем слушает :80, управляется через `systemctl --user`, поднимается после reboot | VERIFIED | VM-прогон 45524347495 (alma10 и rocky10 success) на 856bde5. С тех пор в `roles/`, `extensions/`, `playbooks/`, `.github/`, `galaxy.yml` изменены только три файла (см. ниже), поведенческих изменений на пути Quadlet/sysctl/reboot нет |
+| 3 | VM-тир Alma10/Rocky10 (SELinux enforcing): converge, идемпотентность changed=0, reboot, ноль AVC; firewalld открывает только нужные порты | VERIFIED | Тот же прогон 45524347495; `firewalld.yml`, `verify_rootless.yml`, `user.yml` не менялись после 856bde5 |
+| 4 | Контейнерный тир, ansible-lint и yamllint в CI; коллекция собирается; у ролей есть `argument_specs` | VERIFIED | Локально: `ansible-lint --profile production` на roles/extensions/playbooks: 0 failures, 0 warnings (43 файла); `ansible-galaxy collection build` создаёт `xvpn-remnawave-0.1.0.tar.gz`; `meta/argument_specs.yml` есть у common, podman_rootless, preflight; workflows lint/molecule-container/molecule-vm присутствуют |
 
 **Счёт:** 4/4 (behavior-unverified: 0).
 
-### Проверка исправлений ревью (регрессии)
+### Проверка регрессий после правок ревью
 
-| ID | Что изменено | Результат |
-|----|--------------|-----------|
-| WR-01 | Регэксп `home_root` без точек в сегментах, расширенный denylist (`podman_rootless/tasks/main.yml`) | Реализовано, дефолт `/var/lib/xvpn` проходит; VM зелёный |
-| WR-02 | Отдельный `fail` при `getenforce rc != 0` в обеих ролях | Реализовано; режим SELinux не меняется |
-| WR-03 | `user.yml`: явный `uid` сверяется с uid существующего аккаунта | Реализовано; защита D-08 дополнена |
-| WR-04 | Негативный bind-порт = `sysctl - 1`, проба пропускается при пороге <= 1 | Реализовано; VM зелёный |
+Диф `git diff 856bde5 HEAD` по исходникам (без `.planning`) затрагивает ровно три файла:
+
+| ID | Файл | Изменение | Результат |
+|----|------|-----------|-----------|
+| IN-01 | `roles/podman_rootless/tasks/main.yml:38` | `is match('...$')` заменён на `is regex('^/[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*', match_type='fullmatch')` | Проверено на ansible-core 2.22.0: `/var/lib/xvpn` True (дефолт проходит), `/opt/x_y-z` True; `/srv/a.b`, значение с хвостовым `\n`, `/`, `rel/x`, `/a//b` False. Регрессии нет, дефект с `\n` закрыт, обратных слэшей нет |
+| IN-02 | `roles/podman_rootless/defaults/main.yml`, `meta/argument_specs.yml` | Документирован запрет точек в сегментах и системных каталогов | Только комментарий/описание; `argument_specs` по-прежнему валиден (ansible-lint production чист) |
+
+Ранее принятые WR-01..WR-04 (3282765, eb8c45e, e448be3, 12333db) входят в код, на котором прошёл VM-прогон 45524347495, и после него не менялись.
+
+### Локальные проверки
+
+| Проверка | Результат |
+|----------|-----------|
+| `ansible-lint --profile production roles extensions playbooks` | Passed: 0 failure(s), 0 warning(s) |
+| `ansible-playbook --syntax-check playbooks/preflight.yml` | OK |
+| `ansible-playbook --syntax-check playbooks/foundation.yml` | Не выполнен полностью: локально нет `community.general` (`sefcontext` не резолвится). Ограничение окружения, не дефект; плейбук не менялся с 856bde5, а CI-тиры его выполняют |
+| `yamllint` | Не установлен локально; выполняется в CI-воркфлоу `lint` |
+| `ansible-galaxy collection build` | OK |
 
 ### Требования
 
@@ -88,7 +102,7 @@ re_verification:
 | FND-05 | SATISFIED | `firewalld.yml`, sefcontext, AVC=0 в VM-тире, SELinux-гейт в common и podman_rootless |
 | FND-06 | SATISFIED | `galaxy.yml` (`xvpn.remnawave`), 3 `argument_specs`, сборка проходит |
 | FND-07 | SATISFIED | `check_dns.yml`, флаг отключения; реальный внешний IP не проверялся (ограничение стенда) |
-| QA-01 | SATISFIED | lint workflow зелёный, локальный ansible-lint production чист |
+| QA-01 | SATISFIED | lint workflow, локальный ansible-lint production чист |
 | QA-02 | SATISFIED | `molecule-container.yml`, матрица container + preflight |
 | QA-03 | SATISFIED | `molecule-vm.yml`, прогон 45524347495 |
 
@@ -96,15 +110,13 @@ re_verification:
 
 ### Анти-паттерны
 
-TBD/FIXME/XXX в roles, extensions, playbooks, .github, scripts, galaxy.yml не найдено. Стабов нет.
+TBD/FIXME/XXX в изменённых файлах не найдено. Стабов нет.
 
-### Открытые замечания ревью (информационные, не блокируют)
+### Предупреждения (не блокируют)
 
-- IN-01: `$` в регэкспе `home_root` пропускает завершающий `\n`; рекомендуется `\Z`.
-- IN-02: запрет точки в сегментах `home_root` не задокументирован в описании переменной/README.
-- IN-03: гейт `getenforce` стоит до установки `libselinux-utils`; при отсутствии бинаря роль честно падает (fail closed).
-
-WR-08 пропущен, остаточный риск цепочки поставок принят пользователем в UAT.
+- **CI после 43280f1/ea4f207 не перезапускался.** Последний зелёный CI/VM-прогон относится к 856bde5, а правка regex (assert на `home_root`) после него не проходила ни контейнерный, ни VM-тир. Локальная проверка Jinja-теста на ansible-core 2.22.0 подтверждает корректность, но рекомендуется дождаться зелёного CI на HEAD. Статус не понижен: изменение минимально и проверено напрямую.
+- IN-03 (гейт `getenforce` до установки `libselinux-utils`) пропущен как архитектурное решение; роль падает честно (fail closed), SELinux не ослабляется.
+- WR-08 пропущен, остаточный риск цепочки поставок принят пользователем в UAT.
 
 ### Решения человека (UAT)
 
