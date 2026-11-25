@@ -1,7 +1,9 @@
 ---
 # Loopback bootstrap (PANEL-03, PANEL-04): auth status -> register or login -> token validate/create -> 0600 token
 # file. Runs on the Panel host against 127.0.0.1:3000 before the Panel route file is written. The backend rejects
-# requests without proxy headers (RESEARCH Pitfall 1), so every call carries them. Nothing here leaves the host.
+# requests without proxy headers (RESEARCH Pitfall 1), so every call carries them. Calls made with the admin JWT
+# also need X-Remnawave-Client-Type: browser (backend 3.4.11 request-auth), else they answer 403. Nothing here
+# leaves the host.
 - name: Panel bootstrap | wait for the backend auth status
   ansible.builtin.uri:
     url: http://127.0.0.1:3000/api/auth/status
@@ -174,6 +176,7 @@
         headers:
           X-Forwarded-For: 127.0.0.1
           X-Forwarded-Proto: https
+          X-Remnawave-Client-Type: browser
           Authorization: "Bearer {{ xvpn_panel_admin_jwt }}"
         return_content: true
         status_code: 200
@@ -189,6 +192,7 @@
         headers:
           X-Forwarded-For: 127.0.0.1
           X-Forwarded-Proto: https
+          X-Remnawave-Client-Type: browser
           Authorization: "Bearer {{ xvpn_panel_admin_jwt }}"
         status_code: [200, 204]
       changed_when: true
@@ -202,6 +206,7 @@
         headers:
           X-Forwarded-For: 127.0.0.1
           X-Forwarded-Proto: https
+          X-Remnawave-Client-Type: browser
           Authorization: "Bearer {{ xvpn_panel_admin_jwt }}"
         body_format: json
         body:
