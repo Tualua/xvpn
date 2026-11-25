@@ -56,6 +56,33 @@
   environment: "{{ xvpn_verify_pn_env }}"
   changed_when: false
 
+- name: Read the Valkey save points
+  ansible.builtin.command:
+    argv:
+      - podman
+      - exec
+      - remnawave-redis
+      - valkey-cli
+      - -s
+      - /var/run/valkey/valkey.sock
+      - config
+      - get
+      - save
+  become: true
+  become_user: "{{ xvpn_verify_pn_user }}"
+  become_method: ansible.builtin.sudo
+  environment: "{{ xvpn_verify_pn_env }}"
+  register: xvpn_verify_pn_save
+  changed_when: false
+
+- name: Assert Valkey runs without snapshots and without a TCP port
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_pn_save.stdout_lines | length == 2
+      - xvpn_verify_pn_save.stdout_lines[1] | trim == ''
+    fail_msg: "Valkey still has save points: {{ xvpn_verify_pn_save.stdout }}"
+    quiet: true
+
 - name: Query the backend through the loopback port with proxy headers
   ansible.builtin.uri:
     url: http://127.0.0.1:3000/api/auth/status
