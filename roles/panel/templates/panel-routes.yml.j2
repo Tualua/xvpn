@@ -1,7 +1,52 @@
 # {{ ansible_managed }}
-# Panel-domain routers (D-01, D-12, D-15). The decoy is the catch-all of the Panel domain; later plans add the gate routers.
+# Panel-domain routers (D-01..D-05, D-12, D-15). The decoy is the catch-all of the Panel domain. The gate is built from
+# routers and built-in middlewares only: the secret path answers 302 with the cookie, the cookie opens the backend,
+# /api outside /api/auth stays reachable for tokens and the public subscription path (D-03).
+{% set gate_path = xvpn_panel_secrets.gate_path %}
+{% set cookie_name = xvpn_panel_secrets.gate_cookie_name %}
+{% set cookie_value = xvpn_panel_secrets.gate_cookie_value %}
 http:
+  middlewares:
+    xvpn-panel-gate-setcookie:
+      headers:
+        customResponseHeaders:
+          Set-Cookie: "{{ cookie_name }}={{ cookie_value }}; Max-Age={{ xvpn_panel_gate_cookie_max_age_resolved }}; Path=/; Secure; HttpOnly; SameSite={{ xvpn_panel_gate_cookie_samesite_resolved }}"
+    xvpn-panel-gate-redirect:
+      redirectRegex:
+        regex: "^https://([^/]+)/{{ gate_path }}$"
+        replacement: "https://${1}/"
+        permanent: false
+  services:
+    xvpn-panel-backend:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3000"
   routers:
+    # The gate router keeps access logs off as defense in depth (the static config already drops RequestPath, D-19).
+    xvpn-panel-gate:
+      entryPoints: [websecure]
+      rule: "Host(`{{ xvpn_panel_domain }}`) && Path(`/{{ gate_path }}`)"
+      priority: 1000
+      middlewares: [xvpn-panel-gate-setcookie, xvpn-panel-gate-redirect]
+      service: noop@internal
+      tls:
+        certResolver: le
+      observability:
+        accessLogs: false
+    xvpn-panel-cookie:
+      entryPoints: [websecure]
+      rule: "Host(`{{ xvpn_panel_domain }}`) && HeaderRegexp(`Cookie`, `(^|;) ?{{ cookie_name }}={{ cookie_value }}($|;)`)"
+      priority: 500
+      service: xvpn-panel-backend
+      tls:
+        certResolver: le
+    xvpn-panel-api:
+      entryPoints: [websecure]
+      rule: "Host(`{{ xvpn_panel_domain }}`) && PathRegexp(`(?i)^/api(/|$)`) && !PathRegexp(`(?i)^/+api/+auth(/|$)`)"
+      priority: 400
+      service: xvpn-panel-backend
+      tls:
+        certResolver: le
     xvpn-panel-decoy:
       entryPoints: [websecure]
       rule: "Host(`{{ xvpn_panel_domain }}`)"

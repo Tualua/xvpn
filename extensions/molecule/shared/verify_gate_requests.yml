@@ -1,0 +1,62 @@
+---
+# Send a list of HTTPS requests to the Panel domain from the controller and judge each answer (VM tier).
+# Inputs: xvpn_vg_req_cases, a list of {id, path, expect, cookie?, ua?, bearer?}; expect is one of
+#   decoy   200 and the body equals the decoy page
+#   backend not 400, below 500, body differs from the decoy
+#   ok200   200 and the body differs from the decoy
+#   json    200 and the body carries isLoginAllowed
+#   sub     not 400, below 500, body differs from the decoy and is not the Traefik "404 page not found" body
+#   bad400  400
+# Result: xvpn_vg_req_failed (case ids only) and xvpn_vg_req_codes (id -> status). No value of a case is ever printed.
+- name: Verify gate requests | send the requests
+  ansible.builtin.command:
+    argv: >-
+      {{ xvpn_vg_curl_base
+         + (['-H', 'Cookie: ' ~ item.cookie] if (item.cookie | default('')) != '' else [])
+         + (['-H', 'Authorization: Bearer ' ~ item.bearer] if (item.bearer | default('')) != '' else [])
+         + (['-A', item.ua] if (item.ua | default('')) != '' else [])
+         + ['-w', '__CODE__%{http_code}', 'https://' ~ xvpn_vg_domain ~ item.path] }}
+  delegate_to: localhost
+  become: false
+  loop: "{{ xvpn_vg_req_cases }}"
+  loop_control:
+    label: "{{ item.id }}"
+  register: xvpn_vg_req_out
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify gate requests | judge the answers
+  ansible.builtin.set_fact:
+    xvpn_vg_req_failed: >-
+      {%- set ns = namespace(ids=[]) -%}
+      {%- for r in xvpn_vg_req_out.results -%}
+      {%- set p = (r.stdout | default('')).split('__CODE__') -%}
+      {%- set body = p[0] | trim -%}
+      {%- set code = p[1] | default('0') | trim | int -%}
+      {%- set same = body == xvpn_vg_decoy -%}
+      {%- set backend = code != 400 and code < 500 and code > 0 and not same -%}
+      {%- set verdicts = {
+            'decoy': code == 200 and same,
+            'backend': backend,
+            'ok200': code == 200 and not same,
+            'json': code == 200 and body is search('isLoginAllowed'),
+            'sub': backend and body != '404 page not found',
+            'bad400': code == 400} -%}
+      {%- if not verdicts[r.item.expect] -%}{%- set ns.ids = ns.ids + [r.item.id] -%}{%- endif -%}
+      {%- endfor -%}
+      {{ ns.ids | to_json }}
+    xvpn_vg_req_codes: >-
+      {%- set ns = namespace(d={}) -%}
+      {%- for r in xvpn_vg_req_out.results -%}
+      {%- set ns.d = ns.d | combine({r.item.id: ((r.stdout | default('')).split('__CODE__')[1] | default('0') | trim)}) -%}
+      {%- endfor -%}
+      {{ ns.d | to_json }}
+  no_log: true
+
+- name: Verify gate requests | assert every case behaved as expected
+  ansible.builtin.assert:
+    that:
+      - xvpn_vg_req_failed | from_json | length == 0
+    fail_msg: "gate cases failed: {{ xvpn_vg_req_failed | from_json | join(', ') }}"
+    quiet: true

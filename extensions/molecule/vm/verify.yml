@@ -50,3 +50,6 @@
 
     - name: Verify the Panel stack after the reboot
       ansible.builtin.include_tasks: ../shared/verify_panel.yml
+
+    - name: Verify the Panel gate after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_gate.yml

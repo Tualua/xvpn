@@ -4,6 +4,12 @@
   ansible.builtin.set_fact:
     xvpn_panel_routes_src: "{{ role_path }}/templates/panel-routes.yml.j2"
 
+# Same reason for the cookie attributes: panel defaults are not guaranteed visible inside the included edge role.
+- name: Panel | resolve the gate cookie attributes
+  ansible.builtin.set_fact:
+    xvpn_panel_gate_cookie_max_age_resolved: "{{ xvpn_panel_gate_cookie_max_age }}"
+    xvpn_panel_gate_cookie_samesite_resolved: "{{ xvpn_panel_gate_cookie_samesite }}"
+
 - name: Panel | write the Panel-domain route file
   ansible.builtin.include_role:
     name: xvpn.remnawave.edge
@@ -11,3 +17,4 @@
   vars:
     xvpn_edge_route_name: panel
     xvpn_edge_route_src: "{{ xvpn_panel_routes_src }}"
+    xvpn_edge_route_sensitive: true

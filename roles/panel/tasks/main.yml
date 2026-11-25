@@ -48,7 +48,20 @@
 - name: Panel | publish the Panel-domain routes through the edge
   ansible.builtin.include_tasks: routes.yml
 
-- name: Panel | report where the secrets and the token live
+# D-06: the admin entry URL is stored, never printed.
+- name: Panel | write the admin entry URL file
+  ansible.builtin.copy:
+    content: "https://{{ xvpn_panel_domain }}/{{ xvpn_panel_secrets.gate_path }}\n"
+    dest: "{{ xvpn_panel_admin_url_file }}"
+    owner: "{{ xvpn_panel_user }}"
+    group: "{{ xvpn_panel_user }}"
+    mode: "0600"
+  diff: false
+  no_log: true
+
+- name: Panel | report where the secrets, the token and the admin URL live
   ansible.builtin.debug:
-    msg: "Panel secrets: {{ xvpn_panel_secrets_file }}; API token: {{ xvpn_panel_api_token_file }} (read on the Panel host only)"
+    msg: >-
+      Panel secrets: {{ xvpn_panel_secrets_file }}; API token: {{ xvpn_panel_api_token_file }};
+      Admin entry URL: stored in {{ xvpn_panel_admin_url_file }} on the Panel host (read on the Panel host only)
   when: xvpn_panel_activate | bool

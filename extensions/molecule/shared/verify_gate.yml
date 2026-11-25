@@ -1,0 +1,380 @@
+---
+# Gate matrix of the VM tier (PANEL-05, PANEL-06). Run after verify_edge.yml in the same play: it reuses the Pebble
+# root file of the controller. Inputs: xvpn_verify_gate_domain (default panel.xvpn.test),
+# xvpn_verify_gate_rotation (default false; true runs the gate rotation case once). Every case has a stable id that
+# the gate workflow of Plan 02-08 reuses. No gate path, cookie or token value is ever printed: every task that carries
+# one has no_log, labels and failure messages name the case id only.
+- name: Verify gate | require the edge verifier to have run
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_root_file is defined
+    fail_msg: "verify_gate.yml must be included after verify_edge.yml (it provides the Pebble root file)"
+    quiet: true
+
+- name: Verify gate | read the secrets, the token and the decoy page
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop:
+    - /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+    - /var/lib/xvpn/rw-panel/secrets/api-token
+  register: xvpn_vg_slurp
+  no_log: true
+
+- name: Verify gate | resolve the inputs
+  ansible.builtin.set_fact:
+    xvpn_vg_domain: "{{ xvpn_verify_gate_domain | default('panel.xvpn.test') }}"
+    xvpn_vg_ip: "{{ ansible_host | default(inventory_hostname) }}"
+    xvpn_vg_gp: "{{ (xvpn_vg_slurp.results[0].content | b64decode | from_yaml).gate_path }}"
+    xvpn_vg_cn: "{{ (xvpn_vg_slurp.results[0].content | b64decode | from_yaml).gate_cookie_name }}"
+    xvpn_vg_cv: "{{ (xvpn_vg_slurp.results[0].content | b64decode | from_yaml).gate_cookie_value }}"
+    xvpn_vg_token: "{{ xvpn_vg_slurp.results[1].content | b64decode | trim }}"
+    xvpn_vg_decoy: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../../roles/edge/files/decoy/index.html') | trim }}"
+    xvpn_vg_probe_route: "{{ xvpn_verify_token_probe_route | default('/api/nodes') }}"
+    xvpn_vg_sub_id: "xvpn-probe-{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=16) }}"
+    xvpn_vg_variant_ua: "xvpn-gate-variant-{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=16) }}"
+  no_log: true
+
+- name: Verify gate | build the curl base
+  ansible.builtin.set_fact:
+    xvpn_vg_curl_base:
+      - curl
+      - -sS
+      - --path-as-is
+      - --resolve
+      - "{{ xvpn_vg_domain }}:443:{{ xvpn_vg_ip }}"
+      - --cacert
+      - "{{ xvpn_verify_edge_root_file.path }}"
+  no_log: true
+
+# sub-public-no-cookie (ROADMAP criterion 2): a backend answer for an unknown subscription id, status neither 400 nor
+# 5xx, body neither the decoy nor Traefik's '404 page not found' (judged in verify_gate_requests.yml).
+# Positive and negative matrix over HTTPS. The cookie cases anchor the HeaderRegexp: a longer value, a prefixed name
+# and a wrong value get the decoy, the separators with and without a space reach the backend.
+- name: Verify gate | build the case list
+  ansible.builtin.set_fact:
+    xvpn_vg_cases:
+      - {id: root-no-cookie, path: /, expect: decoy}
+      - {id: root-with-cookie, path: /, cookie: "{{ xvpn_vg_cn }}={{ xvpn_vg_cv }}", expect: ok200}
+      - {id: auth-status-with-cookie, path: /api/auth/status, cookie: "{{ xvpn_vg_cn }}={{ xvpn_vg_cv }}", expect: json}
+      - {id: auth-status-no-cookie, path: /api/auth/status, expect: decoy}
+      - {id: api-bearer-no-cookie, path: "{{ xvpn_vg_probe_route }}", bearer: "{{ xvpn_vg_token }}", expect: ok200}
+      - {id: sub-public-no-cookie, path: "/api/sub/{{ xvpn_vg_sub_id }}", expect: sub}
+      - {id: auth-uppercase, path: /api/AUTH/status, expect: decoy}
+      - {id: api-uppercase, path: /API/auth/status, expect: decoy}
+      - {id: auth-double-slash-lead, path: //api/auth/status, expect: decoy}
+      - {id: auth-double-slash-inner, path: /api//auth/status, expect: decoy}
+      - {id: auth-dot-segment, path: /api/./auth/status, expect: decoy}
+      - {id: auth-percent-61, path: /api/%61uth/status, expect: decoy}
+      - {id: auth-dotdot, path: /api/x/../auth/status, expect: decoy}
+      - {id: auth-bare, path: /api/auth, expect: decoy}
+      - {id: login-page, path: /login, expect: decoy}
+      - {id: dashboard-page, path: /dashboard, expect: decoy}
+      - {id: auth-encoded-slash, path: /api/auth%2Fstatus, expect: bad400}
+      - {id: authx, path: /api/authx, expect: backend}
+      - {id: cookie-longer-value, path: /, cookie: "{{ xvpn_vg_cn }}={{ xvpn_vg_cv }}4", expect: decoy}
+      - {id: cookie-prefixed-name, path: /, cookie: "x{{ xvpn_vg_cn }}={{ xvpn_vg_cv }}", expect: decoy}
+      - {id: cookie-wrong-value, path: /, cookie: "{{ xvpn_vg_cn }}=wrong", expect: decoy}
+      - {id: cookie-after-bare-separator, path: /, cookie: "a=b;{{ xvpn_vg_cn }}={{ xvpn_vg_cv }}", expect: ok200}
+      - {id: cookie-in-the-middle, path: /, cookie: "a=b; {{ xvpn_vg_cn }}={{ xvpn_vg_cv }}; c=d", expect: ok200}
+  no_log: true
+
+- name: Verify gate | run the matrix
+  ansible.builtin.include_tasks: verify_gate_requests.yml
+  vars:
+    xvpn_vg_req_cases: "{{ xvpn_vg_cases }}"
+
+- name: Verify gate | record the status of the public subscription path (sub-public-no-cookie)
+  ansible.builtin.debug:
+    msg: "sub-public-no-cookie answered {{ (xvpn_vg_req_codes | from_json)['sub-public-no-cookie'] }}"
+
+# gate-sets-cookie: the exact Path match answers 302 with the cookie attributes of D-04.
+- name: Verify gate | request the secret path (gate-sets-cookie)
+  ansible.builtin.command:
+    argv: "{{ xvpn_vg_curl_base + ['-o', '/dev/null', '-D', '-', 'https://' ~ xvpn_vg_domain ~ '/' ~ xvpn_vg_gp] }}"
+  delegate_to: localhost
+  become: false
+  register: xvpn_vg_gate
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify gate | judge the gate answer
+  ansible.builtin.set_fact:
+    xvpn_vg_gate_ok: >-
+      {%- set lines = xvpn_vg_gate.stdout_lines -%}
+      {%- set sc = lines | select('match', '(?i)^set-cookie:') | list -%}
+      {{ (lines | first | default('')) is search(' 302')
+         and (lines | select('match', '(?i)^location: https://' ~ xvpn_vg_domain ~ '/\s*$') | list | length) == 1
+         and sc | length == 1
+         and sc[0] is search(xvpn_vg_cn ~ '=' ~ xvpn_vg_cv ~ ';')
+         and sc[0] is search('Max-Age=2592000;')
+         and sc[0] is search('Path=/;')
+         and sc[0] is search('Secure;')
+         and sc[0] is search('HttpOnly;')
+         and sc[0] is search('SameSite=Strict') }}
+  no_log: true
+
+- name: Verify gate | assert gate-sets-cookie
+  ansible.builtin.assert:
+    that:
+      - xvpn_vg_gate_ok | bool
+    fail_msg: "case gate-sets-cookie: the secret path did not answer 302 to / with the expected Set-Cookie"
+    quiet: true
+
+# http-gate-redirect: the gate router lives only on websecure, plain :80 only redirects.
+- name: Verify gate | request the secret path over plain HTTP (http-gate-redirect)
+  ansible.builtin.command:
+    argv:
+      - curl
+      - --path-as-is
+      - -sS
+      - -o
+      - /dev/null
+      - -D
+      - "-"
+      - --resolve
+      - "{{ xvpn_vg_domain }}:80:{{ xvpn_vg_ip }}"
+      - "http://{{ xvpn_vg_domain }}/{{ xvpn_vg_gp }}"
+  delegate_to: localhost
+  become: false
+  register: xvpn_vg_http
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify gate | judge the HTTP answer
+  ansible.builtin.set_fact:
+    xvpn_vg_http_ok: >-
+      {%- set lines = xvpn_vg_http.stdout_lines -%}
+      {{ ((lines | first | default('')) is search(' (301|308)'))
+         and (lines | select('match', '(?i)^location: https://' ~ xvpn_vg_domain ~ '/') | list | length) == 1
+         and (lines | select('match', '(?i)^set-cookie:') | list | length) == 0 }}
+  no_log: true
+
+- name: Verify gate | assert http-gate-redirect
+  ansible.builtin.assert:
+    that:
+      - xvpn_vg_http_ok | bool
+    fail_msg: "case http-gate-redirect: plain HTTP did not redirect to https without a cookie"
+    quiet: true
+
+# log-gate-variants (D-19): variants that miss the exact Path are logged decoy requests; their log lines exist and
+# carry no RequestPath key.
+- name: Verify gate | pick a variant that differs from the exact path
+  ansible.builtin.set_fact:
+    xvpn_vg_upper_variant: "{{ xvpn_vg_gp | upper if xvpn_vg_gp | upper != xvpn_vg_gp else xvpn_vg_gp | lower }}"
+  no_log: true
+
+- name: Verify gate | request the variants (log-gate-variants)
+  ansible.builtin.include_tasks: verify_gate_requests.yml
+  vars:
+    xvpn_vg_req_cases:
+      - {id: variant-trailing-slash, path: "/{{ xvpn_vg_gp }}/", ua: "{{ xvpn_vg_variant_ua }}", expect: decoy}
+      - {id: variant-appended-char, path: "/{{ xvpn_vg_gp }}x", ua: "{{ xvpn_vg_variant_ua }}", expect: decoy}
+      - {id: variant-case, path: "/{{ xvpn_vg_upper_variant }}", ua: "{{ xvpn_vg_variant_ua }}", expect: decoy}
+
+- name: Verify gate | wait for the variant lines in the Traefik log
+  ansible.builtin.include_tasks: verify_gate_log.yml
+  vars:
+    xvpn_vg_log_wait_ua: "{{ xvpn_vg_variant_ua }}"
+    xvpn_vg_log_wait_count: 3
+
+- name: Verify gate | select the variant log lines
+  ansible.builtin.set_fact:
+    xvpn_vg_variant_lines: >-
+      {{ xvpn_vg_log.stdout_lines | select('match', '^[{]') | map('from_json')
+         | selectattr('request_User-Agent', 'defined')
+         | selectattr('request_User-Agent', 'equalto', xvpn_vg_variant_ua) | list }}
+  no_log: true
+
+- name: Verify gate | assert log-gate-variants
+  ansible.builtin.assert:
+    that:
+      - xvpn_vg_variant_lines | length == 3
+      - xvpn_vg_variant_lines | selectattr('RequestPath', 'defined') | list | length == 0
+    fail_msg: "case log-gate-variants: expected 3 logged variant requests without a RequestPath key, got {{ xvpn_vg_variant_lines | length }}"
+    quiet: true
+
+# log-no-gate-path (D-01, D-19): the secret path is absent from the log in every case form.
+- name: Verify gate | scan the log for the gate path
+  ansible.builtin.include_tasks: verify_gate_log.yml
+
+- name: Verify gate | judge the log scan
+  ansible.builtin.set_fact:
+    xvpn_vg_log_leak: >-
+      {{ ([xvpn_vg_gp] + ([xvpn_vg_prev_path] if xvpn_vg_prev_path is defined else []))
+         | map('lower') | select('in', xvpn_vg_log.stdout | lower) | list | length > 0 }}
+  no_log: true
+
+- name: Verify gate | assert log-no-gate-path
+  ansible.builtin.assert:
+    that:
+      - not (xvpn_vg_log_leak | bool)
+    fail_msg: "gate secret path found in the Traefik log"
+    quiet: true
+
+# Files written by the role (D-01, D-06, D-11).
+- name: Verify gate | stat the admin URL file and the route file
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /var/lib/xvpn/rw-panel/secrets/admin-url
+    - /var/lib/xvpn/rw-edge/traefik/dynamic/panel.yml
+  register: xvpn_vg_files
+
+- name: Verify gate | read the admin URL file
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn/rw-panel/secrets/admin-url
+  register: xvpn_vg_admin_url
+  no_log: true
+
+- name: Verify gate | compare the admin URL (boolean only)
+  ansible.builtin.set_fact:
+    xvpn_vg_admin_url_ok: "{{ (xvpn_vg_admin_url.content | b64decode | trim) == ('https://' ~ xvpn_vg_domain ~ '/' ~ xvpn_vg_gp) }}"
+  no_log: true
+
+- name: Verify gate | assert admin-url-file
+  ansible.builtin.assert:
+    that:
+      - xvpn_vg_files.results[0].stat.exists
+      - xvpn_vg_files.results[0].stat.mode == '0600'
+      - xvpn_vg_files.results[0].stat.pw_name == 'rw-panel'
+      - xvpn_vg_admin_url_ok | bool
+    fail_msg: "case admin-url-file: the file is missing, not 0600 rw-panel, or does not hold https://<domain>/<gate path>"
+    quiet: true
+
+- name: Verify gate | assert route-file-mode
+  ansible.builtin.assert:
+    that:
+      - xvpn_vg_files.results[1].stat.exists
+      - xvpn_vg_files.results[1].stat.mode == '0600'
+      - xvpn_vg_files.results[1].stat.pw_name == 'rw-edge'
+    fail_msg: "case route-file-mode: panel.yml in the edge dynamic directory is not 0600 rw-edge"
+    quiet: true
+
+# gate-rotation-old-cookie (D-06): overriding xvpn_panel_gate_path rewrites the stored secret and the route file;
+# the path rotation also regenerates the cookie value, so a cookie issued before the rotation gets the decoy.
+# Runs once from vm/side_effect.yml (before the reboot). The Panel role variables of the VM tier are already loaded
+# by the play (include_vars vars/panel.yml). Every task carries no_log; ids only in messages.
+- name: Verify gate | rotate the gate secret and prove the old cookie is dead (gate-rotation-old-cookie)
+  when: xvpn_verify_gate_rotation | default(false) | bool
+  block:
+    - name: Verify gate rotation | remember the secret before the rotation
+      ansible.builtin.set_fact:
+        xvpn_vg_old_gp: "{{ xvpn_vg_gp }}"
+        xvpn_vg_old_cn: "{{ xvpn_vg_cn }}"
+        xvpn_vg_old_cv: "{{ xvpn_vg_cv }}"
+        xvpn_vg_new_gp: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=32) }}"
+      no_log: true
+
+    - name: Verify gate rotation | re-run the Panel role with a new gate path
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.panel
+      vars:
+        xvpn_panel_gate_path: "{{ xvpn_vg_new_gp }}"
+      no_log: true
+
+    - name: Verify gate rotation | read the rotated secrets
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+      register: xvpn_vg_rot_slurp
+      no_log: true
+
+    - name: Verify gate rotation | judge the stored secret
+      ansible.builtin.set_fact:
+        xvpn_vg_new_cn: "{{ (xvpn_vg_rot_slurp.content | b64decode | from_yaml).gate_cookie_name }}"
+        xvpn_vg_new_cv: "{{ (xvpn_vg_rot_slurp.content | b64decode | from_yaml).gate_cookie_value }}"
+        xvpn_vg_rot_stored_ok: >-
+          {{ (xvpn_vg_rot_slurp.content | b64decode | from_yaml).gate_path == xvpn_vg_new_gp
+             and (xvpn_vg_rot_slurp.content | b64decode | from_yaml).gate_cookie_value != xvpn_vg_old_cv }}
+      no_log: true
+
+    - name: Verify gate rotation | assert the stored secret was rotated
+      ansible.builtin.assert:
+        that:
+          - xvpn_vg_rot_stored_ok | bool
+        fail_msg: "case gate-rotation-old-cookie: the stored gate path or cookie value was not rotated"
+        quiet: true
+
+    # The file provider picks the rewritten route file up on its own: wait until the new path answers 302.
+    - name: Verify gate rotation | wait for the new path to answer 302
+      ansible.builtin.command:
+        argv: "{{ xvpn_vg_curl_base + ['-o', '/dev/null', '-D', '-', 'https://' ~ xvpn_vg_domain ~ '/' ~ xvpn_vg_new_gp] }}"
+      delegate_to: localhost
+      become: false
+      register: xvpn_vg_rot_gate
+      until: (xvpn_vg_rot_gate.stdout_lines | first | default('')) is search(' 302')
+      retries: 12
+      delay: 5
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Verify gate rotation | judge the new gate answer
+      ansible.builtin.set_fact:
+        xvpn_vg_rot_gate_ok: >-
+          {%- set sc = xvpn_vg_rot_gate.stdout_lines | select('match', '(?i)^set-cookie:') | list -%}
+          {{ (xvpn_vg_rot_gate.stdout_lines | first | default('')) is search(' 302')
+             and sc | length == 1 and sc[0] is search(xvpn_vg_new_cn ~ '=' ~ xvpn_vg_new_cv ~ ';')
+             and xvpn_vg_new_cv != xvpn_vg_old_cv }}
+      no_log: true
+
+    - name: Verify gate rotation | assert the new path hands out the new cookie
+      ansible.builtin.assert:
+        that:
+          - xvpn_vg_rot_gate_ok | bool
+        fail_msg: "case gate-rotation-old-cookie: the new path did not answer 302 with a Set-Cookie carrying the new value"
+        quiet: true
+
+    - name: Verify gate rotation | request with the old and the new cookie and the old path
+      ansible.builtin.include_tasks: verify_gate_requests.yml
+      vars:
+        xvpn_vg_req_cases:
+          - {id: rotation-old-cookie-root, path: /, cookie: "{{ xvpn_vg_old_cn }}={{ xvpn_vg_old_cv }}", expect: decoy}
+          - {id: rotation-old-path, path: "/{{ xvpn_vg_old_gp }}", ua: "{{ xvpn_vg_variant_ua }}", expect: decoy}
+          - {id: rotation-new-cookie-root, path: /, cookie: "{{ xvpn_vg_new_cn }}={{ xvpn_vg_new_cv }}", expect: ok200}
+
+    # The old path was requested above and logged by the decoy router: it must leave no trace (D-19).
+    - name: Verify gate rotation | scan the log for the new and the old path
+      ansible.builtin.set_fact:
+        xvpn_vg_prev_path: "{{ xvpn_vg_old_gp }}"
+        xvpn_vg_gp: "{{ xvpn_vg_new_gp }}"
+        xvpn_vg_cn: "{{ xvpn_vg_new_cn }}"
+        xvpn_vg_cv: "{{ xvpn_vg_new_cv }}"
+      no_log: true
+
+    - name: Verify gate rotation | read the Traefik log
+      ansible.builtin.include_tasks: verify_gate_log.yml
+
+    - name: Verify gate rotation | judge the log scan
+      ansible.builtin.set_fact:
+        xvpn_vg_log_leak: >-
+          {{ ([xvpn_vg_gp, xvpn_vg_prev_path]) | map('lower') | select('in', xvpn_vg_log.stdout | lower) | list | length > 0 }}
+      no_log: true
+
+    - name: Verify gate rotation | assert log-no-gate-path after the rotation
+      ansible.builtin.assert:
+        that:
+          - not (xvpn_vg_log_leak | bool)
+        fail_msg: "the rotated or the old gate path is traced in the Traefik log"
+        quiet: true
+
+    # The rotation rewrote panel-secrets.yml: re-point the recorded checksum (force: true) as Plan 02-06 does for the
+    # token, so the post-reboot verify_panel.yml compares against the rotated file.
+    - name: Verify gate rotation | stat the rotated secrets file
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml
+        checksum_algorithm: sha256
+      register: xvpn_vg_rot_stat
+
+    - name: Verify gate rotation | re-point the recorded secrets checksum
+      ansible.builtin.copy:
+        content: "{{ xvpn_vg_rot_stat.stat.checksum }}\n"
+        dest: "{{ xvpn_verify_secrets_checksum_file | default('/var/lib/xvpn-molecule/secrets_checksum_after_first_converge') }}"
+        owner: root
+        group: root
+        mode: "0600"
+        force: true
+
+    - name: Verify gate rotation | prove the re-pointed checksum matches
+      ansible.builtin.include_tasks: verify_panel.yml

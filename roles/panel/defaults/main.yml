@@ -34,6 +34,13 @@ xvpn_panel_gate_path: ""
 xvpn_panel_gate_cookie_name: ""
 xvpn_panel_gate_cookie_value: ""
 
+# Gate cookie (D-04, D-06). Strict hides the UI from cross-site links; Lax is the escape hatch for OAuth2/Telegram
+# login callbacks (RESEARCH Pitfall 10). Lifetime in seconds.
+xvpn_panel_gate_cookie_max_age: 2592000
+xvpn_panel_gate_cookie_samesite: Strict
+# File with the admin entry URL (D-06); the run prints only this path.
+xvpn_panel_admin_url_file: "{{ xvpn_panel_home }}/secrets/admin-url"
+
 # First administrator and the automation API token (PANEL-03, PANEL-04). The token file is the D-09 interface read by
 # the subscription page and by the Phase 3 API modules on the Panel host.
 xvpn_panel_admin_username: rwoperator

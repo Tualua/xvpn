@@ -1,0 +1,26 @@
+---
+# Read the Traefik log as the edge user. Optional: xvpn_vg_log_wait_ua + xvpn_vg_log_wait_count wait until that
+# User-Agent occurs at least that many times. Result: xvpn_vg_log (registered command).
+- name: Verify gate log | read the uid of the edge user
+  ansible.builtin.command:
+    argv: [id, -u, rw-edge]
+  register: xvpn_vg_log_uid
+  changed_when: false
+
+- name: Verify gate log | read the Traefik log as the edge user
+  ansible.builtin.command:
+    argv: [podman, logs, --since, 1h, traefik]
+    chdir: /var/lib/xvpn/rw-edge
+  become: true
+  become_user: rw-edge
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ xvpn_vg_log_uid.stdout | trim }}"
+  register: xvpn_vg_log
+  until: >-
+    (xvpn_vg_log_wait_ua | default('')) == ''
+    or (xvpn_vg_log.stdout | regex_findall(xvpn_vg_log_wait_ua) | length) >= (xvpn_vg_log_wait_count | default(1) | int)
+  retries: 12
+  delay: 5
+  changed_when: false
+  no_log: true

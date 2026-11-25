@@ -321,6 +321,13 @@
       vars:
         xvpn_verify_edge_domain: panel.xvpn.test
 
+    # PANEL-05, PANEL-06: the gate matrix and, once, the gate rotation (D-06); the rotation re-points the recorded
+    # secrets checksum, so the post-reboot verify_panel.yml compares against the rotated file.
+    - name: Verify the Panel gate before the reboot
+      ansible.builtin.include_tasks: ../shared/verify_gate.yml
+      vars:
+        xvpn_verify_gate_rotation: true
+
     # SC2: Ansible controls the user unit through systemctl --user, not only observes it.
     - name: Read the InvocationID before the restart
       ansible.builtin.command:

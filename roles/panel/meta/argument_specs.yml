@@ -82,6 +82,19 @@ argument_specs:
         type: str
         default: ""
         no_log: true
+      xvpn_panel_gate_cookie_max_age:
+        description: Lifetime of the gate cookie, seconds.
+        type: int
+        default: 2592000
+      xvpn_panel_gate_cookie_samesite:
+        description: SameSite attribute of the gate cookie; Lax lets OAuth2/Telegram callbacks keep the session.
+        type: str
+        default: Strict
+        choices: [Strict, Lax]
+      xvpn_panel_admin_url_file:
+        description: Path of the 0600 file that holds the secret admin entry URL on the Panel host.
+        type: str
+        default: "{{ xvpn_panel_home }}/secrets/admin-url"
       xvpn_panel_admin_username:
         description: User name of the first administrator registered over the loopback port (not admin).
         type: str
