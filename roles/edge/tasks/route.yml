@@ -1,0 +1,37 @@
+---
+# Drop-in route interface of the edge (D-16). Inputs:
+#   xvpn_edge_route_name (^[a-z0-9-]+$), xvpn_edge_route_src (absolute template path, state present),
+#   xvpn_edge_route_state (present|absent), xvpn_edge_route_sensitive (suppress task output).
+# No Traefik restart happens here: the file provider runs with watch: true (RESEARCH A6) and picks the
+# file up on its own. A consumer in a scenario where A6 failed must use a restart-on-change fallback instead.
+- name: Edge route | validate the inputs
+  ansible.builtin.assert:
+    that:
+      - xvpn_edge_route_name is match('^[a-z0-9-]+$')
+      - xvpn_edge_route_state in ['present', 'absent']
+      - xvpn_edge_route_state == 'absent' or xvpn_edge_route_src is match('^/')
+    fail_msg: >-
+      Invalid route name or arguments: name '{{ xvpn_edge_route_name }}' must match ^[a-z0-9-]+$,
+      state present|absent, and the template path must be absolute
+    quiet: true
+
+# setype: the :Z mount option of the dynamic directory relabels only when the container starts, and the atomic
+# move of the module gives a new file the policy default of its path (var_lib_t under /var/lib/xvpn), so a file
+# written later needs the container type explicitly. On hosts without SELinux the module ignores it.
+- name: Edge route | write the route file
+  ansible.builtin.template:
+    src: "{{ xvpn_edge_route_src }}"
+    dest: "{{ xvpn_edge_dynamic_dir }}/{{ xvpn_edge_route_name }}.yml"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0600"
+    setype: container_file_t
+  diff: false
+  no_log: "{{ xvpn_edge_route_sensitive | bool }}"
+  when: xvpn_edge_route_state == 'present'
+
+- name: Edge route | remove the route file
+  ansible.builtin.file:
+    path: "{{ xvpn_edge_dynamic_dir }}/{{ xvpn_edge_route_name }}.yml"
+    state: absent
+  when: xvpn_edge_route_state == 'absent'

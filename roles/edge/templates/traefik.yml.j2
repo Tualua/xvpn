@@ -1,0 +1,66 @@
+# {{ ansible_managed }}
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+# D-19: the access log never carries a request path or a client header except the probe marker.
+# RequestPath is the only access-log field that holds the request URI; Traefik v3.7 has no path filter.
+accessLog:
+  format: json
+  fields:
+    defaultMode: keep
+    names:
+      RequestPath: drop
+    headers:
+      defaultMode: drop
+      names:
+        User-Agent: keep
+
+entryPoints:
+  web:
+    address: "{{ xvpn_edge_http_address }}"
+    http:
+      encodedCharacters:
+        allowEncodedSlash: false
+        allowEncodedBackSlash: false
+        allowEncodedNullCharacter: false
+        allowEncodedSemicolon: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedHash: false
+  websecure:
+    address: "{{ xvpn_edge_https_address }}"
+    http:
+      encodedCharacters:
+        allowEncodedSlash: false
+        allowEncodedBackSlash: false
+        allowEncodedNullCharacter: false
+        allowEncodedSemicolon: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedHash: false
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  le:
+    acme:
+{% if xvpn_edge_acme_ca == 'staging' %}
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+{% elif xvpn_edge_acme_ca == 'custom' %}
+      caServer: "{{ xvpn_edge_acme_ca_server }}"
+{% else %}
+      caServer: https://acme-v02.api.letsencrypt.org/directory
+{% endif %}
+{% if xvpn_edge_acme_email | length > 0 %}
+      email: "{{ xvpn_edge_acme_email }}"
+{% endif %}
+      storage: /acme/acme.json
+      httpChallenge:
+        entryPoint: web

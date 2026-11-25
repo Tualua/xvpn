@@ -1,0 +1,120 @@
+---
+- name: Edge | validate the inputs
+  ansible.builtin.assert:
+    that:
+      - xvpn_edge_user is match('^[a-z_][a-z0-9_-]{0,30}$')
+      - xvpn_edge_traefik_image is search(':[^/:]+$')
+      - not (xvpn_edge_traefik_image is search(':latest$'))
+      - xvpn_edge_decoy_image is search(':[^/:]+$')
+      - not (xvpn_edge_decoy_image is search(':latest$'))
+      - xvpn_edge_acme_ca in ['production', 'staging', 'custom']
+      - xvpn_edge_acme_ca != 'custom' or xvpn_edge_acme_ca_server is match('^https://')
+      - xvpn_edge_acme_email == '' or xvpn_edge_acme_email is match('^[^@ ]+@[^@ ]+$')
+      - xvpn_edge_decoy_port | int >= 1024
+      - xvpn_edge_decoy_port | int <= 65535
+    fail_msg: >-
+      Invalid edge inputs: check xvpn_edge_user, the image tags (exact, not latest), xvpn_edge_acme_ca
+      (custom needs an https xvpn_edge_acme_ca_server), xvpn_edge_acme_email and xvpn_edge_decoy_port (1024..65535)
+    quiet: true
+
+- name: Edge | look up the service user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_edge_user }}"
+  failed_when: false
+  register: xvpn_edge_getent
+
+- name: Edge | require the service user
+  ansible.builtin.assert:
+    that:
+      - xvpn_edge_getent.ansible_facts.getent_passwd is defined
+      - xvpn_edge_user in xvpn_edge_getent.ansible_facts.getent_passwd
+    fail_msg: "service user {{ xvpn_edge_user }} does not exist; run xvpn.remnawave.podman_rootless first"
+    quiet: true
+
+- name: Edge | create the Traefik directories
+  ansible.builtin.file:
+    path: "{{ xvpn_edge_home }}/{{ item }}"
+    state: directory
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0700"
+  loop:
+    - traefik
+    - traefik/static
+    - traefik/dynamic
+    - traefik/acme
+    - traefik/ca
+
+- name: Edge | render the Traefik static configuration
+  ansible.builtin.template:
+    src: traefik.yml.j2
+    dest: "{{ xvpn_edge_home }}/traefik/static/traefik.yml"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0600"
+  register: xvpn_edge_static
+
+- name: Edge | install the extra trusted CA
+  ansible.builtin.copy:
+    src: "{{ xvpn_edge_acme_trusted_ca_file }}"
+    dest: "{{ xvpn_edge_home }}/traefik/ca/ca.pem"
+    remote_src: true
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0600"
+  when: xvpn_edge_acme_trusted_ca_file | length > 0
+  register: xvpn_edge_ca
+
+- name: Edge | look up acme.json
+  ansible.builtin.stat:
+    path: "{{ xvpn_edge_home }}/traefik/acme/acme.json"
+  register: xvpn_edge_acme_json
+
+# Traefik creates acme.json itself with 0600; it is never pre-created, slurped or printed (T-02-05).
+- name: Edge | keep acme.json private
+  ansible.builtin.file:
+    path: "{{ xvpn_edge_home }}/traefik/acme/acme.json"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0600"
+  when: xvpn_edge_acme_json.stat.exists
+
+- name: Edge | publish the shared dynamic configuration through the route entry point
+  ansible.builtin.include_tasks: route.yml
+  vars:
+    xvpn_edge_route_name: 00-edge
+    xvpn_edge_route_src: "{{ role_path }}/templates/00-edge.yml.j2"
+    xvpn_edge_route_state: present
+    xvpn_edge_route_sensitive: false
+
+# role_path is resolved here, before the include: inside an include_role vars block it would be evaluated
+# lazily in the context of the included role (podman_rootless).
+- name: Edge | build the Quadlet specs
+  ansible.builtin.set_fact:
+    xvpn_edge_quadlet_specs:
+      - template_src: "{{ role_path }}/templates/traefik.container.j2"
+
+- name: Edge | deploy the Quadlet units
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: quadlet
+  vars:
+    xvpn_podman_rootless_quadlet_user: "{{ xvpn_edge_user }}"
+    xvpn_podman_rootless_quadlet_specs: "{{ xvpn_edge_quadlet_specs }}"
+    xvpn_podman_rootless_quadlet_activate: "{{ xvpn_edge_activate }}"
+
+# Traefik reads the static configuration and the extra CA only at start, so a change needs a restart (Pitfall 7).
+- name: Edge | restart Traefik after a static configuration change
+  ansible.builtin.systemd_service:
+    name: traefik.service
+    scope: user
+    state: restarted
+  become: true
+  become_user: "{{ xvpn_edge_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ xvpn_edge_getent.ansible_facts.getent_passwd[xvpn_edge_user][1] }}"
+  when:
+    - xvpn_edge_activate | bool
+    - xvpn_edge_static is changed or xvpn_edge_ca is changed

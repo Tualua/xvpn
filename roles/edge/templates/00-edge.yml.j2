@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Shared dynamic names (D-16 contract): xvpn-decoy (service), xvpn-to-https (middleware), le (resolver in traefik.yml).
+tls:
+  options:
+    default:
+      sniStrict: true
+      minVersion: VersionTLS12
+
+http:
+  middlewares:
+    xvpn-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+  services:
+    xvpn-decoy:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:{{ xvpn_edge_decoy_port }}"

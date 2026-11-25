@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: Dmitry Popovich
+  description: Rootless Traefik edge (ACME HTTP-01, file provider, decoy site) for Remnawave hosts
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.20"
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+  galaxy_tags: []
+dependencies: []

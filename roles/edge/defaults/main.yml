@@ -1,0 +1,30 @@
+---
+# Rootless service user that owns Traefik and the decoy (D-07).
+xvpn_edge_user: rw-edge
+# Traefik v3.7.20 fixes three advisories present in the v3.7.19 pin of STACK.md (RESEARCH). Exact tag, never floating.
+xvpn_edge_traefik_image: docker.io/library/traefik:v3.7.20
+# Decoy backend behind Traefik (D-02); unprivileged variant listens on 8080.
+xvpn_edge_decoy_image: docker.io/nginxinc/nginx-unprivileged:1.31-alpine
+# ACME CA selection (D-13, QA-05): production, staging or custom (then xvpn_edge_acme_ca_server is required).
+xvpn_edge_acme_ca: production
+xvpn_edge_acme_ca_server: ""
+xvpn_edge_acme_email: ""
+# Path ON THE TARGET HOST of an extra PEM the ACME client must trust (Pebble in CI only).
+xvpn_edge_acme_trusted_ca_file: ""
+# Entrypoint addresses (D-15); the web entrypoint is the HTTP-01 challenge port.
+xvpn_edge_http_address: ":80"
+xvpn_edge_https_address: ":443"
+# Loopback port of the decoy site (D-02).
+xvpn_edge_decoy_port: 18080
+# Optional operator-supplied decoy site directory on the controller; empty uses the bundled neutral page.
+xvpn_edge_decoy_src: ""
+# false renders and validates only (container tier, D-14); true also restarts changed units.
+xvpn_edge_activate: true
+# Internal paths.
+xvpn_edge_home: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}/{{ xvpn_edge_user }}"
+xvpn_edge_dynamic_dir: "{{ xvpn_edge_home }}/traefik/dynamic"
+# Inputs of the route entry point (tasks_from: route, D-16).
+xvpn_edge_route_name: ""
+xvpn_edge_route_src: ""
+xvpn_edge_route_state: present
+xvpn_edge_route_sensitive: false

@@ -1,0 +1,78 @@
+---
+argument_specs:
+  main:
+    short_description: Rootless Traefik edge with ACME HTTP-01, file provider and decoy site
+    options:
+      xvpn_edge_user:
+        description: Service user that owns the edge units, regex C(^[a-z_][a-z0-9_-]{0,30}$). Must exist (xvpn.remnawave.podman_rootless).
+        type: str
+        default: rw-edge
+      xvpn_edge_traefik_image:
+        description: Traefik image, exact tag, never C(latest).
+        type: str
+        default: docker.io/library/traefik:v3.7.20
+      xvpn_edge_decoy_image:
+        description: Decoy nginx image, exact tag, never C(latest).
+        type: str
+        default: docker.io/nginxinc/nginx-unprivileged:1.31-alpine
+      xvpn_edge_acme_ca:
+        description: ACME CA, C(production), C(staging) (CI) or C(custom).
+        type: str
+        default: production
+        choices: [production, staging, custom]
+      xvpn_edge_acme_ca_server:
+        description: ACME directory URL, required (https) when C(xvpn_edge_acme_ca) is C(custom).
+        type: str
+        default: ""
+      xvpn_edge_acme_email:
+        description: ACME account e-mail; empty omits it.
+        type: str
+        default: ""
+      xvpn_edge_acme_trusted_ca_file:
+        description: Path on the target host of an extra PEM the ACME client trusts (test CAs only).
+        type: str
+        default: ""
+      xvpn_edge_http_address:
+        description: Address of the C(web) entrypoint (HTTP-01 challenge).
+        type: str
+        default: ":80"
+      xvpn_edge_https_address:
+        description: Address of the C(websecure) entrypoint.
+        type: str
+        default: ":443"
+      xvpn_edge_decoy_port:
+        description: Loopback port of the decoy site, 1024..65535.
+        type: int
+        default: 18080
+      xvpn_edge_decoy_src:
+        description: Controller directory with the decoy site; empty uses the bundled neutral page.
+        type: str
+        default: ""
+      xvpn_edge_activate:
+        description: Restart changed units; false renders and validates only.
+        type: bool
+        default: true
+  route:
+    short_description: Drop-in route interface of the edge (D-16)
+    options:
+      xvpn_edge_user:
+        description: Service user that owns the dynamic directory.
+        type: str
+        default: rw-edge
+      xvpn_edge_route_name:
+        description: Route file name without extension, regex C(^[a-z0-9-]+$).
+        type: str
+        required: true
+      xvpn_edge_route_src:
+        description: Absolute path of the Jinja2 template of the dynamic configuration (state present).
+        type: str
+        default: ""
+      xvpn_edge_route_state:
+        description: C(present) writes the file, C(absent) removes it.
+        type: str
+        default: present
+        choices: [present, absent]
+      xvpn_edge_route_sensitive:
+        description: Suppress task output (secrets in the route).
+        type: bool
+        default: false

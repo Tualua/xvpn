@@ -24,3 +24,17 @@
         xvpn_podman_rootless_quadlet_activate: false
         xvpn_podman_rootless_quadlet_specs:
           - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-fixture.container.j2') | realpath }}"
+
+- name: Edge role (render only)
+  hosts: all
+  become: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Render the edge units and configuration without starting them
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.edge
+      vars:
+        # render + generator dry-run only (D-14); CI never talks to production Let's Encrypt (QA-05)
+        xvpn_edge_activate: false
+        xvpn_edge_acme_ca: staging

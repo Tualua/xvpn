@@ -1,0 +1,25 @@
+[Unit]
+Description=xvpn edge Traefik (ACME HTTP-01, file provider)
+
+[Container]
+Image={{ xvpn_edge_traefik_image }}
+ContainerName=traefik
+Network=host
+Exec=--configFile=/etc/traefik/static/traefik.yml
+Volume={{ xvpn_edge_home }}/traefik/static:/etc/traefik/static:ro,Z
+Volume={{ xvpn_edge_home }}/traefik/dynamic:/etc/traefik/dynamic:ro,Z
+Volume={{ xvpn_edge_home }}/traefik/acme:/acme:Z
+{% if xvpn_edge_acme_trusted_ca_file | length > 0 %}
+Volume={{ xvpn_edge_home }}/traefik/ca:/etc/traefik/ca:ro,Z
+Environment=LEGO_CA_CERTIFICATES=/etc/traefik/ca/ca.pem
+{% endif %}
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
