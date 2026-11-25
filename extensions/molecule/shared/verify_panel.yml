@@ -13,15 +13,20 @@
     xvpn_verify_pn_checksum_file: >-
       {{ xvpn_verify_secrets_checksum_file | default('/var/lib/xvpn-molecule/secrets_checksum_after_first_converge') }}
 
-- name: Read the Panel service user account
-  ansible.builtin.getent:
-    database: passwd
-    key: "{{ xvpn_verify_pn_user }}"
+# id -u instead of getent: getent_passwd is one fact that each lookup replaces, and the edge verifiers read it.
+- name: Read the uid of the Panel service user
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ xvpn_verify_pn_user }}"
+  register: xvpn_verify_pn_uid
+  changed_when: false
 
 - name: Set the Panel user manager runtime directory
   ansible.builtin.set_fact:
     xvpn_verify_pn_env:
-      XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_verify_pn_user][1] }}"
+      XDG_RUNTIME_DIR: "/run/user/{{ xvpn_verify_pn_uid.stdout | trim }}"
 
 - name: Wait until the Panel stack units are active in the user manager
   ansible.builtin.command:
