@@ -6,12 +6,35 @@
   ansible.builtin.set_fact:
     xvpn_verify_edge_ip: "{{ ansible_host | default(inventory_hostname) }}"
 
+# Pebble builds a new in-memory CA on every start, so after the reboot roots/0 is no longer the issuer of the
+# certificate in acme.json. The first run (before the reboot) stores the root on the VM; later runs reuse it.
+- name: Verify edge | look for the stored Pebble root
+  ansible.builtin.stat:
+    path: /var/lib/xvpn-molecule/pebble-root.pem
+  register: xvpn_verify_edge_root_stored
+
 - name: Verify edge | fetch the Pebble issuing root
   ansible.builtin.uri:
     url: https://127.0.0.1:15000/roots/0
     ca_path: /etc/pebble/certs/pebble.minica.pem
     return_content: true
-  register: xvpn_verify_edge_root
+  register: xvpn_verify_edge_root_fetched
+  when: not xvpn_verify_edge_root_stored.stat.exists
+
+- name: Verify edge | store the Pebble root on the VM
+  ansible.builtin.copy:
+    content: "{{ xvpn_verify_edge_root_fetched.content }}"
+    dest: /var/lib/xvpn-molecule/pebble-root.pem
+    owner: root
+    group: root
+    mode: "0600"
+    force: false
+  when: not xvpn_verify_edge_root_stored.stat.exists
+
+- name: Verify edge | read the stored Pebble root
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn-molecule/pebble-root.pem
+  register: xvpn_verify_edge_root_slurp
 
 - name: Verify edge | create the controller temp file for the root
   ansible.builtin.tempfile:
@@ -24,7 +47,7 @@
 
 - name: Verify edge | write the root on the controller
   ansible.builtin.copy:
-    content: "{{ xvpn_verify_edge_root.content }}"
+    content: "{{ xvpn_verify_edge_root_slurp.content | b64decode }}"
     dest: "{{ xvpn_verify_edge_root_file.path }}"
     mode: "0600"
   delegate_to: localhost
