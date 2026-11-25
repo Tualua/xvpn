@@ -80,11 +80,10 @@
   register: xvpn_verify_pn_save
   changed_when: false
 
-- name: Assert Valkey runs without snapshots and without a TCP port
+- name: Assert Valkey runs without snapshots
   ansible.builtin.assert:
     that:
-      - xvpn_verify_pn_save.stdout_lines | length == 2
-      - xvpn_verify_pn_save.stdout_lines[1] | trim == ''
+      - xvpn_verify_pn_save.stdout | trim == 'save'
     fail_msg: "Valkey still has save points: {{ xvpn_verify_pn_save.stdout }}"
     quiet: true
 
