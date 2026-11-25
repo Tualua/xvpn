@@ -1,0 +1,75 @@
+# gitleaks configuration for the xvpn.remnawave repository (DOC-04, D-20).
+# Pinned scanner: gitleaks 8.30.1 (scripts/check.sh, .github/workflows/lint.yml).
+# Repository QA only; excluded from the built collection (galaxy.yml build_ignore).
+title = "xvpn.remnawave"
+
+[extend]
+# Upstream default ruleset (jwt, private-key, generic rules, ...).
+useDefault = true
+
+# DOC-04: a literal value under a secret-named xvpn_* key, whatever its shape.
+# The capture group starts with the separator so the upstream global path allowlist
+# (secrets matching ^/(bin|etc|...)/...) can never exempt the value.
+[[rules]]
+id = "xvpn-secret-key"
+description = "DOC-04: literal value under an xvpn_* secret, password, token, cookie value or gate path key"
+regex = '''(?i)\bxvpn_[a-z0-9_]*(?:secret|password|token|cookie_value|gate_path)s?["']?[ \t]*([:=][ \t]*["']?[^\s"'`#,;]{12,})'''
+secretGroup = 1
+keywords = ["xvpn_"]
+
+  [[rules.allowlists]]
+  regexTarget = "secret"
+  regexes = [
+    '''^[:=][ \t]*["']?\{\{''',
+    '''^[:=][ \t]*["']?<''',
+    '''(?i)^[:=][ \t]*["']?change_?me''',
+  ]
+
+# The same key names with a _file, _dir or _path suffix: flagged unless the value is a
+# plain lower-case FHS path (case-sensitive, so /var/<mixed-case base64> stays flagged).
+[[rules]]
+id = "xvpn-secret-key-pathlike"
+description = "DOC-04: literal value under an xvpn_* secret-named key with a _file, _dir or _path suffix"
+regex = '''(?i)\bxvpn_[a-z0-9_]*(?:secret|password|token|cookie_value|gate_path)s?_(?:file|dir|path)["']?[ \t]*([:=][ \t]*["']?[^\s"'`#,;]{12,})'''
+secretGroup = 1
+keywords = ["xvpn_"]
+
+  [[rules.allowlists]]
+  regexTarget = "secret"
+  regexes = [
+    '''^[:=][ \t]*["']?\{\{''',
+    '''^[:=][ \t]*["']?<''',
+    '''(?i)^[:=][ \t]*["']?change_?me''',
+    '''(?-i)^[:=][ \t]*["']?/(?:var|etc|run|srv|opt|usr|home|tmp)(?:/[a-z0-9._-]+)+$''',
+  ]
+
+# DOC-04: a password in URL userinfo.
+[[rules]]
+id = "xvpn-url-userinfo"
+description = "DOC-04: password in URL userinfo"
+regex = '''\b[a-zA-Z][a-zA-Z0-9+.-]*://[^\s:/@'"]+:([^\s/@'"]{8,})@'''
+secretGroup = 1
+keywords = ["://"]
+
+  [[rules.allowlists]]
+  regexTarget = "secret"
+  regexes = [
+    '''^\{\{''',
+    '''^<''',
+    '''^\$\{''',
+    '''^(?i)change_?me''',
+  ]
+
+# The only project allowlist: marked non-secret gate test fixtures in the two test paths.
+[[allowlists]]
+description = "marked non-secret gate test fixtures"
+condition = "AND"
+targetRules = ["xvpn-secret-key"]
+paths = [
+  '''^scripts/gate/[^/]+$''',
+  '''^extensions/molecule/.+''',
+]
+regexTarget = "line"
+regexes = [
+  '''# xvpn-test-fixture: non-secret\s*$''',
+]

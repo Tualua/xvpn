@@ -19,6 +19,32 @@ if ! command -v yamllint >/dev/null 2>&1; then
   RUN_YAMLLINT=0
 fi
 
+# DOC-04 / D-20: pinned gitleaks scans every tracked file (notice + skip locally, hard fail in CI).
+GITLEAKS_VERSION=8.30.1
+RUN_GITLEAKS=1
+if ! command -v gitleaks >/dev/null 2>&1; then
+  if [ -n "${CI:-}" ]; then
+    echo "gitleaks is required in CI but is not on PATH" >&2
+    exit 1
+  fi
+  echo "notice: gitleaks not on PATH (local run); CI enforces it"
+  RUN_GITLEAKS=0
+else
+  GITLEAKS_FOUND="$(gitleaks version 2>/dev/null || true)"
+  if [ "$GITLEAKS_FOUND" != "$GITLEAKS_VERSION" ]; then
+    if [ -n "${CI:-}" ]; then
+      echo "gitleaks $GITLEAKS_VERSION is required in CI, found '$GITLEAKS_FOUND'" >&2
+      exit 1
+    fi
+    echo "notice: gitleaks '$GITLEAKS_FOUND' is not the pinned $GITLEAKS_VERSION (local run); CI enforces the pin"
+  fi
+fi
+if [ "$RUN_GITLEAKS" -eq 1 ]; then
+  for tool in git tar openssl python3; do
+    command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required but is not on PATH" >&2; exit 1; }
+  done
+fi
+
 mkdir -p "$ROOT/.ansible/collections/ansible_collections/xvpn"
 ln -sfn "$ROOT" "$ROOT/.ansible/collections/ansible_collections/xvpn/remnawave"
 ansible-galaxy collection install -r requirements.yml -p "$ROOT/.ansible/collections"
@@ -72,6 +98,91 @@ if [ -z "$ANSIBLE_PYTHON" ] || ! "$ANSIBLE_PYTHON" -c 'import yaml' >/dev/null 2
   ANSIBLE_PYTHON=python3
 fi
 "$ANSIBLE_PYTHON" scripts/check_no_log.py
+
+# DOC-04 / D-20: no real secret in the repository. Self-test first (proves the scan still catches planted
+# secrets), then the scan of the working-tree content of every tracked file (.planning/ included).
+# check.sh is itself scanned: secret-named keys are assembled from fragments, random values at runtime.
+# Random values avoid the words of the upstream global allowlist regex (true|false|null) and its two
+# stopwords, so a generated value can never be suppressed by accident.
+GEN_PY='
+import base64, os, secrets, string, subprocess, sys
+case, root = sys.argv[1], sys.argv[2]
+P = "xvpn" + "_panel_"
+BAD = ("false", "null", "true", "changeme", "abcdefghijklmnopqrstuvwxyz")
+MARK = "  # xvpn-test-fixture: " + "non-secret"
+def clean(v):
+    return not any(b in v.lower() for b in BAD)
+def alnum(n):
+    while True:
+        v = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(n))
+        if any(c.islower() for c in v) and any(c.isupper() for c in v) and any(c.isdigit() for c in v) and clean(v):
+            return v
+def put(rel, text):
+    path = os.path.join(root, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a") as fh:
+        fh.write(text)
+ALL = "inventory/group_vars/all.yml"
+if case == "planted-secret":
+    put(ALL, P + "app_" + "secret: " + alnum(40) + "\n")
+elif case == "marker-inside-allowlist":
+    for rel in ("scripts/gate/render.yml", "extensions/molecule/container/verify.yml"):
+        put(rel, "    " + P + "gate_" + "path: " + alnum(32) + MARK + "\n")
+elif case == "placeholders":
+    put(ALL, P + "app_secret: \"{{ vault_" + P + "app_secret }}\"\n"
+        + P + "postgres_" + "password: \"<from vault>\"\n"
+        + P + "admin_" + "password: CHANGE_ME\n"
+        + P + "api_" + "token: \"\"\n"
+        + P + "secrets_" + "file: /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml\n")
+    put("inventory/panel.env", "DATABASE_URL=postgresql://postgres:{{ " + P + "postgres_" + "password }}@remnawave-db:5432/postgres\n")
+else:
+    sys.exit("unknown self-test case " + case)
+'
+SELFTEST_CASES=(
+  planted-secret:3
+  marker-inside-allowlist:0
+  placeholders:0
+)
+
+check_secrets() {
+  local empty rc id want case_dir failed=0 entry
+  SECRETS_WORK="$(mktemp -d)"
+  trap 'rm -rf "$SECRETS_WORK"' EXIT
+  local work="$SECRETS_WORK"
+  empty="$work/empty-ignore"
+  mkdir -p "$empty"
+  local -a gl=(dir --no-banner --ignore-gitleaks-allow --redact --exit-code 3 --log-level error
+    --gitleaks-ignore-path "$empty" --config "$ROOT/.gitleaks.toml")
+
+  for entry in "${SELFTEST_CASES[@]}"; do
+    id="${entry%%:*}"
+    want="${entry##*:}"
+    case_dir="$work/selftest/$id"
+    mkdir -p "$case_dir"
+    python3 -I -c "$GEN_PY" "$id" "$case_dir"
+    rc=0
+    (cd "$case_dir" && gitleaks "${gl[@]}" . >/dev/null 2>&1) || rc=$?
+    if [ "$rc" -ne "$want" ]; then
+      echo "FAIL $id (rc=$rc)" >&2
+      failed=1
+    fi
+  done
+  [ "$failed" -eq 0 ] || exit 1
+  echo "check_secrets self-test: OK"
+
+  mkdir -p "$work/tree"
+  git -C "$ROOT" ls-files -z | tar -C "$ROOT" --null --no-recursion --ignore-failed-read -T - -cf - | tar -C "$work/tree" -xf -
+  rc=0
+  (cd "$work/tree" && gitleaks "${gl[@]}" --verbose .) || rc=$?
+  case "$rc" in
+    0) echo "check_secrets: OK" ;;
+    3) echo "check_secrets: findings above (values redacted)" >&2; exit 1 ;;
+    *) echo "check_secrets: gitleaks error rc=$rc" >&2; exit 1 ;;
+  esac
+}
+if [ "$RUN_GITLEAKS" -eq 1 ]; then
+  check_secrets
+fi
 
 shopt -s nullglob
 playbooks=(playbooks/*.yml)

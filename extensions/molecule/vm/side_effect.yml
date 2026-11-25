@@ -252,7 +252,7 @@
           ansible.builtin.include_role:
             name: xvpn.remnawave.panel
           vars:
-            xvpn_panel_admin_password: Qw7ErTy2UiOp5AsDf8GhJk3Lz
+            xvpn_panel_admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=30) }}"
 
         - name: Token recovery | the divergent run must not succeed
           ansible.builtin.set_fact:
