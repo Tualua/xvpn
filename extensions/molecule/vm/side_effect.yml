@@ -328,6 +328,155 @@
       vars:
         xvpn_verify_gate_rotation: true
 
+    # SUB-02: after the gate verify the page must hold the token of the Plan 02-06 recovery (the Pebble root of
+    # verify_edge.yml is needed, so this runs here and not right after the recovery block).
+    - name: Verify the subscription page before the reboot
+      ansible.builtin.include_tasks: ../shared/verify_subpage.yml
+
+    # SUB-02 negative control: a wrong token of the right shape must fail both probes, the role re-run must restore
+    # the env file byte for byte and restart the page. All token handling is no_log.
+    - name: Sub-page wrong-token control
+      block:
+        - name: Sub-page wrong-token control | stat subpage.env before the swap
+          ansible.builtin.stat:
+            path: /var/lib/xvpn/rw-panel/env/subpage.env
+            checksum_algorithm: sha256
+          register: xvpn_se_wt_before
+
+        - name: Sub-page wrong-token control | generate a token of the same shape
+          ansible.builtin.set_fact:
+            xvpn_se_wt_token: >-
+              {{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=36) }}.{{
+                 lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=120) }}.{{
+                 lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=43) }}
+          no_log: true
+
+        - name: Sub-page wrong-token control | swap the token in subpage.env
+          ansible.builtin.lineinfile:
+            path: /var/lib/xvpn/rw-panel/env/subpage.env
+            regexp: '^REMNAWAVE_API_TOKEN='
+            line: "REMNAWAVE_API_TOKEN={{ xvpn_se_wt_token }}"
+          diff: false
+          no_log: true
+
+        - name: Sub-page wrong-token control | read the InvocationID before the swap restart
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - --user
+              - show
+              - -p
+              - InvocationID
+              - --value
+              - remnawave-subscription-page.service
+          become: true
+          become_user: rw-panel
+          become_method: ansible.builtin.sudo
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ xvpn_side_effect_panel_uid }}"
+          register: xvpn_se_wt_inv0
+          changed_when: false
+
+        # The page exits at start-up when the Panel rejects its token, so the restart is not waited for.
+        - name: Sub-page wrong-token control | restart the page with the wrong token
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - --user
+              - restart
+              - --no-block
+              - remnawave-subscription-page.service
+          become: true
+          become_user: rw-panel
+          become_method: ansible.builtin.sudo
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ xvpn_side_effect_panel_uid }}"
+          changed_when: true
+
+        - name: Sub-page wrong-token control | wait for the restart to take effect
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - --user
+              - show
+              - -p
+              - InvocationID
+              - --value
+              - remnawave-subscription-page.service
+          become: true
+          become_user: rw-panel
+          become_method: ansible.builtin.sudo
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ xvpn_side_effect_panel_uid }}"
+          register: xvpn_se_wt_inv1
+          until: xvpn_se_wt_inv1.stdout | trim != xvpn_se_wt_inv0.stdout | trim
+          retries: 12
+          delay: 5
+          changed_when: false
+
+        - name: Sub-page wrong-token control | both probes must fail with the fixed rejected-token outcome
+          ansible.builtin.include_tasks: ../shared/verify_subpage.yml
+          vars:
+            xvpn_verify_subpage_expect_auth: false
+
+        - name: Sub-page wrong-token control | read the InvocationID before the role run
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - --user
+              - show
+              - -p
+              - InvocationID
+              - --value
+              - remnawave-subscription-page.service
+          become: true
+          become_user: rw-panel
+          become_method: ansible.builtin.sudo
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ xvpn_side_effect_panel_uid }}"
+          register: xvpn_se_wt_inv2
+          changed_when: false
+
+        - name: Sub-page wrong-token control | re-run the Panel role
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.panel
+
+        - name: Sub-page wrong-token control | read the InvocationID after the role run
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - --user
+              - show
+              - -p
+              - InvocationID
+              - --value
+              - remnawave-subscription-page.service
+          become: true
+          become_user: rw-panel
+          become_method: ansible.builtin.sudo
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ xvpn_side_effect_panel_uid }}"
+          register: xvpn_se_wt_inv3
+          changed_when: false
+
+        - name: Sub-page wrong-token control | stat subpage.env after the role run
+          ansible.builtin.stat:
+            path: /var/lib/xvpn/rw-panel/env/subpage.env
+            checksum_algorithm: sha256
+          register: xvpn_se_wt_after
+
+        - name: Sub-page wrong-token control | assert the role restarted the page and restored the env file
+          ansible.builtin.assert:
+            that:
+              - xvpn_se_wt_inv3.stdout | trim | length > 0
+              - xvpn_se_wt_inv3.stdout | trim != xvpn_se_wt_inv2.stdout | trim
+              - xvpn_se_wt_after.stat.checksum == xvpn_se_wt_before.stat.checksum
+            fail_msg: "the role run did not restart the subscription page or did not restore subpage.env byte for byte"
+            quiet: true
+
+        - name: Sub-page wrong-token control | both probes pass again with the restored token
+          ansible.builtin.include_tasks: ../shared/verify_subpage.yml
+
     # SC2: Ansible controls the user unit through systemctl --user, not only observes it.
     - name: Read the InvocationID before the restart
       ansible.builtin.command:
