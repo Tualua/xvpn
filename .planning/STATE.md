@@ -101,7 +101,7 @@ None yet.
 - Phase 3 (HIGH RISK): Reality -> Traefik loopback TLS self-steal has no verified precedent; spike with hand-written configs first; fallback is revisiting the Traefik decision.
 - Phase 3: Remnawave REST contract must be read from the pinned backend 3.4.11 OpenAPI before writing modules.
 - [Phase 1] Follow-up: make `molecule-vm` a required check on main (deferred policy item).
-- [Phase 1] Three info-level review findings left open (IN-01..IN-03 in 01-REVIEW-DISPOSITION.md): home_root regex `$` vs `\Z`, document no-dot home_root, getenforce before libselinux-utils.
+- [Phase 1] IN-03 skipped (01-REVIEW-DISPOSITION.md): getenforce gate runs before libselinux-utils is installed; role fails with a clear message instead of installing it.
 
 ## Deferred Items
 
