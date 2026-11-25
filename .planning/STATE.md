@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: executing
-stopped_at: Completed 02-08-PLAN.md
-last_updated: "2026-11-25T15:11:24.885Z"
+stopped_at: Completed 02-09-PLAN.md
+last_updated: "2026-11-25T15:40:24.331Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 02 execution started
-state_head: 92de5b48d65d2ed5a832a0ba1333320316fcba7f
+state_head: d035cf63d4846835e531541baa9efac7a74f1122
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 23
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
-Plan: 9 of 11
+Plan: 10 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 02 execution started
 
@@ -76,6 +76,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P06 | ~2h | 2 tasks | 7 files |
 | Phase 02 P07 | 75min | 3 tasks | 13 files |
 | Phase 02 P08 | 40min | 2 tasks | 4 files |
+| Phase 02 P09 | 55min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Admin JWT requests need X-Remnawave-Client-Type: browser (backend 3.4.11); register only when isRegisterAllowed and not isLoginAllowed
 - [Phase 02]: Panel gate built from routers, headers and redirectRegex on noop@internal (D-05 primary variant); no fallback needed
 - [Phase 02]: 02-08: gate fixtures read from render.yml marker lines; random test tokens via python3 secrets (no tr|head under pipefail)
+- [Phase 02]: 02-09: gitleaks key rules use [ \t]* around the separator (no cross-line matches); (?-i) on the FHS exemption is load-bearing (observed)
 
 ### Pending Todos
 
@@ -132,6 +134,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-25T15:11:24.673Z
-Stopped at: Completed 02-08-PLAN.md
+Last session: 2026-11-25T15:40:24.097Z
+Stopped at: Completed 02-09-PLAN.md
 Resume file: None
