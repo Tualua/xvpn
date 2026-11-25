@@ -105,7 +105,7 @@ fi
 # Random values avoid the words of the upstream global allowlist regex (true|false|null) and its two
 # stopwords, so a generated value can never be suppressed by accident.
 GEN_PY='
-import base64, os, secrets, string, subprocess, sys
+import base64, json, os, secrets, string, subprocess, sys
 case, root = sys.argv[1], sys.argv[2]
 P = "xvpn" + "_panel_"
 BAD = ("false", "null", "true", "changeme", "abcdefghijklmnopqrstuvwxyz")
@@ -117,6 +117,16 @@ def alnum(n):
         v = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(n))
         if any(c.islower() for c in v) and any(c.isupper() for c in v) and any(c.isdigit() for c in v) and clean(v):
             return v
+def lower(n):
+    while True:
+        v = "".join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(n))
+        if any(c.isalpha() for c in v) and any(c.isdigit() for c in v) and clean(v):
+            return v
+def b64(nbytes, need):
+    while True:
+        v = base64.b64encode(os.urandom(nbytes)).decode()
+        if clean(v) and need(v) and any(c.isupper() for c in v) and any(c.isdigit() for c in v):
+            return v
 def put(rel, text):
     path = os.path.join(root, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -125,6 +135,38 @@ def put(rel, text):
 ALL = "inventory/group_vars/all.yml"
 if case == "planted-secret":
     put(ALL, P + "app_" + "secret: " + alnum(40) + "\n")
+elif case == "leading-slash-secret-file":
+    put(ALL, P + "app_secret" + "_file: /" + b64(30, lambda v: "/" in v and "+" not in v and "=" not in v) + "\n")
+elif case == "leading-slash-secret-dir":
+    put(ALL, P + "app_secret" + "_dir: /" + b64(32, lambda v: "+" in v and "/" in v) + "\n")
+elif case == "leading-slash-token-path":
+    put(ALL, P + "api_token" + "_path: /" + b64(30, lambda v: "/" in v and "+" not in v and "=" not in v) + "\n")
+elif case == "leading-slash-gate-path":
+    put(ALL, P + "gate_" + "path: \"/" + alnum(32) + "\"\n")
+elif case == "fhs-path-plain-secret":
+    put(ALL, P + "app_" + "secret: /var/lib/xvpn/" + lower(24) + "\n")
+elif case == "fhs-path-gate-path":
+    put(ALL, P + "gate_" + "path: /home/" + lower(32) + "\n")
+elif case == "fhs-root-base64-secret-dir":
+    put(ALL, P + "app_secret" + "_dir: /var/" + b64(30, lambda v: any(c.isupper() for c in v) and any(c.islower() for c in v) and any(c.isdigit() for c in v) and "+" not in v and "=" not in v) + "\n")
+elif case == "url-embedded-secret":
+    put(ALL, P + "gate_" + "path: https://panel.invalid/" + alnum(32) + "\n")
+elif case == "url-userinfo":
+    put("inventory/panel.env", "DATABASE_URL=postgresql://postgres:" + alnum(24) + "@remnawave-db:5432/postgres\n")
+elif case == "jwt-shape":
+    def enc(b):
+        return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+    head = enc(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    body = enc(json.dumps({"sub": secrets.token_hex(12), "iat": 1700000000}).encode())
+    put("notes.md", "bearer " + head + "." + body + "." + enc(os.urandom(32)) + "\n")
+elif case == "pem-private-key":
+    path = os.path.join(root, "roles/x/files/key.pem")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    subprocess.run(["openssl", "genpkey", "-algorithm", "ed25519", "-out", path], check=True, stderr=subprocess.DEVNULL)
+elif case == "marker-outside-allowlist":
+    put(ALL, P + "gate_" + "path: " + alnum(32) + MARK + "\n")
+elif case == "inline-allow-ignored":
+    put(ALL, P + "app_" + "secret: " + alnum(40) + "  # gitleaks:" + "allow\n")
 elif case == "marker-inside-allowlist":
     for rel in ("scripts/gate/render.yml", "extensions/molecule/container/verify.yml"):
         put(rel, "    " + P + "gate_" + "path: " + alnum(32) + MARK + "\n")
@@ -140,6 +182,19 @@ else:
 '
 SELFTEST_CASES=(
   planted-secret:3
+  leading-slash-secret-file:3
+  leading-slash-secret-dir:3
+  leading-slash-token-path:3
+  leading-slash-gate-path:3
+  fhs-path-plain-secret:3
+  fhs-path-gate-path:3
+  fhs-root-base64-secret-dir:3
+  url-embedded-secret:3
+  url-userinfo:3
+  jwt-shape:3
+  pem-private-key:3
+  marker-outside-allowlist:3
+  inline-allow-ignored:3
   marker-inside-allowlist:0
   placeholders:0
 )

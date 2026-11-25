@@ -28,4 +28,5 @@ build_ignore:
   - .ansible
   - .venv
   - scripts
+  - .gitleaks.toml
   - "*.tar.gz"
