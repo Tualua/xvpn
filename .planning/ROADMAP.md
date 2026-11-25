@@ -159,7 +159,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Rootless-фундамент и тестовый стенд | 12/12 | Complete    | 2026-11-25 |
-| 2. Panel за Traefik с защищённым входом | 0/10 | Not started | - |
+| 2. Panel за Traefik с защищённым входом | 0/11 | Not started | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
 | 5. Эксплуатация, hardening и готовность к публикации | 0/3 | Not started | - |
