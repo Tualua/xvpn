@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 milestone: v3.7.20
 current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
-status: executing
-stopped_at: Completed 02-10-PLAN.md
-last_updated: "2026-11-25T17:17:42.182Z"
+status: verifying
+stopped_at: Completed 02-11-PLAN.md
+last_updated: "2026-11-25T18:21:57.049Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 02 execution started
-state_head: 6f8be00750329ac841ef283ad74b21067524cfdd
+state_head: e83a2c85ed4df65cfea832ad03fc329f94acae03
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
 Plan: 11 of 11
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-25 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 20%
@@ -78,6 +78,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P08 | 40min | 2 tasks | 4 files |
 | Phase 02 P09 | 55min | 2 tasks | 6 files |
 | Phase 02 P10 | 130min | 2 tasks | 10 files |
+| Phase 02 P11 | ~3h | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-08: gate fixtures read from render.yml marker lines; random test tokens via python3 secrets (no tr|head under pipefail)
 - [Phase 02]: 02-09: gitleaks key rules use [ \t]* around the separator (no cross-line matches); (?-i) on the FHS exemption is load-bearing (observed)
 - [Phase 02]: Sub-page 8.0.1 with backend 3.4.11 verified; rejected-token outcome is HTTP 502 without data-panel; healthcheck via curl /internal/health
+- [Phase 02]: 02-11: sub-page toggle removes the unit directly when xvpn_panel_activate is false (LSR cleanup needs the user manager bus)
 
 ### Pending Todos
 
@@ -136,6 +138,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-25T17:17:41.967Z
-Stopped at: Completed 02-10-PLAN.md
+Last session: 2026-11-25T18:21:56.798Z
+Stopped at: Completed 02-11-PLAN.md
 Resume file: None
