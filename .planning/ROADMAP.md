@@ -74,22 +74,34 @@ Plans:
   3. После первого прогона существует администратор и долгоживущий API-токен (файл 0600 на Panel-хосте); повторный прогон логинится, а не регистрирует, секреты не меняются, `changed=0`
   4. Клиент открывает subscription page на отдельном домене по HTTPS, и она получает данные от Panel по API-токену без ручных шагов
   5. Токены, пароли и ключи не появляются в выводе Ansible (`no_log`), а placeholder-значения секретов отвергаются assert'ом
-**Plans:** 5 plans
+**Plans:** 9 plans
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Edge tracer: роль edge (Traefik v3.7.20 + decoy, ACME HTTP-01, route-интерфейс), panel.yml/site.yml, Pebble в VM-тире, sniStrict/real IP/QA-05 guard (wave 1)
+- [ ] 02-01-PLAN.md — Роль edge (Traefik v3.7.20 + decoy, ACME HTTP-01, route-интерфейс): рендер и dry-run в контейнерном тире, input-guards, CI-хелпер scripts/ci_watch.sh (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — Panel stack (Postgres/Valkey/backend 3.4.11) на loopback + generate-once секреты на хосте, divergence/placeholder guards, статический no_log gate (wave 2)
+- [ ] 02-02-PLAN.md — Роль panel (decoy-маршрут домена Panel), playbooks/panel.yml и site.yml, контейнерный тир на реальном playbook, статический QA-05 guard (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-03-PLAN.md — Loopback bootstrap: первый админ, API-токен 0600, login на повторном прогоне, восстановление токена (wave 3)
+- [ ] 02-03-PLAN.md — VM-тир с Pebble: HTTPS на домене Panel, sniStrict, :80, реальный IP клиента, acme.json 0600, ноль AVC (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-04-PLAN.md — Cookie/secret-path гейт на чистом Traefik + HTTPS Panel, admin-url файл, негативная матрица, CI-регрессия гейта, правка формулировки PANEL-06 (wave 4)
+- [ ] 02-04-PLAN.md — Generate-once секреты на Panel-хосте, divergence/lost/placeholder guards, статический no_log gate (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-05-PLAN.md — Subscription page на своём домене по токену, переключатель, README Panel host, весь CI зелёный (wave 5)
+- [ ] 02-05-PLAN.md — Panel stack (Postgres/Valkey/backend 3.4.11) на loopback, env-файлы 0600, restart-on-change (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-06-PLAN.md — Loopback bootstrap: первый админ, API-токен 0600, login на повторном прогоне, восстановление токена (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 02-07-PLAN.md — Cookie/secret-path гейт на чистом Traefik + HTTPS Panel, /api и /api/sub без cookie, admin-url файл, негативная матрица, правка формулировки PANEL-06 (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 02-08-PLAN.md — CI-регрессия гейта на продакшн-шаблонах и закреплённом образе Traefik на каждый push (wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 02-09-PLAN.md — Subscription page на своём домене, доказательство SUB-02 с отрицательным контролем по неверному токену, переключатель, README Panel host, весь CI зелёный (wave 9)
 **UI hint**: yes
 **Research flag**: HIGH RISK: cookie/secret-path гейт на чистом Traefik без плагинов не подтверждён, а пользователь выбрал его для v1 без fallback на IP allowlist (allowlist отложен в PANEL-V2-01). Нужен ранний спайк; при неудаче потребуется решение пользователя. Также проверить набор env (`APP_SECRET` vs JWT-секреты) и forwarded-заголовки backend 3.4.11
 
@@ -141,7 +153,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Rootless-фундамент и тестовый стенд | 12/12 | Complete    | 2026-11-25 |
-| 2. Panel за Traefik с защищённым входом | 0/5 | Not started | - |
+| 2. Panel за Traefik с защищённым входом | 0/9 | Not started | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
 | 5. Эксплуатация, hardening и готовность к публикации | 0/3 | Not started | - |

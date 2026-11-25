@@ -27,4 +27,6 @@ is not an integration surface of this phase.
 | hosts | OPT-OUT | not needed yet: client-facing hosts are Phase 3 |
 | internal-squads | OPT-OUT | not needed yet: trusted LAN squad is Phase 4 |
 | users / user subscriptions management | OPT-OUT | explicitly out of scope for v1: VPN users are managed by the operator in the Panel UI |
+| users.create + users.get-by-username (probe user `xvpn-molecule-probe`) | INTEGRATE | test fixture only: called by `extensions/molecule/shared/verify_subpage.yml` in the Molecule VM to prove SUB-02 with an authenticated lookup (Plan 02-09); the roles never create users |
+| subscription /api/sub/* without cookie on the Panel domain | INTEGRATE | verify-only reachability probe `sub-public-no-cookie` (Plans 02-07, 02-08); the collection itself still does not consume subscriptions |
 | system stats, bandwidth, HWID, settings, infra-billing, snippets and other admin surfaces | OPT-OUT | explicitly out of scope: operated through the Panel UI, not automated by the collection |

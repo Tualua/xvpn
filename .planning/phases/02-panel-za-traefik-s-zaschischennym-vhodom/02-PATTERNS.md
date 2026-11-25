@@ -4,6 +4,8 @@
 **Files analyzed:** 33 (new/modified)
 **Analogs found:** 27 / 33 (все analog-пути проверены как git-tracked, зеркал `.gsd/capabilities` в репозитории нет)
 
+**Принятые в планах имена (planner, 2026-11-25), имеют приоритет над именами ниже:** `decoy.container.j2` -> `roles/edge/templates/xvpn-decoy.container.j2` (unit и контейнер `xvpn-decoy`); `00-tls-options.yml.j2` -> `roles/edge/templates/00-edge.yml.j2` (TLS options и общие имена `xvpn-decoy`/`xvpn-to-https`); `rw-panel` добавляется не правкой defaults `podman_rootless` (MOD), а через `xvpn_podman_rootless_users` в `playbooks/panel.yml` (у defaults меняется только комментарий, план 02-02), чтобы node-хосты не получали `rw-panel`.
+
 Важно: в `roles/*` пока нет ни одного `templates/*.j2` и `files/`; единственные Quadlet-шаблоны лежат в `extensions/molecule/shared/templates/`. Шаблоны Quadlet, Traefik и env берутся из RESEARCH.md (Code Examples), а структура ролей, assert-стиль, Quadlet-деплой и Molecule-сценарии копируются из кода фазы 1.
 
 ## File Classification
