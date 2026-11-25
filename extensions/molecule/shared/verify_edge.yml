@@ -119,3 +119,285 @@
       served body {{ xvpn_verify_edge_body_file.path }} ({{ xvpn_verify_edge_body_stat.stat.checksum }}) differs from
       {{ playbook_dir }}/../../../roles/edge/files/decoy/index.html ({{ xvpn_verify_edge_decoy_stat.stat.checksum | default('missing') }})
     quiet: true
+
+# D-15, strict SNI: an unknown name or no name gets an aborted handshake, never Traefik's default certificate.
+- name: Verify edge | handshake with an unknown SNI
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - s_client
+      - -connect
+      - "{{ xvpn_verify_edge_ip }}:443"
+      - -servername
+      - unknown.invalid
+    stdin: ""
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_sni_unknown
+  changed_when: false
+  failed_when: false
+
+- name: Verify edge | handshake without SNI
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - s_client
+      - -connect
+      - "{{ xvpn_verify_edge_ip }}:443"
+    stdin: ""
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_sni_none
+  changed_when: false
+  failed_when: false
+
+- name: Verify edge | handshake with the known SNI (positive control)
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - s_client
+      - -connect
+      - "{{ xvpn_verify_edge_ip }}:443"
+      - -servername
+      - "{{ xvpn_verify_edge_domain }}"
+    stdin: ""
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_sni_known
+  changed_when: false
+  failed_when: false
+
+- name: Verify edge | assert strict SNI
+  ansible.builtin.assert:
+    that:
+      - (item.stdout ~ item.stderr) is not search('TRAEFIK DEFAULT CERT')
+      - (item.stdout ~ item.stderr) is not search('BEGIN CERTIFICATE')
+      - (item.stdout ~ item.stderr) is search('(?i)alert')
+    fail_msg: "{{ item.cmd | join(' ') }} did not abort the handshake: {{ item.stdout }} {{ item.stderr }}"
+    quiet: true
+  loop:
+    - "{{ xvpn_verify_edge_sni_unknown }}"
+    - "{{ xvpn_verify_edge_sni_none }}"
+  loop_control:
+    label: "{{ item.cmd | join(' ') }}"
+
+- name: Verify edge | assert the known SNI is served a real certificate
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_sni_known.stdout is search('BEGIN CERTIFICATE')
+      - xvpn_verify_edge_sni_known.stdout is not search('TRAEFIK DEFAULT CERT')
+    fail_msg: "no real certificate for {{ xvpn_verify_edge_domain }}: {{ xvpn_verify_edge_sni_known.stdout }}"
+    quiet: true
+
+# D-15, :80: known Host redirects to https, unknown Host gets 404.
+- name: Verify edge | request :80 with the known Host
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -s
+      - -o
+      - /dev/null
+      - -w
+      - "%{http_code} %{redirect_url}"
+      - -H
+      - "Host: {{ xvpn_verify_edge_domain }}"
+      - "http://{{ xvpn_verify_edge_ip }}/"
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_http_known
+  changed_when: false
+
+- name: Verify edge | request :80 with an unknown Host
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -s
+      - -o
+      - /dev/null
+      - -w
+      - "%{http_code}"
+      - -H
+      - "Host: other.invalid"
+      - "http://{{ xvpn_verify_edge_ip }}/"
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_http_unknown
+  changed_when: false
+
+- name: Verify edge | assert the :80 behaviour
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_http_known.stdout | trim in ['301 https://' ~ xvpn_verify_edge_domain ~ '/', '308 https://' ~ xvpn_verify_edge_domain ~ '/']
+      - xvpn_verify_edge_http_unknown.stdout | trim == '404'
+    fail_msg: "known Host: '{{ xvpn_verify_edge_http_known.stdout }}'; unknown Host: '{{ xvpn_verify_edge_http_unknown.stdout }}'"
+    quiet: true
+
+# Pitfall 2: an encoded slash never reaches a router.
+- name: Verify edge | request an encoded slash
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - --path-as-is
+      - --resolve
+      - "{{ xvpn_verify_edge_domain }}:443:{{ xvpn_verify_edge_ip }}"
+      - --cacert
+      - "{{ xvpn_verify_edge_root_file.path }}"
+      - -o
+      - /dev/null
+      - -w
+      - "%{http_code}"
+      - "https://{{ xvpn_verify_edge_domain }}/a%2Fb"
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_slash
+  changed_when: false
+
+- name: Verify edge | assert the encoded slash is rejected
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_slash.stdout | trim == '400'
+    fail_msg: "/a%2Fb answered {{ xvpn_verify_edge_slash.stdout }}, expected 400"
+    quiet: true
+
+# EDGE-03 (D-19): the probe line is selected by its unique User-Agent, never by path (the path is not logged).
+- name: Verify edge | generate the probe markers
+  ansible.builtin.set_fact:
+    xvpn_verify_edge_probe: "xvpn-edge-probe-{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=16) }}"
+    xvpn_verify_edge_path: "xvpn-path-{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=16) }}"
+    xvpn_verify_edge_cookie: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=16) }}"
+
+- name: Verify edge | send the probe request with forged forwarding headers
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - --resolve
+      - "{{ xvpn_verify_edge_domain }}:443:{{ xvpn_verify_edge_ip }}"
+      - --cacert
+      - "{{ xvpn_verify_edge_root_file.path }}"
+      - -o
+      - /dev/null
+      - -A
+      - "{{ xvpn_verify_edge_probe }}"
+      - -H
+      - "X-Forwarded-For: 6.6.6.6"
+      - -H
+      - "X-Forwarded-Proto: http"
+      - -H
+      - "Cookie: xvpnprobe={{ xvpn_verify_edge_cookie }}"
+      - "https://{{ xvpn_verify_edge_domain }}/{{ xvpn_verify_edge_path }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Verify edge | read the uid of the edge user
+  ansible.builtin.getent:
+    database: passwd
+    key: rw-edge
+
+- name: Verify edge | read the Traefik log as the edge user
+  ansible.builtin.command:
+    argv:
+      - podman
+      - logs
+      - --since
+      - 10m
+      - traefik
+    chdir: /var/lib/xvpn/rw-edge
+  become: true
+  become_user: rw-edge
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-edge'][1] }}"
+  register: xvpn_verify_edge_log
+  until: xvpn_verify_edge_log.stdout is search(xvpn_verify_edge_probe)
+  retries: 12
+  delay: 5
+  changed_when: false
+  no_log: true
+
+- name: Verify edge | parse the JSON access log lines
+  ansible.builtin.set_fact:
+    xvpn_verify_edge_log_lines: >-
+      {{ xvpn_verify_edge_log.stdout_lines | select('match', '^[{]') | map('from_json') | list }}
+    xvpn_verify_edge_client: "{{ ansible_env.SSH_CLIENT.split()[0] }}"
+
+- name: Verify edge | select the probe line by User-Agent
+  ansible.builtin.set_fact:
+    xvpn_verify_edge_probe_lines: >-
+      {{ xvpn_verify_edge_log_lines | selectattr('request_User-Agent', 'defined')
+         | selectattr('request_User-Agent', 'equalto', xvpn_verify_edge_probe) | list }}
+
+- name: Verify edge | assert the real client address and the log hygiene
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_probe_lines | length == 1
+      - xvpn_verify_edge_probe_lines[0].ClientHost == xvpn_verify_edge_client
+      - xvpn_verify_edge_probe_lines[0].ClientHost != '127.0.0.1'
+      - xvpn_verify_edge_log.stdout is not search(xvpn_verify_edge_cookie)
+      - xvpn_verify_edge_log.stdout is not search(xvpn_verify_edge_path)
+      - xvpn_verify_edge_log_lines | selectattr('RequestPath', 'defined') | list | length == 0
+      - xvpn_verify_edge_log_lines | selectattr('request_Cookie', 'defined') | list | length == 0
+      - xvpn_verify_edge_log_lines | selectattr('request_Authorization', 'defined') | list | length == 0
+      - xvpn_verify_edge_log_lines | selectattr('request_Referer', 'defined') | list | length == 0
+    fail_msg: >-
+      probe lines: {{ xvpn_verify_edge_probe_lines | length }};
+      logged ClientHost: {{ (xvpn_verify_edge_probe_lines | first | default({})).ClientHost | default('none') }};
+      SSH_CLIENT address: {{ xvpn_verify_edge_client }};
+      probe line keys: {{ (xvpn_verify_edge_probe_lines | first | default({})).keys() | list | sort }}
+    quiet: true
+
+# EDGE-02: acme.json is private and carries the domain.
+- name: Verify edge | stat acme.json
+  ansible.builtin.stat:
+    path: /var/lib/xvpn/rw-edge/traefik/acme/acme.json
+  register: xvpn_verify_edge_acme
+
+- name: Verify edge | count the domain entries in acme.json
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -c
+      - -E
+      - '"main":[[:space:]]*"{{ xvpn_verify_edge_domain }}"'
+      - /var/lib/xvpn/rw-edge/traefik/acme/acme.json
+  register: xvpn_verify_edge_acme_count
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify edge | assert acme.json
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_acme.stat.exists
+      - xvpn_verify_edge_acme.stat.mode == '0600'
+      - xvpn_verify_edge_acme.stat.pw_name == 'rw-edge'
+      - xvpn_verify_edge_acme_count.stdout | trim | int >= 1
+    fail_msg: >-
+      acme.json: exists {{ xvpn_verify_edge_acme.stat.exists }}, mode {{ xvpn_verify_edge_acme.stat.mode | default('') }},
+      owner {{ xvpn_verify_edge_acme.stat.pw_name | default('') }}, domain entries {{ xvpn_verify_edge_acme_count.stdout | default('') }}
+    quiet: true
+
+# EDGE-01: the public listeners belong to the rootless edge user.
+- name: Verify edge | list the :443 and :80 listeners
+  ansible.builtin.command:
+    argv:
+      - ss
+      - -H
+      - -ltnpe
+      - "sport = :{{ item }}"
+  loop: [443, 80]
+  register: xvpn_verify_edge_ss
+  changed_when: false
+
+- name: Verify edge | assert the listener owner
+  ansible.builtin.assert:
+    that:
+      - item.stdout is search('uid:' ~ ansible_facts['getent_passwd']['rw-edge'][1] ~ '(\s|$)')
+    fail_msg: ":{{ item.item }} is not owned by uid {{ ansible_facts['getent_passwd']['rw-edge'][1] }}: {{ item.stdout }}"
+    quiet: true
+  loop: "{{ xvpn_verify_edge_ss.results }}"
+  loop_control:
+    label: "{{ item.item }}"

@@ -1,7 +1,7 @@
 ---
 # Rootless plumbing assertions shared by the container and VM tiers.
 # Inputs: xvpn_verify_bind_probe_ports (default [443]),
-#         xvpn_verify_quadlet_unit (default xvpn-fixture.container; the container tier passes traefik.container).
+#         xvpn_verify_quadlet_unit (default traefik.container).
 - name: Check required rootless packages
   ansible.builtin.command:
     argv:
@@ -134,7 +134,7 @@
 
 - name: Stat the installed Quadlet unit
   ansible.builtin.stat:
-    path: "/var/lib/xvpn/rw-edge/.config/containers/systemd/{{ xvpn_verify_quadlet_unit | default('xvpn-fixture.container') }}"
+    path: "/var/lib/xvpn/rw-edge/.config/containers/systemd/{{ xvpn_verify_quadlet_unit | default('traefik.container') }}"
   register: xvpn_verify_fixture
 
 - name: Assert the installed Quadlet unit
@@ -142,7 +142,7 @@
     that:
       - xvpn_verify_fixture.stat.exists
       - xvpn_verify_fixture.stat.pw_name == 'rw-edge'
-    fail_msg: "{{ xvpn_verify_quadlet_unit | default('xvpn-fixture.container') }} is not installed for rw-edge"
+    fail_msg: "{{ xvpn_verify_fixture.stat.path }} is not installed for rw-edge"
     quiet: true
 
 # FND-03 bind probe: rw-edge binds each probe port under its own uid.

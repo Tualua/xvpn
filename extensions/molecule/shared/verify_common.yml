@@ -111,10 +111,10 @@
 - name: Assert no internal port appears in ports, forward ports or rich rules
   ansible.builtin.assert:
     that:
-      - not (xvpn_verify_fw_ports.stdout is regex('(^|\s)(3000|3010|8443|2222)/(tcp|udp)(\s|$)'))
-      - not (xvpn_verify_fw_forward.stdout is regex('(^|[^0-9])(3000|3010|8443|2222)([^0-9]|$)'))
-      - not (xvpn_verify_fw_rich.stdout is regex('(^|[^0-9])(3000|3010|8443|2222)([^0-9]|$)'))
-    fail_msg: "an internal port (3000, 3010, 8443, 2222) is exposed in zone {{ xvpn_verify_fw_zone }}"
+      - not (xvpn_verify_fw_ports.stdout is regex('(^|\s)(3000|3010|8443|2222|18080)/(tcp|udp)(\s|$)'))
+      - not (xvpn_verify_fw_forward.stdout is regex('(^|[^0-9])(3000|3010|8443|2222|18080)([^0-9]|$)'))
+      - not (xvpn_verify_fw_rich.stdout is regex('(^|[^0-9])(3000|3010|8443|2222|18080)([^0-9]|$)'))
+    fail_msg: "an internal port (3000, 3010, 8443, 2222, 18080) is exposed in zone {{ xvpn_verify_fw_zone }}"
     quiet: true
 
 - name: Query SSH by service
