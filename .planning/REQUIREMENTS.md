@@ -25,7 +25,7 @@
 
 ### Panel (PANEL)
 
-- [ ] **PANEL-01**: Оператор разворачивает Remnawave backend + Postgres + Valkey как Quadlet-юниты на приватной Podman-сети с healthcheck'ами и правильным порядком запуска
+- [x] **PANEL-01**: Оператор разворачивает Remnawave backend + Postgres + Valkey как Quadlet-юниты на приватной Podman-сети с healthcheck'ами и правильным порядком запуска
 - [x] **PANEL-02**: Секреты панели (app/JWT-секреты, пароль Postgres, metrics-креды) генерируются один раз и не меняются при повторных прогонах
 - [ ] **PANEL-03**: Первый администратор создаётся на loopback до публикации роутера Traefik; повторный прогон логинится, а не регистрирует
 - [ ] **PANEL-04**: Коллекция создаёт долгоживущий API-токен для автоматизации и хранит его с правами 0600 на Panel-хосте
@@ -145,7 +145,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDGE-01 | Phase 2 | Complete |
 | EDGE-02 | Phase 2 | Complete |
 | EDGE-03 | Phase 2 | Complete |
-| PANEL-01 | Phase 2 | Pending |
+| PANEL-01 | Phase 2 | Complete |
 | PANEL-02 | Phase 2 | Complete |
 | PANEL-03 | Phase 2 | Pending |
 | PANEL-04 | Phase 2 | Pending |

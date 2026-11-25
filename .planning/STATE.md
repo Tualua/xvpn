@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-11-25T10:14:01.424Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-11-25T13:18:26.346Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 02 execution started
-state_head: 0aeaa4b32046c392454ff743af356fe73e062a60
+state_head: a712ed67c110bc4b1b0b74ac9116ace2d5e09aa1
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 23
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
-Plan: 5 of 11
+Plan: 6 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 02 execution started
 
@@ -72,6 +72,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P02 | 25 min | 2 tasks | 14 files |
 | Phase 02 P03 | 150 min | 2 tasks | 11 files |
 | Phase 02 P04 | 75min | 2 tasks | 9 files |
+| Phase 02 P05 | 6h | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Pebble root is stored on the VM by the first verify_edge run because Pebble builds a new CA at every start (reboot)
 - [Phase 02]: Controller address for the real-IP proof is read as SSH_CLIENT in the SSH session without become
 - [Phase 02]: 02-04: guard asserts read only boolean/key-list facts so failures stay visible without exposing values; placeholder check precedes divergence check
+- [Phase 02]: Quadlet Exec= is truncated at an empty quoted word; Valkey uses a bare --save, and Ulimit nofile is 524288 (rootless user manager hard limit)
 
 ### Pending Todos
 
@@ -124,6 +126,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-25T10:14:01.205Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-11-25T13:18:26.143Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
