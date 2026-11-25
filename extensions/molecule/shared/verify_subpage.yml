@@ -185,7 +185,9 @@
       changed_when: false
       failed_when: false
 
-    - name: Verify subpage | assert the answer is the page, neither the decoy nor Traefik's 404
+    # The page answers an unknown id of a non-browser client by closing the socket (Traefik 502), so only the
+    # chain, the routing and the body are judged here; the authenticated lookup is probe B.
+    - name: Verify subpage | assert the chain validated and the answer is neither the decoy nor Traefik's 404
       ansible.builtin.assert:
         that:
           - xvpn_vsp_unknown.rc == 0
@@ -193,9 +195,8 @@
           - (xvpn_vsp_unknown.stdout.split('__CODE__')[0] | trim) != xvpn_vsp_decoy
           - (xvpn_vsp_unknown.stdout.split('__CODE__')[0] | trim) != '404 page not found'
           - (xvpn_vsp_unknown.stdout.split('__CODE__')[1] | trim | int) > 0
-          - (xvpn_vsp_unknown.stdout.split('__CODE__')[1] | trim | int) < 500
         fail_msg: >-
-          https://{{ xvpn_vsp_domain }}/ is not served by the subscription page (curl rc {{ xvpn_vsp_unknown.rc }},
+          https://{{ xvpn_vsp_domain }}/ is not routed to the subscription page (curl rc {{ xvpn_vsp_unknown.rc }},
           code {{ xvpn_vsp_unknown.stdout.split('__CODE__')[1] | default('?') }}, {{ xvpn_vsp_unknown.stderr }})
         quiet: true
 
