@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-23)
+See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** Из inventory одной командой получается рабочая, защищённая и идемпотентная инсталляция Remnawave на RHEL 10 с SELinux enforcing: Panel за прокси с защищённым входом, ноды авто-регистрируются через API, Reality self-steal.
-**Current focus:** Phase 01 — Rootless-фундамент и тестовый стенд
+**Current focus:** Phase 2 — Panel за Traefik с защищённым входом
 
 ## Current Position
 
@@ -100,7 +100,8 @@ None yet.
 - Phase 2 (HIGH RISK): cookie/secret-path admin gate in pure Traefik (no plugins) is unproven; user chose it for v1 with no IP-allowlist fallback (allowlist is PANEL-V2-01). Spike early; if infeasible, escalate to user.
 - Phase 3 (HIGH RISK): Reality -> Traefik loopback TLS self-steal has no verified precedent; spike with hand-written configs first; fallback is revisiting the Traefik decision.
 - Phase 3: Remnawave REST contract must be read from the pinned backend 3.4.11 OpenAPI before writing modules.
-- Phase 1: KVM availability on CI runners for the libvirt VM tier is unconfirmed.
+- [Phase 1] Follow-up: make `molecule-vm` a required check on main (deferred policy item).
+- [Phase 1] Three info-level review findings left open (IN-01..IN-03 in 01-REVIEW-DISPOSITION.md): home_root regex `$` vs `\Z`, document no-dot home_root, getenforce before libselinux-utils.
 
 ## Deferred Items
 
@@ -112,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-24T09:03:12.560Z
+Last session: 2026-11-25
 Stopped at: Phase 01 complete, ready to plan Phase 2
 Resume file: None

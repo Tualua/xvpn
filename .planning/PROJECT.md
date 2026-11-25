@@ -12,7 +12,8 @@
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Rootless-фундамент: preflight (ОС, SELinux enforcing, Podman >= 5.4, порты, DNS), выделенный пользователь с linger/subuid, порты 80/443 через sysctl, Quadlet переживает перезагрузку без AVC — Phase 1
+- ✓ Каркас коллекции `xvpn.remnawave` (galaxy.yml, argument_specs) и тестовый стенд: ansible-lint/yamllint, Molecule container-тир и VM-тир (Alma/Rocky 10, SELinux enforcing) в CI — Phase 1
 
 ### Active
 
@@ -65,8 +66,8 @@
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Только EL10 (Rocky/Alma) | Фокус на одной современной платформе | — Pending |
-| Rootless Podman + Quadlet вместо Docker | Нативно для RHEL, systemd-интеграция, меньше привилегий | — Pending |
-| SELinux enforcing | Не ослаблять безопасность хоста | — Pending |
+| Rootless Podman + Quadlet вместо Docker | Нативно для RHEL, systemd-интеграция, меньше привилегий | ✓ Good — Phase 1: тестовый Quadlet на порту 80 переживает reboot на VM-тире |
+| SELinux enforcing | Не ослаблять безопасность хоста | ✓ Good — Phase 1: ноль AVC на VM-тире, гейт Enforcing до изменений хоста |
 | Traefik как reverse proxy | Привычен пользователю | — Pending (проверить для self-steal) |
 | HTTP-01 для сертификатов | Не нужны ключи DNS-провайдера | — Pending |
 | Авто-регистрация нод через Panel API | Минимум ручных шагов | — Pending |
@@ -95,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-23 after Phase 1 planning (Rocky VM box decision)*
+*Last updated: 2026-11-25 after Phase 1*
