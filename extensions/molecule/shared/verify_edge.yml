@@ -322,7 +322,7 @@
   ansible.builtin.set_fact:
     xvpn_verify_edge_log_lines: >-
       {{ xvpn_verify_edge_log.stdout_lines | select('match', '^[{]') | map('from_json') | list }}
-    xvpn_verify_edge_client: "{{ ansible_env.SSH_CLIENT.split()[0] }}"
+    xvpn_verify_edge_client: "{{ ansible_facts['env']['SSH_CLIENT'].split()[0] }}"
 
 - name: Verify edge | select the probe line by User-Agent
   ansible.builtin.set_fact:
