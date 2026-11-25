@@ -74,13 +74,13 @@ Plans:
   3. После первого прогона существует администратор и долгоживущий API-токен (файл 0600 на Panel-хосте); повторный прогон логинится, а не регистрирует, секреты не меняются, `changed=0`
   4. Клиент открывает subscription page на отдельном домене по HTTPS, и она получает данные от Panel по API-токену без ручных шагов
   5. Токены, пароли и ключи не появляются в выводе Ansible (`no_log`), а placeholder-значения секретов отвергаются assert'ом
-**Plans:** 1/11 plans executed
+**Plans:** 2/11 plans executed
 Plans:
 **Wave 1**
 - [x] 02-01-PLAN.md — Роль edge (Traefik v3.7.20 + decoy, ACME HTTP-01, route-интерфейс): рендер и dry-run в контейнерном тире, input-guards, CI-хелпер scripts/ci_watch.sh (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — Роль panel (decoy-маршрут домена Panel), playbooks/panel.yml и site.yml, контейнерный тир на реальном playbook, статический QA-05 guard (wave 2)
+- [x] 02-02-PLAN.md — Роль panel (decoy-маршрут домена Panel), playbooks/panel.yml и site.yml, контейнерный тир на реальном playbook, статический QA-05 guard (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-03-PLAN.md — VM-тир с Pebble: HTTPS на домене Panel, sniStrict, :80, реальный IP клиента, acme.json 0600, ноль AVC (wave 3)
@@ -159,7 +159,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Rootless-фундамент и тестовый стенд | 12/12 | Complete    | 2026-11-25 |
-| 2. Panel за Traefik с защищённым входом | 1/11 | In Progress | - |
+| 2. Panel за Traefik с защищённым входом | 2/11 | In Progress | - |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
 | 5. Эксплуатация, hardening и готовность к публикации | 0/3 | Not started | - |
