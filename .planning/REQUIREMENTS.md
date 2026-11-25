@@ -26,7 +26,7 @@
 ### Panel (PANEL)
 
 - [ ] **PANEL-01**: Оператор разворачивает Remnawave backend + Postgres + Valkey как Quadlet-юниты на приватной Podman-сети с healthcheck'ами и правильным порядком запуска
-- [ ] **PANEL-02**: Секреты панели (app/JWT-секреты, пароль Postgres, metrics-креды) генерируются один раз и не меняются при повторных прогонах
+- [x] **PANEL-02**: Секреты панели (app/JWT-секреты, пароль Postgres, metrics-креды) генерируются один раз и не меняются при повторных прогонах
 - [ ] **PANEL-03**: Первый администратор создаётся на loopback до публикации роутера Traefik; повторный прогон логинится, а не регистрирует
 - [ ] **PANEL-04**: Коллекция создаёт долгоживущий API-токен для автоматизации и хранит его с правами 0600 на Panel-хосте
 - [ ] **PANEL-05**: Panel доступна через Traefik по HTTPS на собственном домене
@@ -95,7 +95,7 @@
 - [ ] **DOC-01**: README на английском с quickstart; ключевые гайды продублированы на русском
 - [ ] **DOC-02**: Примеры inventory/playbook (Panel + 2 ноды, одна с LAN) и пример vault-файла
 - [ ] **DOC-03**: Справочник переменных генерируется из `argument_specs`
-- [ ] **DOC-04**: Токены и ключи не выводятся в логи (`no_log`); реальные секреты не хранятся в репозитории, placeholder'ы отвергаются assert'ом
+- [x] **DOC-04**: Токены и ключи не выводятся в логи (`no_log`); реальные секреты не хранятся в репозитории, placeholder'ы отвергаются assert'ом
 
 ## v2 Requirements
 
@@ -146,7 +146,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDGE-02 | Phase 2 | Complete |
 | EDGE-03 | Phase 2 | Complete |
 | PANEL-01 | Phase 2 | Pending |
-| PANEL-02 | Phase 2 | Pending |
+| PANEL-02 | Phase 2 | Complete |
 | PANEL-03 | Phase 2 | Pending |
 | PANEL-04 | Phase 2 | Pending |
 | PANEL-05 | Phase 2 | Pending |
@@ -188,7 +188,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
 | DOC-03 | Phase 5 | Pending |
-| DOC-04 | Phase 2 | Pending |
+| DOC-04 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 54 total
