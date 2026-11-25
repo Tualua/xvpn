@@ -1,0 +1,10 @@
+---
+# VM-tier Panel inventory values (Plan 02-03). Loaded by converge.yml and side_effect.yml via include_vars.
+# The test domains resolve to the VM through /etc/hosts written by tasks/pebble.yml (preflight uses the host resolver).
+xvpn_panel_domain: panel.xvpn.test
+# forward wiring: consumed from Plan 02-04 on, do not remove
+xvpn_subscription_domain: sub.xvpn.test
+# CI never talks to production Let's Encrypt (QA-05): Pebble runs on the VM itself.
+xvpn_edge_acme_ca: custom
+xvpn_edge_acme_ca_server: https://127.0.0.1:14000/dir
+xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem

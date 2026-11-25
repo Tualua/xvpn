@@ -28,10 +28,22 @@
     - name: Verify the rootless plumbing and the bind probes after the reboot
       ansible.builtin.include_tasks: ../shared/verify_rootless.yml
       vars:
-        xvpn_verify_bind_probe_ports: [443]
+        xvpn_verify_bind_probe_ports: [81]
+        xvpn_verify_quadlet_unit: traefik.container
 
     - name: Verify the host baseline after the reboot
       ansible.builtin.include_tasks: ../shared/verify_common.yml
+      vars:
+        xvpn_verify_expected_ports: ["80/tcp", "443/tcp"]
 
     - name: Verify the runtime after the reboot
       ansible.builtin.include_tasks: ../shared/verify_runtime.yml
+      vars:
+        xvpn_verify_unit: traefik.service
+        xvpn_verify_port: 80
+        xvpn_verify_http_status: 404
+
+    - name: Verify the edge after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_edge.yml
+      vars:
+        xvpn_verify_edge_domain: panel.xvpn.test

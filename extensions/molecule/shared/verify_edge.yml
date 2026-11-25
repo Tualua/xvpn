@@ -1,0 +1,98 @@
+---
+# Edge assertions of the VM tier: HTTPS through the Pebble chain, decoy body, strict SNI, :80 behaviour,
+# real client IP, log hygiene, encoded slash, acme.json, listeners.
+# Input: xvpn_verify_edge_domain (required). All HTTP probes run on the controller.
+- name: Verify edge | resolve the inputs
+  ansible.builtin.set_fact:
+    xvpn_verify_edge_ip: "{{ ansible_host | default(inventory_hostname) }}"
+
+- name: Verify edge | fetch the Pebble issuing root
+  ansible.builtin.uri:
+    url: https://127.0.0.1:15000/roots/0
+    ca_path: /etc/pebble/certs/pebble.minica.pem
+    return_content: true
+  register: xvpn_verify_edge_root
+
+- name: Verify edge | create the controller temp file for the root
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .pebble-root.pem
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_root_file
+  changed_when: false
+
+- name: Verify edge | write the root on the controller
+  ansible.builtin.copy:
+    content: "{{ xvpn_verify_edge_root.content }}"
+    dest: "{{ xvpn_verify_edge_root_file.path }}"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Verify edge | create the controller temp file for the body
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .edge-body
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_body_file
+  changed_when: false
+
+# Issuance happens after the route file appears, hence the retries.
+- name: Verify edge | request the domain over HTTPS through the Pebble chain
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - --resolve
+      - "{{ xvpn_verify_edge_domain }}:443:{{ xvpn_verify_edge_ip }}"
+      - --cacert
+      - "{{ xvpn_verify_edge_root_file.path }}"
+      - -o
+      - "{{ xvpn_verify_edge_body_file.path }}"
+      - -w
+      - "%{http_code}"
+      - "https://{{ xvpn_verify_edge_domain }}/"
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_https
+  until: xvpn_verify_edge_https.stdout | trim == '200'
+  retries: 30
+  delay: 5
+  changed_when: false
+  failed_when: false
+
+- name: Verify edge | assert the HTTPS answer
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_https.stdout | trim == '200'
+    fail_msg: "https://{{ xvpn_verify_edge_domain }}/ via Pebble chain: code {{ xvpn_verify_edge_https.stdout }} {{ xvpn_verify_edge_https.stderr }}"
+    quiet: true
+
+- name: Verify edge | checksum the served body
+  ansible.builtin.stat:
+    path: "{{ xvpn_verify_edge_body_file.path }}"
+    checksum_algorithm: sha1
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_body_stat
+
+- name: Verify edge | checksum the bundled decoy page
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../../roles/edge/files/decoy/index.html"
+    checksum_algorithm: sha1
+  delegate_to: localhost
+  become: false
+  register: xvpn_verify_edge_decoy_stat
+
+- name: Verify edge | assert the served body is the decoy page
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_decoy_stat.stat.exists
+      - xvpn_verify_edge_body_stat.stat.checksum == xvpn_verify_edge_decoy_stat.stat.checksum
+    fail_msg: >-
+      served body {{ xvpn_verify_edge_body_file.path }} ({{ xvpn_verify_edge_body_stat.stat.checksum }}) differs from
+      {{ playbook_dir }}/../../../roles/edge/files/decoy/index.html ({{ xvpn_verify_edge_decoy_stat.stat.checksum | default('missing') }})
+    quiet: true

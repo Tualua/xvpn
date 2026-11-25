@@ -37,8 +37,12 @@
         state: started
 
     - name: Capture SELinux policy diagnostics (informational, no assertion)
-      ansible.builtin.shell: |
-        seinfo --version; sestatus; ls -l /etc/selinux/targeted/policy/ /sys/fs/selinux/policy
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -o pipefail
+          seinfo --version; sestatus; ls -l /etc/selinux/targeted/policy/ /sys/fs/selinux/policy
+          semanage port -l | grep -Ew '80|443|3000|3010|14000|18080'
       register: xvpn_prepare_selinux_diag
       changed_when: false
       failed_when: false
@@ -82,6 +86,9 @@
           dontaudit rules still loaded after the dontaudit disable
           {{ xvpn_prepare_seinfo_after.stdout }}
         quiet: true
+
+    - name: Install Pebble and the mock DNS server (test CA for HTTP-01, QA-05)
+      ansible.builtin.include_tasks: tasks/pebble.yml
 
     - name: Create the molecule state directory
       ansible.builtin.file:

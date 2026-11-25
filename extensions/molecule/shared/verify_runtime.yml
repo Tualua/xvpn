@@ -1,13 +1,14 @@
 ---
 # Runtime, SELinux label, dontaudit-state and AVC assertions for the VM tier (real enforcing host).
-# Inputs: xvpn_verify_user (default rw-edge), xvpn_verify_unit (default xvpn-fixture.service),
-#         xvpn_verify_port (default 80).
+# Inputs: xvpn_verify_user (default rw-edge), xvpn_verify_unit (default traefik.service),
+#         xvpn_verify_port (default 80), xvpn_verify_http_status (default 200; status of a bare-IP request).
 # The AVC marker comes from extensions/molecule/vm/prepare.yml (/var/lib/xvpn-molecule/avc_marker).
 - name: Resolve the runtime verify inputs
   ansible.builtin.set_fact:
     xvpn_verify_rt_user: "{{ xvpn_verify_user | default('rw-edge') }}"
-    xvpn_verify_rt_unit: "{{ xvpn_verify_unit | default('xvpn-fixture.service') }}"
+    xvpn_verify_rt_unit: "{{ xvpn_verify_unit | default('traefik.service') }}"
     xvpn_verify_rt_port: "{{ xvpn_verify_port | default(80) }}"
+    xvpn_verify_rt_status: "{{ xvpn_verify_http_status | default(200) | int }}"
 
 - name: Read the service user account
   ansible.builtin.getent:
@@ -40,11 +41,11 @@
 - name: Answer on the port from the controller
   ansible.builtin.uri:
     url: "http://{{ ansible_host | default(inventory_hostname) }}:{{ xvpn_verify_rt_port }}/"
-    status_code: 200
+    status_code: "{{ xvpn_verify_rt_status | int }}"
   delegate_to: localhost
   become: false
   register: xvpn_verify_rt_http
-  until: xvpn_verify_rt_http.status == 200
+  until: xvpn_verify_rt_http.status == (xvpn_verify_rt_status | int)
   retries: 12
   delay: 5
 

@@ -1,0 +1,194 @@
+---
+# Pebble (ACME test CA) and challtestsrv (mock DNS) for the VM tier. Test-only, never shipped in a role (T-02-07).
+# Pins and sha256 values: 02-RESEARCH.md "Installation"; pitfalls: "Pebble specifics" (Pitfall 9).
+- name: Pebble | create the directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/pebble
+    - /etc/pebble/certs
+    - /etc/pebble/certs/localhost
+    - /opt/pebble
+
+- name: Pebble | download the release tarballs
+  ansible.builtin.get_url:
+    url: "https://github.com/letsencrypt/pebble/releases/download/v2.10.3/{{ item.name }}-linux-amd64.tar.gz"
+    dest: "/opt/pebble/{{ item.name }}-linux-amd64.tar.gz"
+    checksum: "sha256:{{ item.sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - name: pebble
+      sha256: 7e33cf3e426b67e9e647c44e8cc91683caa8ab331f7a99e5e27fcee291c4c7e2
+    - name: pebble-challtestsrv
+      sha256: 00b2c5ef525cd8ad56cda898a7cac6169a10b0fd3f2a7456fe0cec92e7b36cb6
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Pebble | download the test certificates
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/letsencrypt/pebble/v2.10.3/test/certs/{{ item.path }}"
+    dest: "/etc/pebble/certs/{{ item.path }}"
+    checksum: "sha256:{{ item.sha256 }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: pebble.minica.pem
+      sha256: 0c502e52627ff7de972c7e9e065640103b4589b4e2d23d3fcf21bef1e3c8c67c
+      mode: "0644"
+    - path: localhost/cert.pem
+      sha256: c87fb918d9bac8db11aa54493b5f0cf6e0725a3fe73f617d1c64737e1ab4caf9
+      mode: "0644"
+    - path: localhost/key.pem
+      sha256: 0977979255b0e0721c17335c056b627f66a43cf56e5a52f3cda81fb111ecf00e
+      mode: "0600"
+  loop_control:
+    label: "{{ item.path }}"
+
+# Archive layout (checked with tar -tzf): <name>-linux-amd64/linux/amd64/<name>
+- name: Pebble | unpack the release tarballs
+  ansible.builtin.unarchive:
+    src: "/opt/pebble/{{ item }}-linux-amd64.tar.gz"
+    dest: /opt/pebble
+    remote_src: true
+    creates: "/opt/pebble/{{ item }}-linux-amd64/linux/amd64/{{ item }}"
+  loop:
+    - pebble
+    - pebble-challtestsrv
+
+- name: Pebble | install the binaries
+  ansible.builtin.copy:
+    src: "/opt/pebble/{{ item }}-linux-amd64/linux/amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - pebble
+    - pebble-challtestsrv
+
+# httpPort 80: Pebble validates HTTP-01 against Traefik on :80 of the VM (Pitfall 9).
+- name: Pebble | write the configuration
+  ansible.builtin.copy:
+    content: |
+      {
+        "pebble": {
+          "listenAddress": "127.0.0.1:14000",
+          "managementListenAddress": "127.0.0.1:15000",
+          "certificate": "/etc/pebble/certs/localhost/cert.pem",
+          "privateKey": "/etc/pebble/certs/localhost/key.pem",
+          "httpPort": 80,
+          "tlsPort": 443,
+          "ocspResponderURL": "",
+          "externalAccountBindingRequired": false
+        }
+      }
+    dest: /etc/pebble/pebble-config.json
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Pebble | install the challtestsrv unit
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Pebble challenge test server (mock DNS only)
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/local/bin/pebble-challtestsrv -http01 "" -https01 "" -tlsalpn01 "" -doh "" \
+        -dnsserver 127.0.0.1:8053 -management 127.0.0.1:8055 -defaultIPv4 127.0.0.1 -defaultIPv6 ""
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/pebble-challtestsrv.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Pebble | install the pebble unit
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Pebble ACME test CA
+      After=network.target pebble-challtestsrv.service
+      Requires=pebble-challtestsrv.service
+
+      [Service]
+      Environment=PEBBLE_VA_NOSLEEP=1
+      Environment=PEBBLE_WFE_NONCEREJECT=0
+      ExecStart=/usr/local/bin/pebble -config /etc/pebble/pebble-config.json -dnsserver 127.0.0.1:8053
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/pebble.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Pebble | enable and start the services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - pebble-challtestsrv.service
+    - pebble.service
+
+- name: Pebble | wait for the ACME directory
+  ansible.builtin.uri:
+    url: https://127.0.0.1:14000/dir
+    ca_path: /etc/pebble/certs/pebble.minica.pem
+    status_code: 200
+  register: xvpn_prepare_pebble_dir
+  until: xvpn_prepare_pebble_dir.status == 200
+  retries: 30
+  delay: 2
+
+# AVC canary: a Pebble denial is reported here with its evidence, not only in the final zero-AVC gate.
+# The kernel truncates the challtestsrv comm to 15 characters; ausearch exits 1 with <no matches> when quiet.
+- name: Pebble | search for AVC records of the Pebble processes
+  ansible.builtin.command:
+    argv:
+      - ausearch
+      - -m
+      - AVC,USER_AVC
+      - -ts
+      - recent
+      - -c
+      - "{{ item }}"
+  loop:
+    - pebble
+    - pebble-challtes
+  register: xvpn_prepare_pebble_avc
+  changed_when: false
+  failed_when: false
+
+- name: Pebble | fail on AVC records of the Pebble processes
+  ansible.builtin.assert:
+    that:
+      - item.rc != 0
+    fail_msg: |-
+      AVC records for {{ item.item }} before converge (Pebble is test-only; this is a prepare defect, not a role defect):
+      {{ item.stdout }}
+    quiet: true
+  loop: "{{ xvpn_prepare_pebble_avc.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# Preflight resolves the domains with the host resolver and compares with the interface address (Pitfall 9).
+- name: Pebble | resolve the test domains to the VM address
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '\spanel\.xvpn\.test(\s|$)'
+    line: "{{ ansible_facts['default_ipv4']['address'] }} panel.xvpn.test sub.xvpn.test"

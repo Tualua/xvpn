@@ -1,27 +1,24 @@
 ---
-# No container-tier overrides: real firewalld, real user manager, home root stays the D-08 default.
-- name: Foundation
-  ansible.builtin.import_playbook: ../../../playbooks/foundation.yml
+# Real playbooks/panel.yml on the enforcing VM: real firewalld, real user manager, Pebble as the ACME CA.
+# include_vars persists for the host across the imported plays and is reused by side_effect.yml.
+- name: Load the VM-tier Panel values
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Load vars/panel.yml
+      ansible.builtin.include_vars: vars/panel.yml
+
+- name: Panel host
+  ansible.builtin.import_playbook: ../../../playbooks/panel.yml
   vars:
     ansible_pipelining: true
-    xvpn_common_firewall_ports: ["80/tcp"]
 
-- name: Deploy molecule fixture
+- name: Record the traefik unit invocation
   hosts: all
   become: true
   vars:
     ansible_pipelining: true
   tasks:
-    - name: Deploy and activate the fixture unit through the quadlet entry point
-      ansible.builtin.include_role:
-        name: xvpn.remnawave.podman_rootless
-        tasks_from: quadlet
-      vars:
-        xvpn_podman_rootless_quadlet_user: rw-edge
-        xvpn_podman_rootless_quadlet_activate: true
-        xvpn_podman_rootless_quadlet_specs:
-          - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-fixture.container.j2') | realpath }}"
-
     - name: Read the uid of the service user
       ansible.builtin.getent:
         database: passwd
@@ -29,7 +26,7 @@
 
     # D-10(c), unchanged-unit half: the first converge records the InvocationID,
     # the idempotence re-run must leave it unchanged (checked in side_effect.yml).
-    - name: Read the InvocationID of the fixture unit
+    - name: Read the InvocationID of the traefik unit
       ansible.builtin.command:
         argv:
           - systemctl
@@ -38,7 +35,7 @@
           - -p
           - InvocationID
           - --value
-          - xvpn-fixture.service
+          - traefik.service
       become: true
       become_user: rw-edge
       become_method: ansible.builtin.sudo
@@ -48,11 +45,11 @@
       changed_when: false
       check_mode: false
 
-    - name: Assert the fixture unit has an invocation
+    - name: Assert the traefik unit has an invocation
       ansible.builtin.assert:
         that:
           - xvpn_converge_invocation.stdout | trim | length > 0
-        fail_msg: "xvpn-fixture.service has no InvocationID after the converge; the unit did not start"
+        fail_msg: "traefik.service has no InvocationID after the converge; the unit did not start"
         quiet: true
 
     - name: Record the InvocationID after the first converge

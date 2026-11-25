@@ -18,6 +18,7 @@ platforms:
     box_architecture: amd64
     memory: 4096
     cpus: 2
+    groups: [remnawave_panel]
     # Rocky/Alma 10 need x86-64-v3 (RESEARCH Pitfall 10)
     provider_options:
       cpu_mode: host-passthrough
@@ -31,6 +32,7 @@ platforms:
     box_architecture: amd64
     memory: 4096
     cpus: 2
+    groups: [remnawave_panel]
     provider_options:
       cpu_mode: host-passthrough
 ansible:
