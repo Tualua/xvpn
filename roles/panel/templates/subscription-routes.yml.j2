@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Subscription-domain routers (D-12, D-17, SUB-01). The page is the public surface of its own domain, so there is no
+# cookie rule here: the admin gate protects the Panel domain only.
+http:
+  services:
+    xvpn-sub-page:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:{{ xvpn_panel_subpage_port_resolved }}"
+  routers:
+    xvpn-sub:
+      entryPoints: [websecure]
+      rule: "Host(`{{ xvpn_subscription_domain }}`)"
+      priority: 1
+      service: xvpn-sub-page
+      tls:
+        certResolver: le
+    xvpn-sub-http:
+      entryPoints: [web]
+      rule: "Host(`{{ xvpn_subscription_domain }}`)"
+      middlewares: [xvpn-to-https]
+      service: noop@internal

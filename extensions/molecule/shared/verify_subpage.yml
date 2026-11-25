@@ -1,0 +1,346 @@
+---
+# Subscription page verify for the VM tier (SUB-01, SUB-02). Run after verify_edge.yml in the same play: it reuses the
+# Pebble root file of the controller.
+# Inputs:
+#   xvpn_verify_subpage_domain       subscription domain (default sub.xvpn.test)
+#   xvpn_verify_subpage_expect_auth  true (default): the page holds a valid token, so probes A and B must pass.
+#                                    false: negative control with a deliberately wrong token, both probes must fail
+#                                    and the rejected-token outcome is fixed (probe B answers 502, no data-panel).
+# Probe A: the token inside the running page container is accepted by the Panel API (200).
+# Probe B: a browser-style request for the probe user (xvpn-molecule-probe, created here, test VM only) on the
+#          subscription domain returns that user's Panel data
+#          (HTTP 200 and a data-panel attribute whose base64 JSON says isFound with the probe user).
+# Every task that carries the token has no_log; labels and failure messages never contain it.
+- name: Verify subpage | require the edge verifier to have run
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_root_file is defined
+    fail_msg: "verify_subpage.yml must be included after verify_edge.yml (it provides the Pebble root file)"
+    quiet: true
+
+- name: Verify subpage | resolve the inputs
+  ansible.builtin.set_fact:
+    xvpn_vsp_domain: "{{ xvpn_verify_subpage_domain | default('sub.xvpn.test') }}"
+    xvpn_vsp_ip: "{{ ansible_host | default(inventory_hostname) }}"
+    xvpn_vsp_expect: "{{ xvpn_verify_subpage_expect_auth | default(true) | bool }}"
+    xvpn_vsp_user: rw-panel
+    xvpn_vsp_probe_user: xvpn-molecule-probe
+    xvpn_vsp_decoy: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../../roles/edge/files/decoy/index.html') | trim }}"
+    xvpn_vsp_rand: "xvpn-probe-{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=16) }}"
+
+- name: Verify subpage | read the uid of the service user
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ xvpn_vsp_user }}"
+  register: xvpn_vsp_uid
+  changed_when: false
+
+- name: Verify subpage | set the user manager runtime directory
+  ansible.builtin.set_fact:
+    xvpn_vsp_env:
+      XDG_RUNTIME_DIR: "/run/user/{{ xvpn_vsp_uid.stdout | trim }}"
+
+# Step 0: the 8.0.1 / 3.4.11 pair (A8) is checked first, so an incompatibility shows as itself and not as a probe failure.
+- name: Verify subpage | wait for the subscription page unit
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - is-active
+      - remnawave-subscription-page.service
+  become: true
+  become_user: "{{ xvpn_vsp_user }}"
+  become_method: ansible.builtin.sudo
+  environment: "{{ xvpn_vsp_env }}"
+  register: xvpn_vsp_active
+  until: xvpn_vsp_active.stdout | trim == 'active'
+  retries: 24
+  delay: 5
+  changed_when: false
+  failed_when: false
+  when: xvpn_vsp_expect | bool
+
+- name: Verify subpage | collect the start-up diagnostics of a page that did not start
+  when:
+    - xvpn_vsp_expect | bool
+    - xvpn_vsp_active.stdout | default('') | trim != 'active'
+  block:
+    - name: Verify subpage | read the unit journal
+      ansible.builtin.command:
+        argv:
+          - journalctl
+          - --no-pager
+          - -n
+          - "50"
+          - "_UID={{ xvpn_vsp_uid.stdout | trim }}"
+          - _SYSTEMD_USER_UNIT=remnawave-subscription-page.service
+      register: xvpn_vsp_journal
+      changed_when: false
+      failed_when: false
+
+    - name: Verify subpage | read the container log
+      ansible.builtin.command:
+        argv:
+          - podman
+          - logs
+          - --tail
+          - "30"
+          - remnawave-subscription-page
+      become: true
+      become_user: "{{ xvpn_vsp_user }}"
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_vsp_env }}"
+      register: xvpn_vsp_clog
+      changed_when: false
+      failed_when: false
+
+    - name: Verify subpage | fail with the filtered diagnostics
+      ansible.builtin.fail:
+        msg: >-
+          subscription-page did not start: check the 8.0.1/3.4.11 version pair (A8).
+          {{ ((xvpn_vsp_journal.stdout_lines | default([])) + (xvpn_vsp_clog.stdout_lines | default([]))
+              + (xvpn_vsp_clog.stderr_lines | default([])))
+             | reject('search', '(?i)token|bearer|authorization|jwt') | join(' | ') }}
+
+- name: Verify subpage | report the Panel connection line of the page start-up
+  ansible.builtin.command:
+    argv:
+      - podman
+      - logs
+      - --tail
+      - "50"
+      - remnawave-subscription-page
+  become: true
+  become_user: "{{ xvpn_vsp_user }}"
+  become_method: ansible.builtin.sudo
+  environment: "{{ xvpn_vsp_env }}"
+  register: xvpn_vsp_startlog
+  changed_when: false
+  failed_when: false
+  when: xvpn_vsp_expect | bool
+
+- name: Verify subpage | show the start-up connection line
+  ansible.builtin.debug:
+    msg: >-
+      {{ (xvpn_vsp_startlog.stdout_lines | default([]) + xvpn_vsp_startlog.stderr_lines | default([]))
+         | select('search', '(?i)connected') | reject('search', '(?i)token|bearer|authorization|jwt') | list }}
+  when: xvpn_vsp_expect | bool
+
+# Step 1: static checks, only while the page is expected to run.
+- name: Verify subpage | static checks
+  when: xvpn_vsp_expect | bool
+  block:
+    - name: Verify subpage | stat the env file
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-panel/env/subpage.env
+      register: xvpn_vsp_env_stat
+
+    - name: Verify subpage | assert the env file is private to the service user
+      ansible.builtin.assert:
+        that:
+          - xvpn_vsp_env_stat.stat.exists
+          - xvpn_vsp_env_stat.stat.pw_name == 'rw-panel'
+          - xvpn_vsp_env_stat.stat.mode == '0600'
+        fail_msg: "subpage.env is missing, not owned by rw-panel or not mode 0600"
+        quiet: true
+
+    - name: Verify subpage | list the listeners of the page port
+      ansible.builtin.command:
+        argv:
+          - ss
+          - -H
+          - -ltn
+          - sport = :3010
+      register: xvpn_vsp_ss
+      changed_when: false
+
+    - name: Verify subpage | assert the page listens on loopback only
+      ansible.builtin.assert:
+        that:
+          - xvpn_vsp_ss.stdout_lines | length > 0
+          - xvpn_vsp_ss.stdout_lines | reject('search', '\s127\.0\.0\.1:3010\s') | list | length == 0
+        fail_msg: "the subscription page port 3010 is not bound to 127.0.0.1 only: {{ xvpn_vsp_ss.stdout_lines }}"
+        quiet: true
+
+    - name: Verify subpage | request an unknown path over HTTPS through the Pebble chain
+      ansible.builtin.command:
+        argv:
+          - curl
+          - -sS
+          - --resolve
+          - "{{ xvpn_vsp_domain }}:443:{{ xvpn_vsp_ip }}"
+          - --cacert
+          - "{{ xvpn_verify_edge_root_file.path }}"
+          - -w
+          - __CODE__%{http_code}
+          - "https://{{ xvpn_vsp_domain }}/{{ xvpn_vsp_rand }}"
+      delegate_to: localhost
+      become: false
+      register: xvpn_vsp_unknown
+      until: xvpn_vsp_unknown.rc == 0 and (xvpn_vsp_unknown.stdout.split('__CODE__')[1] | default('0') | trim) not in ['0', '000']
+      retries: 30
+      delay: 5
+      changed_when: false
+      failed_when: false
+
+    - name: Verify subpage | assert the answer is the page, neither the decoy nor Traefik's 404
+      ansible.builtin.assert:
+        that:
+          - xvpn_vsp_unknown.rc == 0
+          - xvpn_vsp_unknown.stdout.split('__CODE__') | length == 2
+          - (xvpn_vsp_unknown.stdout.split('__CODE__')[0] | trim) != xvpn_vsp_decoy
+          - (xvpn_vsp_unknown.stdout.split('__CODE__')[0] | trim) != '404 page not found'
+          - (xvpn_vsp_unknown.stdout.split('__CODE__')[1] | trim | int) > 0
+          - (xvpn_vsp_unknown.stdout.split('__CODE__')[1] | trim | int) < 500
+        fail_msg: >-
+          https://{{ xvpn_vsp_domain }}/ is not served by the subscription page (curl rc {{ xvpn_vsp_unknown.rc }},
+          code {{ xvpn_vsp_unknown.stdout.split('__CODE__')[1] | default('?') }}, {{ xvpn_vsp_unknown.stderr }})
+        quiet: true
+
+# Step 2: the probe user fixture (test VM only; the roles never create users).
+- name: Verify subpage | read the API token
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn/rw-panel/secrets/api-token
+  register: xvpn_vsp_token_slurp
+  no_log: true
+
+- name: Verify subpage | look up the probe user
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:3000/api/users/by-username/{{ xvpn_vsp_probe_user }}"
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_vsp_token_slurp.content | b64decode | trim }}"
+    return_content: true
+    status_code: [200, 400, 404]
+  register: xvpn_vsp_lookup
+  changed_when: false
+  no_log: true
+
+- name: Verify subpage | create the probe user when it is missing
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/users
+    method: POST
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_vsp_token_slurp.content | b64decode | trim }}"
+    body_format: json
+    body:
+      username: "{{ xvpn_vsp_probe_user }}"
+      expireAt: "2099-01-01T00:00:00.000Z"
+    return_content: true
+    status_code: [200, 201]
+  register: xvpn_vsp_create
+  changed_when: true
+  no_log: true
+  when: xvpn_vsp_lookup.status != 200
+
+- name: Verify subpage | keep the short uuid of the probe user
+  ansible.builtin.set_fact:
+    xvpn_vsp_short: "{{ (xvpn_vsp_lookup if xvpn_vsp_create is skipped else xvpn_vsp_create).json.response.shortUuid }}"
+  no_log: true
+
+# Step 3: probe A.
+- name: Verify subpage | read the token held by the page container
+  ansible.builtin.command:
+    cmd: podman exec remnawave-subscription-page printenv REMNAWAVE_API_TOKEN
+  become: true
+  become_user: "{{ xvpn_vsp_user }}"
+  become_method: ansible.builtin.sudo
+  environment: "{{ xvpn_vsp_env }}"
+  register: xvpn_vsp_held
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify subpage | ask the Panel API with the token of the page
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/nodes
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_vsp_held.stdout | trim }}"
+    status_code: [200, 400, 401, 403, 404, 500, -1]
+  register: xvpn_vsp_a
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when:
+    - xvpn_vsp_held.rc == 0
+    - xvpn_vsp_held.stdout | trim | length > 0
+
+# Step 4: probe B. With the expectation true it waits for a 200, with false for any other answer.
+- name: Verify subpage | request the subscription page of the probe user as a browser
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - --resolve
+      - "{{ xvpn_vsp_domain }}:443:{{ xvpn_vsp_ip }}"
+      - --cacert
+      - "{{ xvpn_verify_edge_root_file.path }}"
+      - -A
+      - Mozilla/5.0 (X11; Linux x86_64) xvpn-molecule
+      - -H
+      - "Accept: text/html"
+      - -w
+      - __CODE__%{http_code}
+      - "https://{{ xvpn_vsp_domain }}/{{ xvpn_vsp_short }}"
+  delegate_to: localhost
+  become: false
+  register: xvpn_vsp_b
+  until: >-
+    (xvpn_vsp_b.stdout.split('__CODE__')[1] | default('0') | trim == '200')
+    if (xvpn_vsp_expect | bool)
+    else (xvpn_vsp_b.stdout.split('__CODE__')[1] | default('0') | trim not in ['200'])
+  retries: 12
+  delay: 5
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify subpage | evaluate the answer of probe B
+  ansible.builtin.set_fact:
+    xvpn_vsp_b_code: "{{ xvpn_vsp_b.stdout.split('__CODE__')[1] | default('0') | trim }}"
+    xvpn_vsp_b_attr: "{{ xvpn_vsp_b.stdout.split('__CODE__')[0] | regex_findall('data-panel=\"([A-Za-z0-9+/=]+)\"') | first | default('', true) }}"
+  no_log: true
+
+- name: Verify subpage | decode the data-panel attribute
+  ansible.builtin.set_fact:
+    xvpn_vsp_b_data: "{{ xvpn_vsp_b_attr | b64decode | from_json if xvpn_vsp_b_attr | length > 0 else {} }}"
+  no_log: true
+
+- name: Verify subpage | judge the probes
+  ansible.builtin.set_fact:
+    xvpn_vsp_a_ok: "{{ xvpn_vsp_a is not skipped and (xvpn_vsp_a.status | default(0)) == 200 }}"
+    xvpn_vsp_b_ok: >-
+      {{ xvpn_vsp_b_code == '200'
+         and (xvpn_vsp_b_data.response.isFound | default(false)) | bool
+         and xvpn_vsp_b_data.response.user.username | default('') == xvpn_vsp_probe_user
+         and xvpn_vsp_b_data.response.user.shortUuid | default('') == xvpn_vsp_short }}
+  no_log: true
+
+- name: Verify subpage | assert the probes agree with the expectation
+  ansible.builtin.assert:
+    that:
+      - (xvpn_vsp_a_ok | bool and xvpn_vsp_b_ok | bool) == (xvpn_vsp_expect | bool)
+    fail_msg: >-
+      subscription page authentication disagrees with the expectation (expected {{ xvpn_vsp_expect }}):
+      probe A (token accepted by the Panel) {{ xvpn_vsp_a_ok }}, probe B (authenticated lookup through the page)
+      {{ xvpn_vsp_b_ok }}, probe B status {{ xvpn_vsp_b_code }}
+    quiet: true
+
+- name: Verify subpage | assert the fixed rejected-token outcome of the negative control
+  ansible.builtin.assert:
+    that:
+      - not (xvpn_vsp_a_ok | bool)
+      - xvpn_vsp_b_code == '502'
+      - xvpn_vsp_b_attr | length == 0
+    fail_msg: >-
+      the rejected-token outcome differs from the verified contract: probe B status {{ xvpn_vsp_b_code }}
+      (expected 502), data-panel attribute present {{ xvpn_vsp_b_attr | length > 0 }}, probe A {{ xvpn_vsp_a_ok }}
+    quiet: true
+  when: not (xvpn_vsp_expect | bool)

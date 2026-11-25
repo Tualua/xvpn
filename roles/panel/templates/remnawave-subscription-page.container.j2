@@ -1,0 +1,28 @@
+[Unit]
+Description=xvpn Panel Remnawave subscription page
+Requires=remnawave.service
+After=remnawave.service
+
+[Container]
+Image={{ xvpn_panel_subscription_image }}
+ContainerName=remnawave-subscription-page
+HostName=remnawave-subscription-page
+Network=remnawave.network
+PublishPort=127.0.0.1:{{ xvpn_panel_subscription_port }}:{{ xvpn_panel_subscription_port }}
+EnvironmentFile={{ xvpn_panel_env_dir }}/subpage.env
+HealthCmd=curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:{{ xvpn_panel_subscription_port }}/internal/health
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=10
+HealthStartPeriod=30s
+Notify=healthy
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

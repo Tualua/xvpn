@@ -6,6 +6,9 @@ xvpn_panel_domain: ""
 xvpn_subscription_domain: ""
 # Deploy the subscription page next to the Panel (D-17).
 xvpn_panel_subscription_enabled: true
+# Subscription page image with an exact tag (D-17) and its loopback port behind Traefik.
+xvpn_panel_subscription_image: docker.io/remnawave/subscription-page:8.0.1
+xvpn_panel_subscription_port: 3010
 
 # Service user that owns the Panel stack (rootless Podman, created by xvpn.remnawave.podman_rootless).
 xvpn_panel_user: rw-panel

@@ -53,3 +53,6 @@
 
     - name: Verify the Panel gate after the reboot
       ansible.builtin.include_tasks: ../shared/verify_gate.yml
+
+    - name: Verify the subscription page after the reboot
+      ansible.builtin.include_tasks: ../shared/verify_subpage.yml

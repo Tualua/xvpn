@@ -15,6 +15,14 @@ argument_specs:
         description: Deploy the subscription page.
         type: bool
         default: true
+      xvpn_panel_subscription_image:
+        description: Subscription page image with an exact tag.
+        type: str
+        default: docker.io/remnawave/subscription-page:8.0.1
+      xvpn_panel_subscription_port:
+        description: Loopback port of the subscription page behind Traefik.
+        type: int
+        default: 3010
       xvpn_panel_user:
         description: Service user that owns the Panel stack.
         type: str
