@@ -5,15 +5,15 @@ titles: json
 findings:
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Регэксп `home_root` пропускает завершающий перевод строки"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Ужесточение регэкспа ломает корни с точкой в имени"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: skipped
     title: "Гейт `getenforce` стоит до установки `libselinux-utils`"
   - id: WR-01
     severity: warning
@@ -59,18 +59,18 @@ findings:
     severity: info
     disposition: fixed
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 3
+open: 0
 total: 14
-recorded: 2026-11-25T01:29:08.006Z
+recorded: 2026-11-25T01:37:31.542Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
+| IN-01 | info | fixed | 01-REVIEW-FIX.md |
+| IN-02 | info | fixed | 01-REVIEW-FIX.md |
+| IN-03 | info | skipped | 01-REVIEW-FIX.md |
 | WR-01 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | WR-02 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | WR-03 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
