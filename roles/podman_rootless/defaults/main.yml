@@ -2,7 +2,7 @@
 # Rootless service users, one per trust domain (D-07). Phases 2-4 append rw-panel, rw-node.
 xvpn_podman_rootless_users:
   - name: rw-edge
-# Parent of the service user homes (D-08).
+# Parent of the service user homes (D-08). Segments may contain only [A-Za-z0-9_-] (no dots); system directories are rejected.
 xvpn_podman_rootless_home_root: /var/lib/xvpn
 # Required on every EL10 minor admitted by the Podman 5.4 preflight floor.
 xvpn_podman_rootless_packages:

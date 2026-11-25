@@ -18,7 +18,9 @@ argument_specs:
             description: Optional explicit uid, must be >= 1000.
             type: int
       xvpn_podman_rootless_home_root:
-        description: Parent directory of the service user homes.
+        description: >-
+          Parent directory of the service user homes. Absolute path whose segments may contain only
+          [A-Za-z0-9_-] (no dots), and not a system directory such as /usr, /var or /home.
         type: str
         default: /var/lib/xvpn
       xvpn_podman_rootless_packages:
