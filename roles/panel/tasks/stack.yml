@@ -81,6 +81,9 @@
           set -o pipefail
           podman ps -a --format '{{ '{{' }}.Names{{ '}}' }} {{ '{{' }}.Status{{ '}}' }}'
           for c in remnawave-db remnawave-redis remnawave; do echo "== $c"; podman logs --tail 20 "$c" 2>&1; done
+          echo "== redis command"
+          podman inspect --format '{{ '{{' }}json .Config.Cmd{{ '}}' }} {{ '{{' }}json .Config.Entrypoint{{ '}}' }}' remnawave-redis 2>&1
+          grep -h '^ExecStart' "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}/systemd/generator/remnawave-redis.service" 2>&1
         executable: /bin/bash
       become: true
       become_user: "{{ xvpn_panel_user }}"
