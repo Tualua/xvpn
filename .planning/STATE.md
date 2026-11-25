@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
+milestone: v3.7.20
 current_phase: 2
 current_phase_name: Panel за Traefik с защищённым входом
-status: planning
+status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-11-25T02:36:15.914Z"
+last_updated: "2026-11-25T05:19:19.608Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 5f4cfc564a19a738c41ab480c063992bc74e4c4b
+state_head: "0bf4be5a97fcd417db70207135675e382f9ef6b8"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 12
+  total_plans: 22
   completed_plans: 12
-  percent: 20
 ---
 
 # Project State
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: 2 — Panel за Traefik с защищённым входом
+Phase: 2 (Panel за Traefik с защищённым входом) — READY TO EXECUTE
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-11-25 — Phase 01 complete, transitioned to Phase 2
 
 Progress: [██░░░░░░░░] 20%
@@ -97,7 +97,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 2 (HIGH RISK): cookie/secret-path admin gate in pure Traefik (no plugins) is unproven; user chose it for v1 with no IP-allowlist fallback (allowlist is PANEL-V2-01). Spike early; if infeasible, escalate to user.
+- Phase 2 (HIGH RISK, reduced): cookie/secret-path admin gate in pure Traefik was proven in the research spike (Traefik 3.7.19 + Pebble); remaining risk is SELinux AVCs for Traefik `Network=host` (A1/A2) — escalate via checkpoint:decision, never a silent boolean.
+- [Phase 2 plan-phase] Plan-checker override accepted by user (2026-11-25): 02-08 Task 3 gitleaks scan has known residual DOC-04 bypasses — (a) the `xvpn-secret-key-pathlike` FHS-path allowlist matches case-insensitively, so a value like `/var/<base64>` under a `*_file/_dir/_path` key is not flagged; (b) upstream global allowlist/stopwords pulled in by `useDefault = true` (e.g. substrings `false`, `null`, prefix `changeme`) can suppress `xvpn-secret-key` findings without the fixture marker, contrary to the plan's must_haves/T-02-35 wording; (c) secret-named keys with other suffixes (e.g. `_file_v2`) are not scanned. Executor of 02-08 should make the path exemption case-sensitive (or require a file-suffix discriminator), add a self-test case `/var/` + mixed-case base64 (expect exit 3), and correct the must_haves/T-02-35 wording — validating against the real gitleaks 8.30.1 binary. Checker evidence: plan-phase session scratchpad (not persisted).
 - Phase 3 (HIGH RISK): Reality -> Traefik loopback TLS self-steal has no verified precedent; spike with hand-written configs first; fallback is revisiting the Traefik decision.
 - Phase 3: Remnawave REST contract must be read from the pinned backend 3.4.11 OpenAPI before writing modules.
 - [Phase 1] Follow-up: make `molecule-vm` a required check on main (deferred policy item).
