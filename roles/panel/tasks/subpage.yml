@@ -122,6 +122,8 @@
           - template_src: "{{ role_path }}/templates/remnawave-subscription-page.container.j2"
             state: absent
 
+    # The LSR cleanup always talks to the user manager (stop, reload, podman rm), which does not exist where nothing
+    # was ever started (xvpn_panel_activate false, container tier): there only the unit file needs to go.
     - name: Panel subpage | remove the subscription page unit
       ansible.builtin.include_role:
         name: xvpn.remnawave.podman_rootless
@@ -130,6 +132,13 @@
         xvpn_podman_rootless_quadlet_user: "{{ xvpn_panel_user }}"
         xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_subpage_quadlet_specs }}"
         xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
+      when: xvpn_panel_activate | bool
+
+    - name: Panel subpage | remove the subscription page unit file (nothing was started)
+      ansible.builtin.file:
+        path: "{{ xvpn_panel_home }}/.config/containers/systemd/remnawave-subscription-page.container"
+        state: absent
+      when: not (xvpn_panel_activate | bool)
 
     - name: Panel subpage | remove the subscription page env file (it holds the API token)
       ansible.builtin.file:
