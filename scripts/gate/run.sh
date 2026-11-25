@@ -72,6 +72,8 @@ c87fb918d9bac8db11aa54493b5f0cf6e0725a3fe73f617d1c64737e1ab4caf9  pebble/certs/l
 SUMS
   tar -xzf dl/pebble.tar.gz -C dl
   tar -xzf dl/challtestsrv.tar.gz -C dl
+  # The release archives carry the binaries without the execute bit.
+  chmod +x dl/pebble-linux-amd64/linux/amd64/pebble dl/pebble-challtestsrv-linux-amd64/linux/amd64/pebble-challtestsrv
 )
 cp "$WORK/pebble/certs/pebble.minica.pem" "$WORK/ca/ca.pem"
 cat >"$WORK/pebble/config.json" <<JSON
@@ -141,7 +143,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 if [ ! -s "$WORK/root.pem" ]; then
-  tail -20 "$WORK/pebble.log" "$WORK/challtestsrv.log" || true
+  for f in pebble.log challtestsrv.log; do echo "--- $f"; tail -n 20 "$WORK/$f" || true; done
   curl -sS --cacert "$WORK/pebble/certs/pebble.minica.pem" https://127.0.0.1:15000/roots/0 2>&1 | tail -3 || true
   echo "FAIL pebble-root"
   exit 1
