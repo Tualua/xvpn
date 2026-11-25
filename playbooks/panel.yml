@@ -1,0 +1,34 @@
+---
+- name: Panel preflight (read-only)
+  hosts: "{{ xvpn_panel_hosts_group | default('remnawave_panel') }}"
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  tags: [preflight]
+  vars:
+    # Plan 02-04 adds the subscription domain
+    xvpn_preflight_domains: "{{ [xvpn_panel_domain] }}"
+  pre_tasks:
+    - name: Require the Panel domain before any check
+      ansible.builtin.assert:
+        that:
+          - xvpn_panel_domain | default('') | length > 0
+        fail_msg: "xvpn_panel_domain is required: set the Panel FQDN in the inventory"
+        quiet: true
+  roles:
+    - xvpn.remnawave.preflight
+
+- name: Panel host
+  hosts: "{{ xvpn_panel_hosts_group | default('remnawave_panel') }}"
+  become: true
+  gather_facts: true
+  vars:
+    xvpn_common_firewall_ports: ["80/tcp", "443/tcp"]
+    xvpn_podman_rootless_users:
+      - name: rw-edge
+      - name: rw-panel
+  roles:
+    - xvpn.remnawave.common
+    - xvpn.remnawave.podman_rootless
+    - xvpn.remnawave.edge
+    - xvpn.remnawave.panel

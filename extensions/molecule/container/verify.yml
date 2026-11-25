@@ -15,6 +15,7 @@
       ansible.builtin.include_tasks: ../shared/verify_common.yml
       vars:
         xvpn_verify_firewall_cmd: firewall-offline-cmd
+        xvpn_verify_expected_ports: ["80/tcp", "443/tcp"]
 
     # xvpn_negative_case: broken-unit
     - name: Negative case broken-unit
@@ -299,6 +300,26 @@
       loop: "{{ xvpn_verify_edge_files.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+    - name: Stat the Panel route file
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-edge/traefik/dynamic/panel.yml
+      register: xvpn_verify_panel_route
+
+    - name: Read the Panel route file
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/traefik/dynamic/panel.yml
+      register: xvpn_verify_panel_routes
+
+    - name: Assert the Panel route file holds the decoy router
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_panel_route.stat.exists
+          - xvpn_verify_panel_route.stat.pw_name == 'rw-edge'
+          - xvpn_verify_panel_route.stat.mode == '0600'
+          - "'xvpn-panel-decoy' in (xvpn_verify_panel_routes.content | b64decode)"
+        fail_msg: "panel.yml is missing, not 0600 rw-edge, or lacks xvpn-panel-decoy"
+        quiet: true
 
     # xvpn_negative_case: edge-custom-ca-without-server
     - name: Negative case edge-custom-ca-without-server

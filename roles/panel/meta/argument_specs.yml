@@ -1,0 +1,9 @@
+---
+argument_specs:
+  main:
+    short_description: Remnawave Panel stack, bootstrap and gate (routes only so far)
+    options:
+      xvpn_panel_domain:
+        description: Public FQDN of the Panel, lowercase, not an example.* placeholder.
+        type: str
+        required: true

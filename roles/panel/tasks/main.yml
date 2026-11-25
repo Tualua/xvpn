@@ -1,0 +1,12 @@
+---
+# Domains are operator input, not secrets, so they are echoed in the failure message.
+- name: Panel | validate the Panel domain
+  ansible.builtin.assert:
+    that:
+      - xvpn_panel_domain is regex('^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?[.])+[a-z]{2,63}$')
+      - not (xvpn_panel_domain is regex('(^|[.])example[.](com|org|net)$'))
+    fail_msg: "xvpn_panel_domain must be a real lowercase FQDN, got '{{ xvpn_panel_domain }}'"
+    quiet: true
+
+- name: Panel | publish the Panel-domain routes through the edge
+  ansible.builtin.include_tasks: routes.yml

@@ -1,0 +1,13 @@
+---
+# role_path is resolved here, before the include: inside an include_role vars block it would be the edge role's.
+- name: Panel | resolve the route template path
+  ansible.builtin.set_fact:
+    xvpn_panel_routes_src: "{{ role_path }}/templates/panel-routes.yml.j2"
+
+- name: Panel | write the Panel-domain route file
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.edge
+    tasks_from: route
+  vars:
+    xvpn_edge_route_name: panel
+    xvpn_edge_route_src: "{{ xvpn_panel_routes_src }}"

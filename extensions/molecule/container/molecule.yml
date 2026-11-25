@@ -8,12 +8,14 @@ platforms:
     command: /usr/sbin/init
     systemd: always
     privileged: true
+    groups: [remnawave_panel]
   - name: alma10
     image: docker.io/almalinux/10-init:10
     pre_build_image: true
     command: /usr/sbin/init
     systemd: always
     privileged: true
+    groups: [remnawave_panel]
 ansible:
   executor:
     backend: ansible-playbook

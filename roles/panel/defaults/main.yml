@@ -1,0 +1,3 @@
+---
+# Public FQDN of the Remnawave Panel (D-12). Required, no default: the role fails on an empty value.
+xvpn_panel_domain: ""

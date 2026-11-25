@@ -1,13 +1,21 @@
 ---
-- name: Foundation
-  ansible.builtin.import_playbook: ../../../playbooks/foundation.yml
+- name: Panel host
+  ansible.builtin.import_playbook: ../../../playbooks/panel.yml
   vars:
     ansible_pipelining: true
     # user-manager start/wait is intentionally off in the container tier; proven only by the VM tier (Plans 11-12)
     xvpn_podman_rootless_manage_user_manager: false
-    # no running firewalld in the container tier (RESEARCH Pattern 4); the fixture's port is owned by Phase 2 Traefik later
+    # no running firewalld in the container tier (RESEARCH Pattern 4)
     xvpn_common_firewalld_offline: true
-    xvpn_common_firewall_ports: ["80/tcp"]
+    # no DNS in the container tier
+    xvpn_preflight_dns_check: false
+    # render + generator dry-run only (D-14)
+    xvpn_edge_activate: false
+    xvpn_panel_domain: panel.xvpn.test
+    # forward wiring: consumed from Plan 02-04 on, do not remove
+    xvpn_subscription_domain: sub.xvpn.test
+    # CI never talks to production Let's Encrypt (QA-05)
+    xvpn_edge_acme_ca: staging
 
 - name: Deploy molecule fixture
   hosts: all
@@ -24,17 +32,3 @@
         xvpn_podman_rootless_quadlet_activate: false
         xvpn_podman_rootless_quadlet_specs:
           - template_src: "{{ (playbook_dir ~ '/../shared/templates/xvpn-fixture.container.j2') | realpath }}"
-
-- name: Edge role (render only)
-  hosts: all
-  become: true
-  vars:
-    ansible_pipelining: true
-  tasks:
-    - name: Render the edge units and configuration without starting them
-      ansible.builtin.include_role:
-        name: xvpn.remnawave.edge
-      vars:
-        # render + generator dry-run only (D-14); CI never talks to production Let's Encrypt (QA-05)
-        xvpn_edge_activate: false
-        xvpn_edge_acme_ca: staging

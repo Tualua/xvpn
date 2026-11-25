@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Panel-domain routers (D-01, D-12, D-15). The decoy is the catch-all of the Panel domain; later plans add the gate routers.
+http:
+  routers:
+    xvpn-panel-decoy:
+      entryPoints: [websecure]
+      rule: "Host(`{{ xvpn_panel_domain }}`)"
+      priority: 1
+      service: xvpn-decoy
+      tls:
+        certResolver: le
+    # accessLogs false: a request to http://<panel-domain>/<gate_path> must not write the secret path to the access log
+    # before the redirect. The plain-HTTP redirect carries no data, so losing its log line costs nothing.
+    xvpn-panel-http:
+      entryPoints: [web]
+      rule: "Host(`{{ xvpn_panel_domain }}`)"
+      middlewares: [xvpn-to-https]
+      service: noop@internal
+      observability:
+        accessLogs: false
