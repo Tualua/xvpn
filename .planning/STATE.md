@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
 milestone: v3.7.20
-current_phase: 2
+current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-11-25T07:30:18.420Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-11-25T08:11:35.961Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 37951b97231e31daeb030a67073338b1a072be71
+last_activity_desc: Phase 02 execution started
+state_head: de1479e1871a9ccb061ecaeb2738bf4d5f6511ac
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 23
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** Из inventory одной командой получается рабочая, защищённая и идемпотентная инсталляция Remnawave на RHEL 10 с SELinux enforcing: Panel за прокси с защищённым входом, ноды авто-регистрируются через API, Reality self-steal.
-**Current focus:** Phase 2 — Panel за Traefik с защищённым входом
+**Current focus:** Phase 02 — Panel за Traefik с защищённым входом
 
 ## Current Position
 
-Phase: 2 (Panel за Traefik с защищённым входом) — READY TO EXECUTE
-Plan: Not started
+Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
+Plan: 2 of 11
 Status: Ready to execute
-Last activity: 2026-11-25 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-11-25 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 20%
 
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01 P11 | 25 min | 2 tasks | 6 files |
 | Phase 01 P10 | 10min | 1 tasks | 1 files |
 | Phase 01 P12 | 3h | 2 tasks | 5 files |
+| Phase 02 P01 | 45 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: failed case messages recorded as to_json of ansible_failed_result (loop asserts)
 - [Phase 01]: VM boxes pinned via community.vagrant box_download_checksum(_type); box_checksum is not a driver key
 - [Phase 01]: 01-12: alma10 box via Vagrant Cloud catalog mode (pinned version); Dontaudit parsed with (?:^|\s) regex; policy packages installed in prepare before semodule -DB
+- [Phase 02]: Traefik pinned to v3.7.20 (three advisories fixed over v3.7.19); container tier always uses the staging ACME CA
+- [Phase 02]: Traefik access log drops RequestPath and all headers except User-Agent (D-19)
 
 ### Pending Todos
 
@@ -114,6 +117,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-25T02:36:15.800Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-CONTEXT.md
+Last session: 2026-11-25T08:11:35.833Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
