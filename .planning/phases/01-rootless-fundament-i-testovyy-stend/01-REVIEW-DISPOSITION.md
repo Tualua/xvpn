@@ -3,6 +3,18 @@ phase: 01
 review: 01-REVIEW.md
 titles: json
 findings:
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "Регэксп `home_root` пропускает завершающий перевод строки"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "Ужесточение регэкспа ломает корни с точкой в имени"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "Гейт `getenforce` стоит до установки `libselinux-utils`"
   - id: WR-01
     severity: warning
     disposition: fixed
@@ -19,14 +31,6 @@ findings:
     severity: warning
     disposition: fixed
     title: "Негативный контроль «порт 79 привилегирован» ломается при допустимых значениях sysctl"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "Ветка AAAA в `check_dns.yml` не получила того же укрепления, что A-ветка (WR-07)"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "В verify зашиты пользователь и домашний путь при параметризованном sysctl"
   - id: WR-05
     severity: warning
     disposition: fixed
@@ -43,10 +47,6 @@ findings:
     severity: warning
     disposition: skipped
     title: "Воркфлоу `molecule-vm` ставит vagrant-libvirt и ключ HashiCorp без проверки отпечатка и запускается на каждом PR"
-  - id: IN-03
-    severity: info
-    disposition: fixed
-    title: "SSH-гейт использует `ansible_port` контроллера, а не порт sshd на целевом хосте"
   - id: IN-04
     severity: info
     disposition: fixed
@@ -59,26 +59,26 @@ findings:
     severity: info
     disposition: fixed
     title: "Дублирование запусков CI и строгие `suboptions` спецификации"
-open: 2
+open: 3
 total: 14
-recorded: 2026-11-24T11:57:30.780Z
+recorded: 2026-11-25T01:29:08.006Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-02 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-03 | warning | fixed | 01-REVIEW-FIX.md |
-| WR-04 | warning | fixed | 01-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
+| IN-03 | info | open | - |
+| WR-01 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| WR-02 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| WR-03 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
+| WR-04 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | WR-05 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | WR-06 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | WR-07 | warning | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | WR-08 | warning | skipped | 01-REVIEW-FIX.md (not in the current review) |
-| IN-03 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | IN-04 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | IN-05 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
 | IN-06 | info | fixed | 01-REVIEW-FIX.md (not in the current review) |
