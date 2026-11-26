@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`xvpn_panel_failure_log_dir` is a user-overridable path that is forced to root:root 0700 with no validation"
   - id: IN-01
     severity: info
@@ -51,16 +51,16 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 3
+open: 2
 total: 12
-recorded: 2026-11-26T12:46:02.298Z
+recorded: 2026-11-26T13:24:19.456Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | WR-02 | warning | open | - (not in the current review) |
 | IN-02 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
