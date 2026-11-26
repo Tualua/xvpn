@@ -24,32 +24,32 @@ status: all_fixed
 
 ## Fixed Issues
 
-### WR-01: частичный `panel-secrets.yml` проходил проверку целостности
+### WR-01: Частичный `panel-secrets.yml` проходит проверку целостности, недостающие секреты генерируются заново
 
 **Файлы:** `roles/panel/tasks/secrets.yml`
 **Коммиты:** 9032e4a, 312a6d1 (доработка: в тексте сообщения assert не должно быть имён секретов, иначе `check_no_log.py` требует `no_log`, а он скрыл бы сообщение)
 **Что сделано:** если файл существует, он обязан содержать все неизменяемые ключи (`app_secret`, `postgres_password`, `metrics_user`, `metrics_password`, `admin_password`). Вердикт считается булевым `set_fact` с `no_log`, затем assert без секретов. Ключи gate можно докомплектовывать генерацией.
 **Статус:** fixed: requires human verification (логика условия; в Molecule нет негативного кейса на частичный файл).
 
-### WR-02: сырые логи в `fail_msg` rescue-ветки
+### WR-02: Rescue-ветка стека печатает логи контейнеров и journal в `fail_msg` без фильтрации
 
 **Файлы:** `roles/panel/tasks/stack.yml`
 **Коммит:** 89bc1b4
 **Что сделано:** journal и логи контейнеров идут через `stdout_lines | reject('search', '(?i)token|bearer|authorization|jwt|password|secret|DATABASE_URL|APP_SECRET|METRICS_PASS')`. Выражение проверено на тестовом плейбуке.
 
-### WR-03: punycode-TLD отвергались
+### WR-03: Регулярка FQDN отвергает punycode-TLD (`xn--p1ai` и т. п.), вопреки README
 
 **Файлы:** `roles/panel/tasks/main.yml`
 **Коммит:** 1af7039
 **Что сделано:** TLD теперь `([a-z]{2,63}|xn--[a-z0-9-]{1,59})` для `xvpn_panel_domain` и `xvpn_subscription_domain`. Проверено на `a.xn--p1ai`, `a.b-.com`. Вынос в общую переменную не делался (две строки, пересечения с preflight нет).
 
-### WR-04: `check_no_log.py` не видел секреты, приходящие через `.env`-шаблоны
+### WR-04: Проверка DOC-04 (`check_no_log.py`) не видит секреты, которые приходят только через `.j2`-шаблон
 
 **Файлы:** `scripts/check_no_log.py`
 **Коммит:** 6aae78b
 **Что сделано:** добавлен `xvpn_panel_sp_token` в `SENSITIVE`; любая задача `template`/`copy`, у которой `src`/`dest` оканчивается на `.env` / `.env.j2` или лежит в `/secrets/`, обязана иметь `no_log` и `diff: false`. Добавлен самотест с задачами-приманками, выполняется перед сканом; если приманка не поймана, проверка падает. Существующие роли проходят без правок.
 
-### WR-05: сигнал "конфигурация изменилась" терялся при сбое между рендером и рестартом
+### WR-05: Сигнал "конфигурация изменилась" теряется при сбое между рендером и рестартом
 
 **Файлы:** `roles/podman_rootless/tasks/restart_stale.yml` (новый), `roles/podman_rootless/meta/argument_specs.yml`, `roles/panel/tasks/stack.yml`, `roles/panel/tasks/subpage.yml`, `roles/edge/tasks/main.yml`
 **Коммит:** c389b83
