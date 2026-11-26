@@ -127,6 +127,12 @@ argument_specs:
         description: Backend route that proves a token is accepted (internal).
         type: str
         default: /api/nodes
+      xvpn_panel_failure_log_dir:
+        description: >-
+          Root-only directory for the stack-start failure log; panel-start-failure.log inside it is mode 0600 and
+          removed after a successful start.
+        type: str
+        default: /var/log/xvpn
       xvpn_panel_home:
         description: Home of the service user (internal).
         type: str
