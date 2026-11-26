@@ -9,9 +9,11 @@
       - not (xvpn_edge_decoy_image is search(':latest$'))
       - xvpn_edge_acme_ca in ['production', 'staging', 'custom']
       - xvpn_edge_acme_ca != 'custom' or xvpn_edge_acme_ca_server is match('^https://')
-      - xvpn_edge_acme_email == '' or xvpn_edge_acme_email is regex('^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\Z')
+      - xvpn_edge_acme_email == '' or xvpn_edge_acme_email is regex('^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+([.][A-Za-z0-9-]+)+\Z')
       - xvpn_edge_http_address is regex('^[0-9A-Za-z.:\[\]-]*:[0-9]{1,5}\Z')
+      - (xvpn_edge_http_address.split(':')[-1] | int) <= 65535
       - xvpn_edge_https_address is regex('^[0-9A-Za-z.:\[\]-]*:[0-9]{1,5}\Z')
+      - (xvpn_edge_https_address.split(':')[-1] | int) <= 65535
       - xvpn_edge_decoy_port | int >= 1024
       - xvpn_edge_decoy_port | int <= 65535
     fail_msg: >-
