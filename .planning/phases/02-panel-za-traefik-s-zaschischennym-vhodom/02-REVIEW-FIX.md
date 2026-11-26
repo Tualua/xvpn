@@ -1,10 +1,10 @@
 ---
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
-fixed_at: 2026-11-26T00:00:00Z
+fixed_at: 2026-11-26T12:00:00Z
 review_path: /workspaces/xvpn/.planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-REVIEW.md
-iteration: 1
-findings_in_scope: 5
-fixed: 5
+iteration: 2
+findings_in_scope: 12
+fixed: 12
 skipped: 0
 status: all_fixed
 ---
@@ -13,14 +13,14 @@ status: all_fixed
 
 **Исправлено:** 2026-11-26
 **Исходный отчёт:** 02-REVIEW.md
-**Итерация:** 1
+**Итерация:** 2
 
 **Итог:**
-- В области: 5 (WR-01..WR-05; Info не входили)
-- Исправлено: 5
+- В области: 12 (WR-01..WR-05 из итерации 1, IN-01..IN-07 из итерации 2)
+- Исправлено: 12
 - Пропущено: 0
 
-Проверка: `scripts/check.sh` пройден (`check.sh: OK`) в изолированном worktree; gitleaks локально не установлен, проверяется только в CI. Molecule локально не запускался.
+Проверка: `scripts/check.sh` пройден (`check.sh: OK`) в основном рабочем дереве (worktree не создавался), после всех исправлений итерации 2. gitleaks локально не установлен, проверяется только в CI. Molecule локально не запускался.
 
 ## Fixed Issues
 
@@ -53,18 +53,62 @@ status: all_fixed
 
 **Файлы:** `roles/podman_rootless/tasks/restart_stale.yml` (новый), `roles/podman_rootless/meta/argument_specs.yml`, `roles/panel/tasks/stack.yml`, `roles/panel/tasks/subpage.yml`, `roles/edge/tasks/main.yml`
 **Коммит:** c389b83
-**Выбранный подход (вариант (a) из ревью, без маркер-файлов):** общий `tasks_from: restart_stale` читает `systemctl --user show --property=ExecMainStartTimestamp --timestamp=unix <unit>` и сравнивает целую часть mtime файлов конфигурации с временем старта главного процесса. Юнит перезапускается, если `changed` в этом прогоне ИЛИ какой-либо файл новее запущенного процесса. Юнит, который ни разу не стартовал (пустой timestamp), не считается устаревшим: первый старт за деплоем. После рестарта timestamp новее файла, повторный прогон даёт `changed=0`. Охвачены: `postgres.env`, `backend.env`, `subpage.env`, `traefik.yml` + `ca.pem`, `decoy default.conf`. Спецификация аргументов добавлена в `argument_specs` для `restart_stale`.
-**Статус:** fixed: requires human verification. Логика выбора проверена на тестовом плейбуке (тест `gt`, разбор timestamp), но реальное поведение `systemctl --timestamp=unix` на EL10 и идемпотентность подтверждает только Molecule VM.
-**Замечание:** IN-01 (лишний рестарт при первой установке) не затронут: при `changed` на первой установке рестарт по-прежнему происходит.
+**Что сделано (вариант (a) из ревью):** общий `tasks_from: restart_stale` сравнивает mtime файлов конфигурации с временем старта главного процесса юнита (`systemctl --user show --property=ExecMainStartTimestamp --timestamp=unix`). Устаревший юнит перезапускается, повторный прогон даёт `changed=0`. Охвачены `postgres.env`, `backend.env`, `subpage.env`, `traefik.yml` + `ca.pem`, `decoy default.conf`.
+**Статус:** fixed: requires human verification. Реальное поведение `systemctl --timestamp=unix` на EL10 и идемпотентность подтверждает только Molecule VM.
+
+### IN-01: Лишние рестарты при первой установке
+
+**Файлы:** `roles/podman_rootless/tasks/restart_stale.yml`, `roles/podman_rootless/meta/argument_specs.yml`
+**Коммит:** 56a1355
+**Что сделано:** решение в `restart_stale` теперь опирается на времена файлов для уже стартовавшего юнита. Файл, отрендеренный до старта юнита (первая установка: деплой стартует юнит после рендера), не считается устаревшим, поэтому повторного рестарта сразу после initdb нет. Флаг `changed` из прогона учитывается только для юнита, который ещё ни разу не стартовал (пустой timestamp). Реальное обновление env у работающего юнита по-прежнему ведёт к рестарту (mtime новее старта). Одно общее изменение покрывает panel, sub-page и edge. Описание в `argument_specs` обновлено.
+**Статус:** fixed: requires human verification (логика сравнения времён; подтверждается только Molecule VM: первый converge без второго рестарта БД, второй converge `changed=0`, `touch` файла вызывает рестарт).
+
+### IN-02: Канарейка AVC для Pebble считает любую ошибку `ausearch` чистым результатом
+
+**Файлы:** `extensions/molecule/vm/tasks/pebble.yml`
+**Коммит:** 2232b12
+**Что сделано:** assert требует `item.rc == 1` и `item.stderr is search('<no matches>')`, как итоговый gate в `verify_runtime.yml`.
+
+### IN-03: `shuffle` использует не криптографический ГСЧ при сборке паролей
+
+**Файлы:** `roles/panel/tasks/secrets.yml`
+**Коммит:** 78fd357
+**Что сделано:** `shuffle` убран. Пароли `postgres_password`, `metrics_password` (32 символа) и `admin_password` (40 символов) тянутся одним вызовом `lookup('password')` по `ascii_letters + digits`, с повтором (`until`, до 50 раз), пока в значении нет строчных, заглавных и цифр. Тест на локальном плейбуке: три значения сгенерированы, задачи с `no_log`. Форматы и длины соответствуют проверкам `xvpn_panel_secret_formats`.
+
+### IN-04: Якорь `$` в regex-форматах секретов допускает хвостовой перевод строки
+
+**Файлы:** `roles/panel/tasks/secrets.yml`
+**Коммит:** 5caba09
+**Что сделано:** во всех форматах `xvpn_panel_secret_formats` `$` заменён на `\Z`. Проверено: значение с хвостовым `\n` отвергается, без него принимается.
+
+### IN-05: Часть операторских значений интерполируется в YAML Traefik без валидации
+
+**Файлы:** `roles/edge/tasks/main.yml`
+**Коммит:** 1d96510
+**Что сделано:** email проверяется `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\Z`, адреса `xvpn_edge_http_address` / `xvpn_edge_https_address` проверяются `^[0-9A-Za-z.:\[\]-]*:[0-9]{1,5}\Z`. Допустимые значения по умолчанию и из `scripts/gate/render.yml` (`:80`, `:443`, `:8080`, `:8443`) проходят; кавычки и переводы строк отвергаются. Текст `fail_msg` обновлён.
+
+### IN-06: `ci_watch.sh` сравнивает `createdAt` запуска с локальными часами
+
+**Файлы:** `scripts/ci_watch.sh`
+**Коммит:** cd36f19
+**Что сделано:** запуски различаются по `databaseId`: перед `gh workflow run` запоминается максимальный id запусков для HEAD, после диспетчеризации выбирается запуск с большим id. Сравнение с локальными часами убрано. `bash -n` пройден; живой запуск не выполнялся (CI не диспетчеризовался).
+
+### IN-07: Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)
+
+**Файлы:** `roles/panel/defaults/main.yml`, `roles/panel/meta/argument_specs.yml`, `roles/panel/tasks/bootstrap.yml`
+**Коммит:** 8ba3739
+**Что сделано:** переменная удалена из defaults и argument_specs (она была помечена как internal, публичный интерфейс не затронут), сообщение об ошибке логина теперь говорит "the stored admin credential" (текст без имени ключа, иначе `check_no_log.py` требует `no_log` на задаче `fail`). `xvpn_panel_api_token_probe_route` не трогалась: у неё потребители в bootstrap и она остаётся общей точкой для проверки токена.
+**Статус:** fixed: requires human verification (удаление кода, решение о границах за человеком).
 
 ## Что проверяется только в CI
 
-- WR-05: `molecule-vm` (rootless Podman + `systemd --user`; в container-уровне `activate` отключён, и рестарт не выполняется). Смотреть: второй converge `changed=0`, а также что принудительно старый unit (touch файла) перезапускается.
-- WR-01: ни один сценарий не создаёт частичный секрет-файл; негативный кейс можно добавить в `container/verify.yml` по образцу `panel-secrets-lost-with-volume`.
+- IN-01 / WR-05: `molecule-vm` (rootless Podman + `systemd --user`). Смотреть: первый converge без второго рестарта Postgres, второй converge `changed=0`, `touch` env-файла перезапускает юнит.
+- WR-01: ни один сценарий не создаёт частичный секрет-файл; негативный кейс можно добавить в `container/verify.yml`.
+- IN-02: `molecule-vm` prepare (Pebble AVC канарейка).
 - gitleaks: только CI.
 
 ---
 
 _Fixed: 2026-11-26_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
