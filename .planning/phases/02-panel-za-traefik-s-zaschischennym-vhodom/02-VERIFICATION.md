@@ -1,11 +1,11 @@
 ---
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
-verified: 2026-11-26T16:00:00Z
+verified: 2026-11-26T18:00:00Z
 status: human_needed
 score: 5/5 must-haves verified
 covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "README.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/defaults/main.yml", "roles/panel/meta/argument_specs.yml", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py", "scripts/ci_watch.sh"]
-covered_digest: "v4:sha256:fd8d20fe0c833827a0f7d0cb67e63094b125cde41bc9a8199fdea7efb87a4431"
-behavior_unverified: 2026-11-26T16:00:00Z
+covered_digest: "v4:sha256:1cdf63118b916c21fc06e7ded309d17acbbc9fadb409fbc678f89347341bee82"
+behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   previous_status: human_needed
@@ -25,9 +25,9 @@ human_verification:
 # Phase 2: Panel за Traefik с защищённым входом — отчёт верификации
 
 **Цель фазы:** Оператор разворачивает Panel-хост одной командой: HTTPS на собственном домене, вход в админку закрыт cookie/secret-path гейтом, первый админ и API-токен создаются автоматически, subscription page на отдельном домене, повторный прогон ничего не ломает и не меняет секреты.
-**Проверено:** 2026-11-26 (повтор после quick-задачи 261126-hc8)
+**Проверено:** 2026-11-26 (повтор после коммита 9951cd2, WR-01 валидация `xvpn_panel_failure_log_dir`)
 **Статус:** human_needed (автоматические проверки пройдены, остались два ручных пункта)
-**Повторная верификация:** Да, после quick-задачи 261126-hc8 (коммиты 6bff6f0, 9f96be2: сохранение failure-лога в rescue стека Panel, переменная `xvpn_panel_failure_log_dir`); регрессий нет
+**Повторная верификация:** Да, после 9951cd2 (ранее: quick-задача 261126-hc8 (коммиты 6bff6f0, 9f96be2: сохранение failure-лога в rescue стека Panel, переменная `xvpn_panel_failure_log_dir`); регрессий нет)
 
 ## Достижение цели
 
@@ -52,12 +52,17 @@ human_verification:
 
 Оркестратор: `scripts/check.sh` пройден (ansible-lint, syntax-check, сборка коллекции, гейты). Истины 1-5 и требования не затронуты: правки касаются только диагностики упавшего запуска.
 
-### Замечания code review (02-REVIEW.md, 092c0d0)
+### Проверка коммита 9951cd2 и свежего ревью (02-REVIEW.md, fcfb8ee)
 
-0 critical, 1 warning, 1 info.
+Коммит добавил assert валидации `xvpn_panel_failure_log_dir` в `roles/panel/tasks/stack.yml` (строка, не `..`, не в denylist) и обновил README и `argument_specs.yml`. Значение по умолчанию `/var/log/xvpn` проходит; assert стоит до любого использования переменной. Локальная проверка условий assert: `/var/log/xvpn` проходит; `/var/log`, `/var/log/`, `rel/x`, `/tmp/x/../..` отклоняются; `/var/log/.` проходит (подтверждает WR-01).
 
-- **WR-01 (WARNING, не блокирует):** `xvpn_panel_failure_log_dir` не валидируется; роль принудительно ставит на каталог `root:root 0700` и удаляет в нём `panel-start-failure.log`. Ошибочное значение оператора (например, `/etc`) изменит права существующего каталога. Рекомендуется assert абсолютного пути и запрет системных каталогов либо отдельный подкаталог. На must-have фазы не влияет.
-- **IN-01 (advisory):** см. 02-REVIEW.md.
+0 critical, 2 warning, 1 info.
+
+- **WR-01 (WARNING, не блокирует):** компонент `.` и повторные слэши обходят denylist (`/var/log/.` == `/var/log`).
+- **WR-02 (WARNING, не блокирует):** denylist неполон (`/etc/ssh`, `/usr/bin`, домашний каталог и т.д.); предпочтителен allowlist.
+- **IN-01 (INFO):** негативных тестов assert нет.
+
+Оценка влияния: все три находки касаются только защиты от ошибочного ввода оператора в необязательной диагностической переменной. Дефолт безопасен, истины 1-5 и 13 требований не затронуты. Рекомендуется закрыть WR-01/WR-02 переходом на allowlist-regex и добавить негативный тест, но до релиза фазы это не обязательно.
 
 ### Покрытие требований
 
@@ -97,7 +102,7 @@ TBD/FIXME/XXX в `roles`, `playbooks`, `scripts` не найдено. Блоке
 
 ## Итог
 
-Цель фазы достигнута по всем пяти критериям и тринадцати требованиям. Правки code review после 60dbb9e регрессий не вносят. WR-01/WR-02 из свежего ревью затрагивают только качество диагностики в rescue-ветке и не блокируют. Остаются два ручных пункта и один рекомендуемый прогон CI на актуальном HEAD.
+Цель фазы достигнута по всем пяти критериям и тринадцати требованиям. Коммит 9951cd2 регрессий не вносит (ansible-lint production: 0 failures). WR-01/WR-02/IN-01 свежего ревью касаются только валидации необязательной переменной и не блокируют. Остаются два ручных пункта и один рекомендуемый прогон CI на актуальном HEAD.
 
 ---
 
