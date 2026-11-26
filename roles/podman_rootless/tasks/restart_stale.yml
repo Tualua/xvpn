@@ -34,11 +34,15 @@
   changed_when: false
   failed_when: false
 
-# A unit that never started has an empty timestamp: stale is false then, the deployment owns the first start.
+# A unit that has started is judged only by the file times: a file rendered before the unit started (the first
+# installation, where the deployment starts the unit after the render) is not stale, so there is no second
+# restart right after initdb. A unit that never started (empty timestamp) falls back to the in-run "changed"
+# result, so a rendered file is still applied by a start.
 - name: Restart stale | decide
   ansible.builtin.set_fact:
     xvpn_podman_rootless_restart_needed: >-
-      {{ (xvpn_podman_rootless_restart_changed | default(false) | bool)
+      {{ (xvpn_podman_rootless_restart_started | int == 0
+          and xvpn_podman_rootless_restart_changed | default(false) | bool)
          or (xvpn_podman_rootless_restart_started | int > 0
              and (xvpn_podman_rootless_restart_stats.results
                   | selectattr('stat.exists')

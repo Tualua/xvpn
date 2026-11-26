@@ -75,7 +75,7 @@ argument_specs:
         type: bool
         default: true
   restart_stale:
-    short_description: Restart a user unit when a config file is newer than the unit start or was changed in this run
+    short_description: Restart a started user unit when a config file is newer than its start (a unit that never started follows the changed flag)
     options:
       xvpn_podman_rootless_restart_user:
         description: Service user that owns the unit, regex C(^[a-z_][a-z0-9_-]{0,30}$).
@@ -93,6 +93,9 @@ argument_specs:
         elements: str
         required: true
       xvpn_podman_rootless_restart_changed:
-        description: Restart regardless of the modification times (a rendering task reported a change in this run).
+        description: >-
+          A rendering task reported a change in this run. Honoured only for a unit that has never started;
+          a started unit is judged by the file modification times alone, so a first installation does not
+          restart the unit it has just started.
         type: bool
         default: false
