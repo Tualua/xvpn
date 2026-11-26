@@ -17,24 +17,28 @@ if [ "$REMOTE_HEAD" != "$S" ]; then
   exit 1
 fi
 
-START="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# Runs are told apart by databaseId, never by comparing timestamps with the local clock (clock skew would
+# drop a freshly dispatched run). BASE is the highest id seen before the dispatch; a newer run has a larger id.
+BASE=0
 
 dispatch() {
-  START="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  BASE="$(select_run max)"
+  BASE="${BASE:-0}"
   gh workflow run "$WORKFLOW" --ref main
 }
 
-# Print the id of the newest run of this workflow for HEAD, empty when none.
+# Print the id of the newest run of this workflow for HEAD, empty when none. With the argument "max" the
+# BASE filter is ignored (used to take the pre-dispatch baseline).
 select_run() {
   local event="push"
   [ "$DISPATCH" -eq 1 ] && event="workflow_dispatch"
-  gh run list --workflow "$WORKFLOW" --commit "$S" --limit 30 --json databaseId,createdAt,event \
-    | START="$START" EVENT="$event" DISPATCH="$DISPATCH" python3 -c '
+  gh run list --workflow "$WORKFLOW" --commit "$S" --limit 30 --json databaseId,event \
+    | BASE="$BASE" EVENT="$event" DISPATCH="$DISPATCH" MODE="${1:-}" python3 -c '
 import json, os, sys
 runs = [r for r in json.load(sys.stdin) if r["event"] == os.environ["EVENT"]]
-if os.environ["DISPATCH"] == "1":
-    runs = [r for r in runs if r["createdAt"] >= os.environ["START"]]
-runs.sort(key=lambda r: r["createdAt"], reverse=True)
+if os.environ["DISPATCH"] == "1" and os.environ["MODE"] != "max":
+    runs = [r for r in runs if r["databaseId"] > int(os.environ["BASE"])]
+runs.sort(key=lambda r: r["databaseId"], reverse=True)
 print(runs[0]["databaseId"] if runs else "")
 '
 }
