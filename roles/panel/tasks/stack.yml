@@ -98,8 +98,12 @@
       ansible.builtin.fail:
         msg: >-
           Panel stack start failed: {{ ansible_failed_result.msg | default('') }}
-          journal: {{ xvpn_panel_start_journal.stdout | default('') }}
-          containers: {{ xvpn_panel_start_logs.stdout | default('') }}
+          journal: {{ xvpn_panel_start_journal.stdout_lines | default([])
+                      | reject('search', '(?i)token|bearer|authorization|jwt|password|secret|DATABASE_URL|APP_SECRET|METRICS_PASS')
+                      | join(' | ') }}
+          containers: {{ xvpn_panel_start_logs.stdout_lines | default([])
+                         | reject('search', '(?i)token|bearer|authorization|jwt|password|secret|DATABASE_URL|APP_SECRET|METRICS_PASS')
+                         | join(' | ') }}
 
 # The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7).
 - name: Panel stack | restart Postgres after an env file change
