@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static DOC-04 guard: a role task that touches a secret must have no_log (and diff: false for template/copy).
+"""Static DOC-04 guard: a role task that touches a secret must have no_log (and diff: false for file-writing modules).
 
 Walks roles/*/tasks/*.yml, descends into block/rescue/always carrying the inherited no_log, and looks for
 sensitive names in every key of a task except its name. The list below is the single place to extend.
@@ -33,6 +33,22 @@ BLOCK_KEYS = ("block", "rescue", "always")
 # A template/copy task whose src or dest is an env file or lives under secrets/ renders secrets even when the
 # task itself names no sensitive variable (the values come from the template), so it is checked by path.
 SECRET_FILE = re.compile(r"(\.env(\.j2)?|/secrets/.*)$")
+# Modules that write content into a file. ansible.builtin.file is left out: it only sets mode/owner/state and
+# carries no content, so it cannot leak a secret into the output.
+WRITER_MODULES = ("template", "copy", "lineinfile", "blockinfile", "ini_file")
+PATH_KEYS = ("src", "dest", "path")
+FREE_FORM = re.compile(r"\b(?:src|dest|path)=(.+?)(?=\s+\w+=|$)")
+
+
+def targets_secret_file(args):
+    """True when a writer module's src/dest/path (dict form or free-form `k=v` string) is a secret file."""
+    if isinstance(args, dict):
+        values = [args[k] for k in PATH_KEYS if isinstance(args.get(k), str)]
+    elif isinstance(args, str):
+        values = FREE_FORM.findall(args)
+    else:
+        return False
+    return any(SECRET_FILE.search(v.strip().strip("'\"")) for v in values)
 
 
 def no_log_set(value):
@@ -62,11 +78,9 @@ def walk(tasks, inherited, path, problems):
         else:
             keys = {k: v for k, v in task.items() if k != "name"}
         text = json.dumps(keys, default=str)
-        module = next((k for k in task if k.split(".")[-1] in ("template", "copy")), None)
+        module = next((k for k in task if k.split(".")[-1] in WRITER_MODULES), None)
         args = task.get(module) if module else None
-        by_path = isinstance(args, dict) and any(
-            isinstance(args.get(k), str) and SECRET_FILE.search(args[k].strip()) for k in ("src", "dest")
-        )
+        by_path = targets_secret_file(args)
         if not PATTERN.search(text) and not by_path:
             continue
         name = task.get("name", "<unnamed>")
@@ -82,6 +96,10 @@ def self_test():
     decoys = [
         {"name": "decoy env", "ansible.builtin.template": {"src": "node.env.j2", "dest": "{{ home }}/node.env"}},
         {"name": "decoy secrets dir", "ansible.builtin.copy": {"content": "x", "dest": "{{ home }}/secrets/t"}},
+        {"name": "decoy free-form template", "ansible.builtin.template": "src=node.env.j2 dest={{ home }}/node.env"},
+        {"name": "decoy lineinfile", "ansible.builtin.lineinfile": {"path": "{{ home }}/secrets/t", "line": "x"}},
+        {"name": "decoy blockinfile free-form", "ansible.builtin.blockinfile": "path={{ home }}/a.env block=x"},
+        {"name": "decoy ini_file", "community.general.ini_file": {"path": "{{ home }}/a.env", "option": "k"}},
         {"name": "decoy token", "ansible.builtin.set_fact": {"x": "{{ xvpn_panel_sp_token }}"}},
     ]
     for task in decoys:
