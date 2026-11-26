@@ -2,93 +2,65 @@
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 reviewed: 2026-11-26T00:00:00Z
 depth: standard
-files_reviewed: 7
+files_reviewed: 6
 files_reviewed_list:
+  - roles/edge/tasks/main.yml
+  - roles/panel/tasks/main.yml
+  - roles/panel/tasks/secrets.yml
   - roles/panel/tasks/stack.yml
   - scripts/check_no_log.py
-  - roles/podman_rootless/tasks/restart_stale.yml
-  - roles/panel/tasks/secrets.yml
-  - roles/panel/tasks/main.yml
-  - roles/edge/tasks/main.yml
   - scripts/ci_watch.sh
 findings:
   critical: 0
-  warning: 3
-  info: 5
-  total: 8
+  warning: 2
+  info: 2
+  total: 4
   necessity: 0
 status: issues_found
 ---
 
-# Phase 2: Code Review Report (повторный обзор после fix-коммитов WR-01/WR-02)
+# Phase 2: Code Review Report (incremental re-review)
 
 **Reviewed:** 2026-11-26
 **Depth:** standard
-**Files Reviewed:** 7
+**Files Reviewed:** 6
 **Status:** issues_found
 
 ## Summary
 
-Просмотрены хунки коммитов bb95cbc (WR-01) и 1e31c28 (WR-02) и файлы целиком. Исправление WR-02 в основном корректно: free-form аргументы разбираются, список модулей расширен, декои добавлены. Исключение `ansible.builtin.file` из проверки по пути верно, потому что модуль не записывает содержимое. Исправление WR-01 неполное. Маскирование через `regex_replace` не скрывает значения секретов, и (с высокой вероятностью) ломает обратную ссылку `\1`. Файл в `/var/tmp` приемлем по правам (root, 0600), но выбор каталога и жизненный цикл файла неудачны. Сами задачи сбора журналов не имеют `no_log`. WR-01 и WR-02 в отчёт не переносятся. Новые находки нумеруются с WR-03 и IN-05. Четыре информационных находки IN-01..IN-04 перенесены без изменений из предыдущего отчёта (файлы не менялись).
+I re-reviewed the fixes for WR-03, WR-04, WR-05 and IN-02 to IN-05 (`git diff 60dbb9e..HEAD`). The edge port-range asserts, the stricter email and IDN regexes, the `ci_watch.sh` baseline error handling and the new `check_no_log.py` writer and reader coverage are correct. I found no regressions in them.
 
-Ограничение: `scripts/check_no_log.py` не запускался, в окружении нет PyYAML. Grep по ролям не нашёл задач `lineinfile`, `blockinfile` и `ini_file`, то есть ложных срабатываний от расширения нет.
+The rework of the rescue block in `stack.yml` has two defects. Both come from `failed_when: false` interacting with the `is succeeded` test. The result is a guard that never triggers and a success message that can be false. The stale-log cleanup also depends on privilege that the file does not set up itself. No secret reaches the output.
+
+`check_no_log.py` could not be run in this environment (PyYAML is missing), so I checked it by reading the code only.
 
 ## Warnings
 
-### WR-03: Маскирование в `fail` через `regex_replace` не скрывает значения и, вероятно, портит обратную ссылку
+### WR-01: `when: xvpn_panel_start_log_dir is succeeded` is a dead guard, because `failed_when: false` forces `failed=false`
 
-**File:** `roles/panel/tasks/stack.yml:134-135`
-**Issue:** Паттерн `(token|bearer|...)[^\s,;]*` съедает только остаток слова после ключевого слова, но не значение. Проверено локально на эквивалентном регулярном выражении. Из `Authorization: Bearer abc123 password: hunter2` получается `Authorization=<redacted> Bearer=<redacted> abc123 password=<redacted> hunter2`. Значения `abc123` и `hunter2` остаются. Это тот же denylist, который WR-01 должен был убрать, только в `msg` от `ansible_failed_result`. Кроме того, в строковом литерале Jinja `'\1'` декодируется как `\x01` (проверено через `unicode-escape`), поэтому обратная ссылка не работает. Вместо `token=<redacted>` в вывод пойдёт управляющий символ, а само слово потеряется. Для Ansible нужно `\\1`.
-**Fix:** Не пытаться маскировать значения регулярным выражением. Либо выводить в `fail` только фиксированный текст и путь к файлу, либо маскировать до конца строки и писать без обратной ссылки:
-```yaml
-msg: >-
-  Panel stack start failed (details in /var/tmp/...). Failed task: {{ ansible_failed_result.invocation.module_name | default('unknown') }}
-```
-Если `msg` всё же нужен, использовать `regex_replace('(?i)(token|bearer|authorization|jwt|password|secret)\\S*(\\s*[:=]\\s*|\\s+)\\S+', '\\1=<redacted>')` и покрыть форматы `k: v`, `k=v`, `Bearer x`.
+**File:** `roles/panel/tasks/stack.yml:125-140`
+**Issue:** The directory task sets `failed_when: false`, so its registered result always has `failed: false`. `is succeeded` therefore always evaluates true, and the `when:` on the copy task never skips it. If `/var/log/xvpn` cannot be created, the copy task still runs and fails silently (it also has `failed_when: false` and `no_log`). The intent of the fix was to skip the copy when the directory is missing.
+**Fix:** Drop `failed_when: false` from the directory task. Add `ignore_errors: true` instead, which keeps `failed: true` in the result. Alternatively test `xvpn_panel_start_log_dir.failed | default(false)` explicitly. Use `ignore_errors` the same way on the copy task (see WR-02).
 
-### WR-04: Файл с логами в `/var/tmp` лежит бессрочно, под предсказуемым именем, а сообщение обещает его наличие безусловно
+### WR-02: The failure message can claim the log was saved when the copy failed
 
-**File:** `roles/panel/tasks/stack.yml:116-138`
-**Issue:** (1) Права `root:root 0600` достаточны для чтения. Но `/var/tmp` это каталог с sticky bit, доступный на запись всем, и файл переживает перезагрузку. Журнал может содержать эхо env (секреты Postgres и backend), поэтому он остаётся на диске бессрочно. (2) Имя фиксировано, поэтому любой локальный пользователь (в том числе сервисный `xvpn_panel_user`, под которым работают контейнеры) может заранее создать в этом месте каталог или FIFO, и `copy` упадёт. Это скрыто `failed_when: false`. Символьную ссылку `copy` заменит атомарно, но предсказуемое имя в общем каталоге всё равно лишняя поверхность атаки. (3) При успешном следующем запуске файл не удаляется. Устаревший файл с секретами остаётся и вводит в заблуждение. (4) При сбое записи (`failed_when: false` и `no_log`) сообщение всё равно утверждает, что логи лежат в файле. SELinux проблем не создаёт, так как запись выполняет root в `tmp_t`, но полезнее каталог с контекстом, предназначенным для логов.
-**Fix:** Писать в каталог, принадлежащий root и не доступный другим, например `/var/log/xvpn/` (создать задачей `file` с `0700`) или `/root`. В конце успешного прохождения блока удалять файл (`ansible.builtin.file: state: absent`, в `always`-секции после проверки результата). В `fail` указывать путь только если запись удалась, сохранив результат `copy` через `register` и условие `is succeeded`.
-
-### WR-05: Задачи сбора журналов и логов контейнеров не имеют `no_log`
-
-**File:** `roles/panel/tasks/stack.yml:66-95`
-**Issue:** Комментарий говорит, что сырой вывод никогда не попадает в Ansible, но задачи `journalctl` и `podman logs`/`podman inspect` выполняются без `no_log: true`. Из-за `failed_when: false` результат считается `ok`, а стандартный callback при `-v` и выше печатает `stdout`. В CI-логах публичной коллекции это обычная ситуация (`ANSIBLE_VERBOSITY`, `-vv` при отладке). Тогда содержимое, ради которого был сделан файл, всё равно печатается. Проверка `check_no_log.py` этого не ловит, так как в задачах нет чувствительных имён.
-**Fix:** Добавить `no_log: true` в обе задачи (`journal` и `logs`), как уже сделано для `copy`.
+**File:** `roles/panel/tasks/stack.yml:139-153`
+**Issue:** The copy task has `failed_when: false`, so a real write failure (disk full, permissions) still gives `failed=false`. The final message checks `xvpn_panel_start_log_file is succeeded and is not skipped`, which stays true after a failed write. The operator is then told the journals are in `/var/log/xvpn/panel-start-failure.log` when that file does not exist. That is the only diagnostic channel, since the module error text is deliberately suppressed.
+**Fix:** Use `ignore_errors: true` instead of `failed_when: false` on both tasks. Then `xvpn_panel_start_log_file is succeeded` is accurate, and the `is not skipped` clause and the dead dir guard from WR-01 become meaningful. Or test `xvpn_panel_start_log_file.changed | default(false) or ... is not failed`.
 
 ## Info
 
-### IN-01: `restart_stale` сравнивает mtime и старт юнита с точностью до секунды
+### IN-01: The stale-log cleanup and the log directory rely on the play's `become`
 
-**File:** `roles/podman_rootless/tasks/restart_stale.yml:55-56`
-**Issue:** `stat.mtime` (float) приводится к `int`, а `ExecMainStartTimestamp` с `--timestamp=unix` имеет секундную точность. Файл, изменённый в ту же секунду, но после старта юнита, не считается новее (`select('gt', ...)`). Окно узкое, но именно оно и должно «лечиться» этим механизмом. Если `systemctl show` падает (`failed_when: false`), `started` становится 0 и решает флаг `changed`. Тогда юнит, запущенный в этом же прогоне, получит лишний рестарт, от которого IN-01 как раз избавлял.
-**Fix:** Использовать `select('ge', started)` для запущенного юнита. Либо брать `ExecMainStartTimestampMonotonic` или микросекундный `--timestamp=us` и сравнивать с дробным mtime. Ненулевой `rc` команды стоит различать: падение `systemctl show` не должно приравниваться к «юнит не запускался».
+**File:** `roles/panel/tasks/stack.yml:118-124, 155-159`
+**Issue:** The new tasks write and remove files under root-owned `/var/log/xvpn`, but they carry no `become: true`. The same holds for the `journalctl` collection task. If the role is ever run without play-level `become`, the cleanup fails (and, since it is unguarded, it aborts a successful run). The `/var/log/xvpn` path is also hardcoded in three places.
+**Fix:** Introduce a role variable for the log directory. Either set `become: true` on these tasks explicitly or document that the role requires privilege escalation.
 
-### IN-02: Проверка неизменяемых ключей игнорирует значения из vault
+### IN-02: `check_no_log.py` does not cover other ways of reading a secret file
 
-**File:** `roles/panel/tasks/secrets.yml:77-97`
-**Issue:** Если на хосте частично повреждённый или ручной `panel-secrets.yml`, а недостающие immutable-ключи заданы vault-переопределениями, assert всё равно падает, хотя в слияние попадут заданные значения. Поведение консервативное и безопасное, но сообщение предлагает только восстановление из бэкапа.
-**Fix:** Вычитать из списка отсутствующих ключей ключи из `xvpn_panel_secrets_overrides`, либо дополнить `fail_msg` подсказкой, что ключ можно задать через vault.
-
-### IN-03: Регулярные выражения валидации допускают некорректные значения
-
-**File:** `roles/panel/tasks/main.yml:6,15`, `roles/edge/tasks/main.yml:12-14`
-**Issue:** (1) Ветка `xn--[a-z0-9-]{1,59}` принимает метки с завершающим дефисом (`xn--abc-`) и значение `xn--` без содержимого; такой TLD недействителен. (2) Адрес точки входа принимает порт больше 65535 (`:99999`) и пустой хост. (3) Регулярка email допускает `a@b` без точки и метки вроде `..`. Ошибка проявится только на стороне Traefik или ACME, а не в понятном assert.
-**Fix:** Для punycode: `xn--[a-z0-9]([a-z0-9-]{0,57}[a-z0-9])?`. Для адреса дополнительно проверять `(address.split(':')[-1] | int) <= 65535`. Для email требовать точку в доменной части.
-
-### IN-04: `ci_watch.sh` завершается без сообщения при сбое базовой выборки
-
-**File:** `scripts/ci_watch.sh:25-28`
-**Issue:** При `set -euo pipefail` падение `gh run list` внутри `BASE="$(select_run max)"` (сеть, лимиты API) завершает скрипт с кодом без пояснения. До правки такая же выборка была отложена до цикла ожидания и повторялась. Теперь диспатч не выполнится, но причина останется неочевидной.
-**Fix:** `BASE="$(select_run max)" || { echo "ci-watch: cannot read the baseline of runs" >&2; exit 1; }`.
-
-### IN-05: `check_no_log.py` проверяет только модули записи и не видит чтение секретных файлов
-
-**File:** `scripts/check_no_log.py:36-38,81-84`
-**Issue:** Исключение `ansible.builtin.file` верно. Но тот же довод («проверять только то, что может вывести содержимое») оставляет без проверки модули чтения и другие модули записи: `slurp`, `fetch`, `replace`, `assemble`, `get_url`, а также `command`/`shell` с `cat` секретного файла. Задача `slurp` секретного файла с `register` под нейтральным именем пройдёт без `no_log`, если имя переменной не входит в `SENSITIVE`. Сейчас `slurp` встречается в `secrets.yml:35`, `subpage.yml:19` и `bootstrap.yml:138`. Они защищены именами переменных, но при переименовании защита исчезнет. Free-form разбор по `\w+=` также не учитывает значения путей, содержащие ` key=`.
-**Fix:** Добавить `slurp`, `fetch`, `replace`, `assemble`, `get_url` в `WRITER_MODULES` (переименовав в `FILE_MODULES`, с проверкой `diff` только для модулей записи) и декой на `slurp` секретного пути.
+**File:** `scripts/check_no_log.py:36-43, 86`
+**Issue:** The guard flags a secret path only for `WRITER_MODULES` and `READER_MODULES` tasks. `command`/`shell` with `cat {{ xvpn_panel_secrets_file }}`, `include_vars file=<secrets_file>` and `lookup('file', ...)` are not caught. `xvpn_panel_secrets_file` is also not matched by `\bxvpn_panel_secrets\b` in `SENSITIVE`, because `\b` does not fall between `s` and `_`. Current roles do not use these patterns, so this is a future-proofing gap.
+**Fix:** Add `SECRET_FILE_VAR` to the generic `PATTERN` for non-module tasks, so any task that mentions the secret-file variables requires `no_log`. Exclude the plain `stat` and `file` modules if that creates noise.
 
 ---
 
