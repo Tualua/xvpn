@@ -9,6 +9,30 @@
     fail_msg: "xvpn_panel_jwt_auth_lifetime must be between 12 and 168 hours"
     quiet: true
 
+# The directory is forced to root:root 0700, so a shared system directory must never be accepted here.
+- name: Panel stack | validate the failure log directory
+  ansible.builtin.assert:
+    that:
+      - xvpn_panel_failure_log_dir is string
+      - xvpn_panel_failure_log_dir is match('^/[^/]+/[^/]')
+      - "'..' not in xvpn_panel_failure_log_dir.split('/')"
+      - xvpn_panel_failure_log_dir | regex_replace('/+$', '') not in xvpn_panel_failure_log_dir_forbidden
+    fail_msg: >-
+      xvpn_panel_failure_log_dir must be an absolute path of a dedicated directory (at least two components, no '..',
+      not a shared system directory such as /var/log, /tmp or /etc)
+    quiet: true
+  vars:
+    xvpn_panel_failure_log_dir_forbidden:
+      - /var/log
+      - /var/tmp
+      - /var/lib
+      - /var/run
+      - /usr/lib
+      - /usr/local
+      - /run/lock
+      - /dev/shm
+      - /etc/systemd
+
 - name: Panel stack | create the env directory
   ansible.builtin.file:
     path: "{{ xvpn_panel_env_dir }}"

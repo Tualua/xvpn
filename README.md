@@ -90,7 +90,7 @@ Both FQDNs are required and must differ; their A records must point to the host 
 | `xvpn_panel_gate_cookie_samesite` | `Strict` | `Strict` or `Lax`, see Admin entry. |
 | `xvpn_panel_api_token_days` | `3650` | Lifetime of the automation API token in days. |
 | `xvpn_panel_bootstrap_retries` | `60` | Attempts, 5 seconds apart, to wait for the backend during the bootstrap. |
-| `xvpn_panel_failure_log_dir` | `/var/log/xvpn` | Root-only directory (0700) for `panel-start-failure.log`, written when the stack start fails and removed after the next successful start. |
+| `xvpn_panel_failure_log_dir` | `/var/log/xvpn` | Root-only directory (0700) for `panel-start-failure.log`, written when the stack start fails and removed after the next successful start. Must be a dedicated absolute path, not a shared directory such as `/var/log` or `/tmp`. |
 | `xvpn_edge_decoy_src` | empty | Directory on the controller with your own decoy site; empty uses a neutral built-in page. |
 | `xvpn_panel_backend_image`, `xvpn_panel_postgres_image`, `xvpn_panel_valkey_image`, `xvpn_panel_subscription_image`, `xvpn_edge_traefik_image`, `xvpn_edge_decoy_image` | pinned exact tags | Container images; bump them by changing the variable. |
 
