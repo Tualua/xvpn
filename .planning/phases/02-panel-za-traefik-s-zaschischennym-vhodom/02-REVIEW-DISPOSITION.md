@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Маскирование в `fail` через `regex_replace` не скрывает значения и, вероятно, портит обратную ссылку"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Файл с логами в `/var/tmp` лежит бессрочно, под предсказуемым именем, а сообщение обещает его наличие безусловно"
   - id: WR-05
     severity: warning
@@ -33,7 +33,7 @@ findings:
     title: "`ci_watch.sh` завершается без сообщения при сбое базовой выборки"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`check_no_log.py` проверяет только модули записи и не видит чтение секретных файлов"
   - id: WR-01
     severity: warning
@@ -51,23 +51,23 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 3
+open: 0
 total: 12
-recorded: 2026-11-26T12:10:20.420Z
+recorded: 2026-11-26T12:10:37.837Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-05 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | skipped | 02-REVIEW-FIX.md |
 | IN-02 | info | fixed | 02-REVIEW-FIX.md |
 | IN-03 | info | fixed | 02-REVIEW-FIX.md |
 | IN-04 | info | fixed | 02-REVIEW-FIX.md |
-| IN-05 | info | open | - |
+| IN-05 | info | fixed | 02-REVIEW-FIX.md |
 | WR-01 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-02 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | IN-06 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
