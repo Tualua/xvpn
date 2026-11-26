@@ -33,9 +33,14 @@ BLOCK_KEYS = ("block", "rescue", "always")
 # A template/copy task whose src or dest is an env file or lives under secrets/ renders secrets even when the
 # task itself names no sensitive variable (the values come from the template), so it is checked by path.
 SECRET_FILE = re.compile(r"(\.env(\.j2)?|/secrets/.*)$")
+# The role variables that hold the path of a secret file (the stored secrets and the API token).
+SECRET_FILE_VAR = re.compile(r"\b(?:xvpn_\w*secrets_file|xvpn_\w*api_token_file)\b")
 # Modules that write content into a file. ansible.builtin.file is left out: it only sets mode/owner/state and
 # carries no content, so it cannot leak a secret into the output.
-WRITER_MODULES = ("template", "copy", "lineinfile", "blockinfile", "ini_file")
+WRITER_MODULES = ("template", "copy", "lineinfile", "blockinfile", "ini_file", "replace", "assemble", "get_url")
+# Modules that read a file into the task result: the content then needs no_log when the file is a secret one
+# (diff does not apply to them).
+READER_MODULES = ("slurp", "fetch")
 PATH_KEYS = ("src", "dest", "path")
 FREE_FORM = re.compile(r"\b(?:src|dest|path)=(.+?)(?=\s+\w+=|$)")
 
@@ -48,7 +53,7 @@ def targets_secret_file(args):
         values = FREE_FORM.findall(args)
     else:
         return False
-    return any(SECRET_FILE.search(v.strip().strip("'\"")) for v in values)
+    return any(SECRET_FILE.search(v.strip().strip("'\"")) or SECRET_FILE_VAR.search(v) for v in values)
 
 
 def no_log_set(value):
@@ -78,7 +83,7 @@ def walk(tasks, inherited, path, problems):
         else:
             keys = {k: v for k, v in task.items() if k != "name"}
         text = json.dumps(keys, default=str)
-        module = next((k for k in task if k.split(".")[-1] in WRITER_MODULES), None)
+        module = next((k for k in task if k.split(".")[-1] in WRITER_MODULES + READER_MODULES), None)
         args = task.get(module) if module else None
         by_path = targets_secret_file(args)
         if not PATTERN.search(text) and not by_path:
@@ -87,7 +92,7 @@ def walk(tasks, inherited, path, problems):
         if not no_log_set(own):
             problems.append(f"{path}: task '{name}' touches a secret without no_log/diff: false")
             continue
-        if module and not diff_off(task.get("diff")):
+        if module and module.split(".")[-1] in WRITER_MODULES and not diff_off(task.get("diff")):
             problems.append(f"{path}: task '{name}' touches a secret without no_log/diff: false")
 
 
@@ -100,6 +105,9 @@ def self_test():
         {"name": "decoy lineinfile", "ansible.builtin.lineinfile": {"path": "{{ home }}/secrets/t", "line": "x"}},
         {"name": "decoy blockinfile free-form", "ansible.builtin.blockinfile": "path={{ home }}/a.env block=x"},
         {"name": "decoy ini_file", "community.general.ini_file": {"path": "{{ home }}/a.env", "option": "k"}},
+        {"name": "decoy slurp", "ansible.builtin.slurp": {"src": "{{ xvpn_panel_secrets_file }}"}},
+        {"name": "decoy fetch free-form", "ansible.builtin.fetch": "src={{ xvpn_panel_api_token_file }} dest=/tmp/x"},
+        {"name": "decoy replace", "ansible.builtin.replace": {"path": "{{ home }}/a.env", "regexp": "a", "replace": "b"}},
         {"name": "decoy token", "ansible.builtin.set_fact": {"x": "{{ xvpn_panel_sp_token }}"}},
     ]
     for task in decoys:
