@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Denylist is bypassed by `.` components and by repeated or mid-path slashes"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Denylist is incomplete, so many shared directories are still accepted"
   - id: IN-01
     severity: info
@@ -51,17 +51,17 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 3
+open: 1
 total: 12
-recorded: 2026-11-26T13:47:52.905Z
+recorded: 2026-11-26T14:11:59.506Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
