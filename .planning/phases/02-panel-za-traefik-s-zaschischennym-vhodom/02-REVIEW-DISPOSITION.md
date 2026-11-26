@@ -5,23 +5,23 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Частичный `panel-secrets.yml` проходит проверку целостности, недостающие секреты генерируются заново"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Rescue-ветка стека печатает логи контейнеров и journal в `fail_msg` без фильтрации"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Регулярка FQDN отвергает punycode-TLD (`xn--p1ai` и т. п.), вопреки README"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Проверка DOC-04 (`check_no_log.py`) не видит секреты, которые приходят только через `.j2`-шаблон"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Сигнал \"конфигурация изменилась\" теряется при сбое между рендером и рестартом"
   - id: IN-01
     severity: info
@@ -51,20 +51,20 @@ findings:
     severity: info
     disposition: open
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 12
+open: 7
 total: 12
-recorded: 2026-11-25T18:37:39.166Z
+recorded: 2026-11-26T01:20:06.792Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-05 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
