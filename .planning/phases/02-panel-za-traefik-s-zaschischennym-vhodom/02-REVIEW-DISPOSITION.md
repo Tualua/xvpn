@@ -5,16 +5,16 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "`xvpn_panel_failure_log_dir` is a user-overridable path that is forced to root:root 0700 with no validation"
+    disposition: open
+    title: "Denylist is bypassed by `.` components and by repeated or mid-path slashes"
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "Denylist is incomplete, so many shared directories are still accepted"
   - id: IN-01
     severity: info
     disposition: open
-    title: "Rescue state variables stay set for the rest of the play"
-  - id: WR-02
-    severity: warning
-    disposition: fixed
-    title: "The failure message can claim the log was saved when the copy failed"
+    title: "Assert is unverified by tests"
   - id: IN-02
     severity: info
     disposition: fixed
@@ -51,18 +51,18 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 1
+open: 3
 total: 12
-recorded: 2026-11-26T13:24:29.984Z
+recorded: 2026-11-26T13:47:52.905Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
 | IN-01 | info | open | - |
-| WR-02 | warning | fixed | quick 261126-hc8 (6bff6f0) (not in the current review) |
 | IN-02 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
