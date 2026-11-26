@@ -6,19 +6,19 @@ findings:
   - id: WR-01
     severity: warning
     disposition: open
-    title: "`when: xvpn_panel_start_log_dir is succeeded` is a dead guard, because `failed_when: false` forces `failed=false`"
+    title: "`xvpn_panel_failure_log_dir` is a user-overridable path that is forced to root:root 0700 with no validation"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "Rescue state variables stay set for the rest of the play"
   - id: WR-02
     severity: warning
     disposition: open
     title: "The failure message can claim the log was saved when the copy failed"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "The stale-log cleanup and the log directory rely on the play's `become`"
   - id: IN-02
     severity: info
-    disposition: open
-    title: "`check_no_log.py` does not cover other ways of reading a secret file"
+    disposition: fixed
+    title: "Проверка неизменяемых ключей игнорирует значения из vault"
   - id: WR-03
     severity: warning
     disposition: fixed
@@ -51,9 +51,9 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 4
+open: 3
 total: 12
-recorded: 2026-11-26T12:17:44.239Z
+recorded: 2026-11-26T12:46:02.298Z
 ---
 
 # Phase 02: Code Review Disposition
@@ -61,9 +61,9 @@ recorded: 2026-11-26T12:17:44.239Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
 | IN-01 | info | open | - |
-| IN-02 | info | open | - |
+| WR-02 | warning | open | - (not in the current review) |
+| IN-02 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-05 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
