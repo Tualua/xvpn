@@ -130,8 +130,9 @@ argument_specs:
       xvpn_panel_failure_log_dir:
         description: >-
           Root-only directory for the stack-start failure log; panel-start-failure.log inside it is mode 0600 and
-          removed after a successful start. Must be an absolute path of a dedicated directory (it is forced to root:root 0700),
-          not a shared system directory such as /var/log or /tmp.
+          removed after a successful start. Must be a dedicated absolute directory below /var/log, /opt or /srv
+          (it is forced to root:root 0700), without '.', '..' or empty path components and without a trailing slash,
+          and must not be the service user's home or one of its parents.
         type: str
         default: /var/log/xvpn
       xvpn_panel_home:
