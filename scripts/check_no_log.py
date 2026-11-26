@@ -20,6 +20,7 @@ SENSITIVE = [
     r"\bxvpn_panel_secrets_slurp\b",
     r"\bxvpn_panel_api_token\b",
     r"\bxvpn_panel_admin_jwt\b",
+    r"\bxvpn_panel_sp_token\b",
     r"_password\b",
     r"\bapp_secret\b",
     r"\bgate_path\b",
@@ -29,6 +30,9 @@ SENSITIVE = [
 ]
 PATTERN = re.compile("|".join(SENSITIVE))
 BLOCK_KEYS = ("block", "rescue", "always")
+# A template/copy task whose src or dest is an env file or lives under secrets/ renders secrets even when the
+# task itself names no sensitive variable (the values come from the template), so it is checked by path.
+SECRET_FILE = re.compile(r"(\.env(\.j2)?|/secrets/.*)$")
 
 
 def no_log_set(value):
@@ -58,18 +62,40 @@ def walk(tasks, inherited, path, problems):
         else:
             keys = {k: v for k, v in task.items() if k != "name"}
         text = json.dumps(keys, default=str)
-        if not PATTERN.search(text):
+        module = next((k for k in task if k.split(".")[-1] in ("template", "copy")), None)
+        args = task.get(module) if module else None
+        by_path = isinstance(args, dict) and any(
+            isinstance(args.get(k), str) and SECRET_FILE.search(args[k].strip()) for k in ("src", "dest")
+        )
+        if not PATTERN.search(text) and not by_path:
             continue
         name = task.get("name", "<unnamed>")
         if not no_log_set(own):
             problems.append(f"{path}: task '{name}' touches a secret without no_log/diff: false")
             continue
-        module = next((k for k in task if k.split(".")[-1] in ("template", "copy")), None)
         if module and not diff_off(task.get("diff")):
             problems.append(f"{path}: task '{name}' touches a secret without no_log/diff: false")
 
 
+def self_test():
+    """Decoy tasks the guard must flag; a guard that stops catching them fails the check instead of passing quietly."""
+    decoys = [
+        {"name": "decoy env", "ansible.builtin.template": {"src": "node.env.j2", "dest": "{{ home }}/node.env"}},
+        {"name": "decoy secrets dir", "ansible.builtin.copy": {"content": "x", "dest": "{{ home }}/secrets/t"}},
+        {"name": "decoy token", "ansible.builtin.set_fact": {"x": "{{ xvpn_panel_sp_token }}"}},
+    ]
+    for task in decoys:
+        problems = []
+        walk([task], None, "self-test", problems)
+        if not problems:
+            print(f"check_no_log self-test: decoy '{task['name']}' was not flagged", file=sys.stderr)
+            return False
+    return True
+
+
 def main():
+    if not self_test():
+        return 1
     root = pathlib.Path(__file__).resolve().parent.parent
     problems = []
     for f in sorted(root.glob("roles/*/tasks/*.yml")):
