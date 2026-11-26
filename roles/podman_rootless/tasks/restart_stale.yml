@@ -1,0 +1,62 @@
+---
+# Restart a user unit whose start-time configuration changed. The decision does not rely only on the in-run
+# "changed" result: a run that fails between rendering a file and restarting the unit would otherwise leave the
+# container on the old configuration for good, because the next run finds the file already up to date. The file
+# modification time is compared with the start of the unit main process instead. Inputs:
+#   xvpn_podman_rootless_restart_user, xvpn_podman_rootless_restart_unit, xvpn_podman_rootless_restart_files,
+#   xvpn_podman_rootless_restart_changed
+- name: Restart stale | look up the service user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_podman_rootless_restart_user }}"
+
+- name: Restart stale | stat the configuration files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ xvpn_podman_rootless_restart_files }}"
+  register: xvpn_podman_rootless_restart_stats
+
+- name: Restart stale | read the start time of the unit main process
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - show
+      - --property=ExecMainStartTimestamp
+      - --timestamp=unix
+      - "{{ xvpn_podman_rootless_restart_unit }}"
+  become: true
+  become_user: "{{ xvpn_podman_rootless_restart_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_podman_rootless_restart_user][1] }}"
+  register: xvpn_podman_rootless_restart_show
+  changed_when: false
+  failed_when: false
+
+# A unit that never started has an empty timestamp: stale is false then, the deployment owns the first start.
+- name: Restart stale | decide
+  ansible.builtin.set_fact:
+    xvpn_podman_rootless_restart_needed: >-
+      {{ (xvpn_podman_rootless_restart_changed | default(false) | bool)
+         or (xvpn_podman_rootless_restart_started | int > 0
+             and (xvpn_podman_rootless_restart_stats.results
+                  | selectattr('stat.exists')
+                  | map(attribute='stat.mtime') | map('int') | list
+                  | select('gt', xvpn_podman_rootless_restart_started | int) | list | length) > 0) }}
+  vars:
+    xvpn_podman_rootless_restart_started: >-
+      {{ xvpn_podman_rootless_restart_show.stdout | default('')
+         | regex_replace('^ExecMainStartTimestamp=@?', '') | trim | default(0, true) }}
+
+- name: Restart stale | restart the unit
+  ansible.builtin.systemd_service:
+    name: "{{ xvpn_podman_rootless_restart_unit }}"
+    scope: user
+    state: restarted
+  become: true
+  become_user: "{{ xvpn_podman_rootless_restart_user }}"
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_podman_rootless_restart_user][1] }}"
+  when: xvpn_podman_rootless_restart_needed | bool

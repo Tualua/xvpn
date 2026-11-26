@@ -105,31 +105,29 @@
                          | reject('search', '(?i)token|bearer|authorization|jwt|password|secret|DATABASE_URL|APP_SECRET|METRICS_PASS')
                          | join(' | ') }}
 
-# The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7).
+# The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7). The
+# restart also fires for a file that is newer than the running unit, so a run that failed after rendering heals
+# on the next run.
 - name: Panel stack | restart Postgres after an env file change
-  ansible.builtin.systemd_service:
-    name: remnawave-db.service
-    scope: user
-    state: restarted
-  become: true
-  become_user: "{{ xvpn_panel_user }}"
-  become_method: ansible.builtin.sudo
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
-  when:
-    - xvpn_panel_activate | bool
-    - xvpn_panel_postgres_env is changed
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: restart_stale
+  vars:
+    xvpn_podman_rootless_restart_user: "{{ xvpn_panel_user }}"
+    xvpn_podman_rootless_restart_unit: remnawave-db.service
+    xvpn_podman_rootless_restart_files:
+      - "{{ xvpn_panel_env_dir }}/postgres.env"
+    xvpn_podman_rootless_restart_changed: "{{ xvpn_panel_postgres_env is changed }}"
+  when: xvpn_panel_activate | bool
 
 - name: Panel stack | restart the backend after an env file change
-  ansible.builtin.systemd_service:
-    name: remnawave.service
-    scope: user
-    state: restarted
-  become: true
-  become_user: "{{ xvpn_panel_user }}"
-  become_method: ansible.builtin.sudo
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
-  when:
-    - xvpn_panel_activate | bool
-    - xvpn_panel_backend_env is changed
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: restart_stale
+  vars:
+    xvpn_podman_rootless_restart_user: "{{ xvpn_panel_user }}"
+    xvpn_podman_rootless_restart_unit: remnawave.service
+    xvpn_podman_rootless_restart_files:
+      - "{{ xvpn_panel_env_dir }}/backend.env"
+    xvpn_podman_rootless_restart_changed: "{{ xvpn_panel_backend_env is changed }}"
+  when: xvpn_panel_activate | bool

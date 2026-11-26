@@ -74,3 +74,25 @@ argument_specs:
         description: Start and enable the units.
         type: bool
         default: true
+  restart_stale:
+    short_description: Restart a user unit when a config file is newer than the unit start or was changed in this run
+    options:
+      xvpn_podman_rootless_restart_user:
+        description: Service user that owns the unit, regex C(^[a-z_][a-z0-9_-]{0,30}$).
+        type: str
+        required: true
+      xvpn_podman_rootless_restart_unit:
+        description: Name of the user unit, for example C(traefik.service).
+        type: str
+        required: true
+      xvpn_podman_rootless_restart_files:
+        description: >-
+          Absolute paths of the files the container reads only at start. The unit is restarted when any of them
+          has a modification time later than the start of the unit main process.
+        type: list
+        elements: str
+        required: true
+      xvpn_podman_rootless_restart_changed:
+        description: Restart regardless of the modification times (a rendering task reported a change in this run).
+        type: bool
+        default: false

@@ -138,30 +138,28 @@
     xvpn_podman_rootless_quadlet_activate: "{{ xvpn_edge_activate }}"
 
 # Traefik reads the static configuration and the extra CA only at start, so a change needs a restart (Pitfall 7).
+# The restart also fires for files newer than the running unit, so a run that failed after rendering heals next time.
 - name: Edge | restart Traefik after a static configuration change
-  ansible.builtin.systemd_service:
-    name: traefik.service
-    scope: user
-    state: restarted
-  become: true
-  become_user: "{{ xvpn_edge_user }}"
-  become_method: ansible.builtin.sudo
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ xvpn_edge_getent.ansible_facts.getent_passwd[xvpn_edge_user][1] }}"
-  when:
-    - xvpn_edge_activate | bool
-    - xvpn_edge_static is changed or xvpn_edge_ca is changed
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: restart_stale
+  vars:
+    xvpn_podman_rootless_restart_user: "{{ xvpn_edge_user }}"
+    xvpn_podman_rootless_restart_unit: traefik.service
+    xvpn_podman_rootless_restart_files:
+      - "{{ xvpn_edge_home }}/traefik/static/traefik.yml"
+      - "{{ xvpn_edge_home }}/traefik/ca/ca.pem"
+    xvpn_podman_rootless_restart_changed: "{{ xvpn_edge_static is changed or xvpn_edge_ca is changed }}"
+  when: xvpn_edge_activate | bool
 
 - name: Edge | restart the decoy after an nginx configuration change
-  ansible.builtin.systemd_service:
-    name: xvpn-decoy.service
-    scope: user
-    state: restarted
-  become: true
-  become_user: "{{ xvpn_edge_user }}"
-  become_method: ansible.builtin.sudo
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ xvpn_edge_getent.ansible_facts.getent_passwd[xvpn_edge_user][1] }}"
-  when:
-    - xvpn_edge_activate | bool
-    - xvpn_edge_decoy_conf is changed
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: restart_stale
+  vars:
+    xvpn_podman_rootless_restart_user: "{{ xvpn_edge_user }}"
+    xvpn_podman_rootless_restart_unit: xvpn-decoy.service
+    xvpn_podman_rootless_restart_files:
+      - "{{ xvpn_edge_home }}/decoy/conf.d/default.conf"
+    xvpn_podman_rootless_restart_changed: "{{ xvpn_edge_decoy_conf is changed }}"
+  when: xvpn_edge_activate | bool

@@ -61,20 +61,19 @@
         xvpn_podman_rootless_quadlet_specs: "{{ xvpn_panel_subpage_quadlet_specs }}"
         xvpn_podman_rootless_quadlet_activate: "{{ xvpn_panel_activate }}"
 
-    # The env file is read at container creation, so a token change needs a restart of this unit only.
+    # The env file is read at container creation, so a token change needs a restart of this unit only. The restart
+    # also fires for a file newer than the running unit, so a run that failed after rendering heals next time.
     - name: Panel subpage | restart the subscription page after an env file change
-      ansible.builtin.systemd_service:
-        name: remnawave-subscription-page.service
-        scope: user
-        state: restarted
-      become: true
-      become_user: "{{ xvpn_panel_user }}"
-      become_method: ansible.builtin.sudo
-      environment:
-        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd'][xvpn_panel_user][1] }}"
-      when:
-        - xvpn_panel_activate | bool
-        - xvpn_panel_subpage_env is changed
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.podman_rootless
+        tasks_from: restart_stale
+      vars:
+        xvpn_podman_rootless_restart_user: "{{ xvpn_panel_user }}"
+        xvpn_podman_rootless_restart_unit: remnawave-subscription-page.service
+        xvpn_podman_rootless_restart_files:
+          - "{{ xvpn_panel_env_dir }}/subpage.env"
+        xvpn_podman_rootless_restart_changed: "{{ xvpn_panel_subpage_env is changed }}"
+      when: xvpn_panel_activate | bool
 
     # role_path again resolved before the include: inside the edge role it would be the edge role's.
     - name: Panel subpage | resolve the route template path
