@@ -133,8 +133,8 @@
     - name: Panel stack | fail without the raw logs
       ansible.builtin.fail:
         msg: >-
-          Panel stack start failed: {{ (ansible_failed_result.msg | default(''))
-                                       | regex_replace('(?i)(token|bearer|authorization|jwt|password|secret)[^\s,;]*', '\1=<redacted>') }}
+          Panel stack start failed at task "{{ ansible_failed_task.name | default('unknown') }}" (the module error text
+          is not echoed, it may contain secret values).
           containers: {{ xvpn_panel_start_ps.stdout_lines | default([]) | join(' | ') }}
           The unit journals and container logs are in /var/tmp/xvpn-panel-start-failure.log (root-only, 0600) on the
           Panel host.
