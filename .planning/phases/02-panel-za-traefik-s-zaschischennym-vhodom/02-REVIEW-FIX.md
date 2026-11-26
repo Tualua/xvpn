@@ -22,7 +22,7 @@ status: all_fixed
 
 Проверка: `scripts/check.sh` пройден (`check.sh: OK`) в изолированном worktree; gitleaks локально не установлен, проверяется только в CI. Molecule локально не запускался.
 
-## Исправленные замечания
+## Fixed Issues
 
 ### WR-01: частичный `panel-secrets.yml` проходил проверку целостности
 
