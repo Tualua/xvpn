@@ -1,10 +1,10 @@
 ---
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
-verified: 2026-11-26T07:00:00Z
+verified: 2026-11-26T10:00:00Z
 status: human_needed
 score: 5/5 must-haves verified
 covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py"]
-covered_digest: "v4:sha256:7b69b08653188a541f1f4eea500afbe7968e5c96cb158bbb3cb86e6d9d8bcc11"
+covered_digest: "v4:sha256:88e3e6b77ded6d24d24c2869946f9f3533341fb519b5e901b4b74da9d19ac329"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -27,7 +27,7 @@ human_verification:
 **Цель фазы:** Оператор разворачивает Panel-хост одной командой: HTTPS на собственном домене, вход в админку закрыт cookie/secret-path гейтом, первый админ и API-токен создаются автоматически, subscription page на отдельном домене, повторный прогон ничего не ломает и не меняет секреты.
 **Проверено:** 2026-11-26
 **Статус:** human_needed (автоматические проверки пройдены, остались два ручных пункта)
-**Повторная верификация:** Да, после правок code review (WR-01..WR-05); регрессий нет
+**Повторная верификация:** Да, после правок code review (WR-01..WR-05, IN-01..IN-07); регрессий нет
 
 ## Достижение цели
 
@@ -85,6 +85,20 @@ TBD/FIXME/XXX в roles, playbooks, scripts, extensions не найдено. Бл
 | molecule-vm run 45763475691 (headSha 7c6a2d9, alma10 и rocky10, SELinux enforcing, idempotence) | success |
 
 Молекулу локально запустить нельзя; поведение WR-05 на EL10 (`systemctl --timestamp=unix`) подтверждено только зелёным VM-прогоном с идемпотентностью.
+
+### Повторная верификация после IN-01..IN-07 (2026-11-26)
+
+Изменены `roles/edge/tasks/main.yml`, `roles/panel/tasks/bootstrap.yml`, `roles/panel/tasks/secrets.yml`, `roles/podman_rootless/tasks/restart_stale.yml` (и defaults/argument_specs). Проверка по коду, регрессий нет:
+
+- IN-01 (`restart_stale`): запущенный юнит оценивается только по mtime файлов; не запускавшийся юнит (пустой timestamp) опирается на `changed`. Все пять вызовов (stack x2, subpage, edge x2) передают `restart_changed`; argument_specs обновлён. Лишний рестарт после первой установки устранён, исцеление после сбоя между рендером и рестартом (WR-05) сохранено.
+- IN-03/IN-04 (`secrets.yml`): пароли берутся из CSPRNG с повтором до нужных классов символов, форматы закреплены `\Z`; generate-once, immutable-ключи, запрет ротации (D-10), no_log сохранены.
+- IN-05 (`edge/main.yml`): строгая валидация email и адресов entrypoint, остальные assert без изменений.
+- IN-07: переменная `xvpn_panel_bootstrap_password_key` удалена, висячих ссылок нет; логика bootstrap (register только если разрешено и логин невозможен, проба токена, 0600) не затронута.
+- `scripts/check.sh` локально: `check.sh: OK` (lint, syntax-check, no_log guard).
+- CI на 64e5d9c (все код-правки IN-01..IN-07 включены; позднее изменены только 02-REVIEW*.md): lint, gate, molecule-container, molecule-vm (SELinux enforcing, идемпотентность) - success.
+- 02-REVIEW.md: 0 critical, 2 warning, 4 info, advisory, в 02-REVIEW-DISPOSITION.md открыты; блокеров нет.
+
+Покрытие всех 13 ID (EDGE-01..03, PANEL-01..06, SUB-01/02, QA-05, DOC-04) осталось в REQUIREMENTS.md как Complete и привязано к Phase 2; осиротевших нет.
 
 ## Требуется проверка человеком
 
