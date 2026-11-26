@@ -1,11 +1,11 @@
 ---
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
-verified: 2026-11-26T14:00:00Z
+verified: 2026-11-26T16:00:00Z
 status: human_needed
 score: 5/5 must-haves verified
-covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py", "scripts/ci_watch.sh"]
-covered_digest: "v4:sha256:fc9f2faefc4fa3c337f7aff242490c0df54dea4b158b84d4764878e11fcc13e6"
-behavior_unverified: 0
+covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "README.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/defaults/main.yml", "roles/panel/meta/argument_specs.yml", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py", "scripts/ci_watch.sh"]
+covered_digest: "v4:sha256:fd8d20fe0c833827a0f7d0cb67e63094b125cde41bc9a8199fdea7efb87a4431"
+behavior_unverified: 2026-11-26T16:00:00Z
 overrides_applied: 0
 re_verification:
   previous_status: human_needed
@@ -25,9 +25,9 @@ human_verification:
 # Phase 2: Panel за Traefik с защищённым входом — отчёт верификации
 
 **Цель фазы:** Оператор разворачивает Panel-хост одной командой: HTTPS на собственном домене, вход в админку закрыт cookie/secret-path гейтом, первый админ и API-токен создаются автоматически, subscription page на отдельном домене, повторный прогон ничего не ломает и не меняет секреты.
-**Проверено:** 2026-11-26
+**Проверено:** 2026-11-26 (повтор после quick-задачи 261126-hc8)
 **Статус:** human_needed (автоматические проверки пройдены, остались два ручных пункта)
-**Повторная верификация:** Да, после коммитов code review 60dbb9e..HEAD (WR-03, WR-04, WR-05, IN-02..IN-05); регрессий нет
+**Повторная верификация:** Да, после quick-задачи 261126-hc8 (коммиты 6bff6f0, 9f96be2: сохранение failure-лога в rescue стека Panel, переменная `xvpn_panel_failure_log_dir`); регрессий нет
 
 ## Достижение цели
 
@@ -43,23 +43,21 @@ human_verification:
 
 **Оценка:** 5/5 истин подтверждено.
 
-### Проверка правок с 60dbb9e (регрессии)
+### Проверка правок quick-задачи 261126-hc8 (регрессии)
 
 | Файл | Изменение | Итог |
 |------|-----------|------|
-| `roles/edge/tasks/main.yml` | порт <= 65535 для http/https entrypoint, regex email требует домен с точкой | Без регрессий, только ужесточение валидации |
-| `roles/panel/tasks/main.yml` | punycode-TLD `xn--` без дефиса на краях | Без регрессий; требования к FQDN и различию доменов сохранены |
-| `roles/panel/tasks/secrets.yml` | `fail_msg` уточнён (vault-переопределения не заменяют immutable-ключи) | Только сообщение, логика не затронута |
-| `roles/panel/tasks/stack.yml` | rescue: no_log на сборе логов, root-only `/var/log/xvpn` 0700, файл 0600, очистка старого лога после успешного старта | Секреты не попадают в вывод; успешный путь только удаляет устаревший файл (`state: absent`, идемпотентно, play имеет `become: true`) |
-| `scripts/check_no_log.py` | расширено покрытие slurp/fetch и writer-модулей | `check.sh: OK` (lint, syntax-check, no_log guard, сборка коллекции) |
-| `scripts/ci_watch.sh` | ошибка чтения baseline run прерывает скрипт | Инструмент CI, на артефакты фазы не влияет |
+| `roles/panel/tasks/stack.yml` | rescue: имя упавшей задачи фиксируется до вложенного блока; вложенный block/rescue ставит флаг `xvpn_panel_start_log_saved` только после записи каталога и файла; сообщение fail ссылается на файл лишь при флаге true; после успешного старта старый лог удаляется (`state: absent`, идемпотентно) | Проверено чтением кода: логика корректна, сырые логи в вывод не попадают (`no_log` на сборе и записи, `diff: false`), успешный путь не затронут. Закрывает WR-01/WR-02/IN-01 прошлого ревью |
+| `roles/panel/defaults/main.yml`, `meta/argument_specs.yml`, `README.md` | новая переменная `xvpn_panel_failure_log_dir` (по умолчанию `/var/log/xvpn`) | Значение по умолчанию, спецификация и README согласованы |
 
-### Замечания свежего code review (02-REVIEW.md, 810ad39)
+Оркестратор: `scripts/check.sh` пройден (ansible-lint, syntax-check, сборка коллекции, гейты). Истины 1-5 и требования не затронуты: правки касаются только диагностики упавшего запуска.
 
-0 critical, 2 warning, 2 info; это advisory, на must-have не влияют.
+### Замечания code review (02-REVIEW.md, 092c0d0)
 
-- **WR-01/WR-02** (`stack.yml`, `failed_when: false` делает проверки `is succeeded` всегда истинными): затрагивает только диагностику в rescue-ветке уже упавшего запуска. Если запись `/var/log/xvpn/panel-start-failure.log` не удалась, сообщение об ошибке всё равно сошлётся на файл. Секреты при этом не раскрываются, успешный путь, идемпотентность и сами истины 1-5 не затронуты. Статус: предупреждение (качество диагностики), рекомендуемое исправление: `ignore_errors: true` вместо `failed_when: false` на двух задачах.
-- **IN-01, IN-02**: захардкоженный путь лога и не покрытые `check_no_log.py` способы чтения секретного файла (`command cat`, `include_vars`); текущие роли таких конструкций не содержат. Дальний запас прочности.
+0 critical, 1 warning, 1 info.
+
+- **WR-01 (WARNING, не блокирует):** `xvpn_panel_failure_log_dir` не валидируется; роль принудительно ставит на каталог `root:root 0700` и удаляет в нём `panel-start-failure.log`. Ошибочное значение оператора (например, `/etc`) изменит права существующего каталога. Рекомендуется assert абсолютного пути и запрет системных каталогов либо отдельный подкаталог. На must-have фазы не влияет.
+- **IN-01 (advisory):** см. 02-REVIEW.md.
 
 ### Покрытие требований
 
