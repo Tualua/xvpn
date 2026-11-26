@@ -1,12 +1,18 @@
 ---
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
-verified: 2026-11-25T19:30:00Z
+verified: 2026-11-26T07:00:00Z
 status: human_needed
 score: 5/5 must-haves verified
-covered_files: [roles/panel/tasks/secrets.yml, roles/panel/tasks/bootstrap.yml, roles/panel/tasks/subpage.yml, roles/panel/templates/panel-routes.yml.j2, roles/edge/templates/traefik.yml.j2, playbooks/panel.yml]
-covered_digest: "v4:sha256:4e1f3cbfd229c421deb909a4884eb90b25370d27047c8b40250b4b423b2133f1"
+covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py"]
+covered_digest: "v4:sha256:7b69b08653188a541f1f4eea500afbe7968e5c96cb158bbb3cb86e6d9d8bcc11"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: human_needed
+  previous_score: 5/5
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 human_verification:
   - test: "Открыть в реальном браузере https://<panel-domain>/<gate_path> (путь из admin-url файла на Panel-хосте), затем войти логином admin"
     expected: "Секретный URL ставит cookie и ведёт на форму логина; без cookie отдаётся сайт-заглушка; логин проходит"
@@ -19,9 +25,9 @@ human_verification:
 # Phase 2: Panel за Traefik с защищённым входом — отчёт верификации
 
 **Цель фазы:** Оператор разворачивает Panel-хост одной командой: HTTPS на собственном домене, вход в админку закрыт cookie/secret-path гейтом, первый админ и API-токен создаются автоматически, subscription page на отдельном домене, повторный прогон ничего не ломает и не меняет секреты.
-**Проверено:** 2026-11-25
+**Проверено:** 2026-11-26
 **Статус:** human_needed (автоматические проверки пройдены, остались два ручных пункта)
-**Повторная верификация:** Нет, первичная
+**Повторная верификация:** Да, после правок code review (WR-01..WR-05); регрессий нет
 
 ## Достижение цели
 
@@ -56,22 +62,29 @@ human_verification:
 
 Все 13 ID из PLAN frontmatter присутствуют в REQUIREMENTS.md и в ROADMAP фазы; осиротевших требований нет.
 
-### Anti-patterns и замечания code review (все warning, открыты)
+### Anti-patterns и замечания code review
 
-TBD/FIXME/XXX в файлах фазы не найдено. Блокеров (critical) нет. 02-SECURITY.md: threats_open 0.
+TBD/FIXME/XXX в roles, playbooks, scripts, extensions не найдено. Блокеров нет. Все пять предупреждений WR-01..WR-05 исправлены и перепроверены по коду:
 
-| ID | Влияние на цель | Оценка |
-|----|-----------------|--------|
-| WR-01 частичный `panel-secrets.yml` пополняется свежими секретами | Затрагивает "не меняет секреты" только при ручной порче файла; штатный прогон и guard при полной потере файла работают | WARNING, рекомендуется исправить (assert неизменяемых ключей) |
-| WR-05 потеря сигнала "changed" при сбое между рендером и рестартом | Нарушает сходимость только после сбойного прогона; штатный сценарий покрыт | WARNING, рекомендуется исправить |
-| WR-02, WR-03, WR-04, IN-01..07 | Не затрагивают must-have | Информационно |
+| ID | Коммиты | Проверка в коде |
+|----|---------|-----------------|
+| WR-01 | 9032e4a, 312a6d1 | `secrets.yml`: булев `secrets_immutable_ok` (no_log) + assert без имён секретов; неизменяемые ключи обязательны в существующем файле. Негативного Molecule-кейса нет (информационно) |
+| WR-02 | 89bc1b4 | `stack.yml`: rescue фильтрует строки по token/password/secret/DATABASE_URL и т. п. |
+| WR-03 | 1af7039 | `main.yml`: TLD допускает `xn--...` для обоих доменов |
+| WR-04 | 6aae78b | `check_no_log.py`: самотест-приманки, правило для `.env`/`secrets`-шаблонов; `check.sh: OK` |
+| WR-05 | c389b83 | `restart_stale.yml` сравнивает mtime файла с `ExecMainStartTimestamp`; подключён в stack, subpage, edge; пустой timestamp = не устарел. Идемпотентность подтверждена молекулой VM (см. ниже) |
+
+02-SECURITY.md: threats_open 0.
 
 ### Автоматические проверки
 
 | Проверка | Результат |
 |----------|-----------|
-| `scripts/check.sh` локально | OK |
-| CI на 5d29527: lint, gate, molecule-container (push), molecule-vm (dispatch) | все success (`gh run list`); более ранний сбой molecule-container на ef0a8b9 исправлен 5d29527 |
+| `scripts/check.sh` локально (повторно в этой верификации) | `check.sh: OK` |
+| CI на HEAD 7c6a2d9: lint, gate, molecule-container (run 45762412668) | success |
+| molecule-vm run 45763475691 (headSha 7c6a2d9, alma10 и rocky10, SELinux enforcing, idempotence) | success |
+
+Молекулу локально запустить нельзя; поведение WR-05 на EL10 (`systemctl --timestamp=unix`) подтверждено только зелёным VM-прогоном с идемпотентностью.
 
 ## Требуется проверка человеком
 
