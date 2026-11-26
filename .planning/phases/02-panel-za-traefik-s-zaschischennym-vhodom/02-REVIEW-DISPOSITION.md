@@ -5,12 +5,28 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "Частичный `panel-secrets.yml` проходит проверку целостности, недостающие секреты генерируются заново"
+    disposition: open
+    title: "Сообщение об ошибке запуска стека фильтрует логи чёрным списком по строкам"
   - id: WR-02
     severity: warning
-    disposition: fixed
-    title: "Rescue-ветка стека печатает логи контейнеров и journal в `fail_msg` без фильтрации"
+    disposition: open
+    title: "`check_no_log.py` пропускает задачи с free-form аргументами"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "`restart_stale` сравнивает mtime и старт юнита с точностью до секунды"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "Проверка неизменяемых ключей игнорирует значения из vault"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "Регулярные выражения валидации допускают некорректные значения"
+  - id: IN-04
+    severity: info
+    disposition: open
+    title: "`ci_watch.sh` завершается без сообщения при сбое базовой выборки"
   - id: WR-03
     severity: warning
     disposition: fixed
@@ -23,22 +39,6 @@ findings:
     severity: warning
     disposition: fixed
     title: "Сигнал \"конфигурация изменилась\" теряется при сбое между рендером и рестартом"
-  - id: IN-01
-    severity: info
-    disposition: fixed
-    title: "Лишние рестарты при первой установке"
-  - id: IN-02
-    severity: info
-    disposition: fixed
-    title: "Канарейка AVC для Pebble считает любую ошибку `ausearch` чистым результатом"
-  - id: IN-03
-    severity: info
-    disposition: fixed
-    title: "`shuffle` использует не криптографический ГСЧ при сборке паролей"
-  - id: IN-04
-    severity: info
-    disposition: fixed
-    title: "Якорь `$` в regex-форматах секретов допускает хвостовой перевод строки"
   - id: IN-05
     severity: info
     disposition: fixed
@@ -51,27 +51,27 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 0
+open: 6
 total: 12
-recorded: 2026-11-26T07:18:52.355Z
+recorded: 2026-11-26T09:32:50.359Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-04 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-05 | warning | fixed | 02-REVIEW-FIX.md |
-| IN-01 | info | fixed | 02-REVIEW-FIX.md |
-| IN-02 | info | fixed | 02-REVIEW-FIX.md |
-| IN-03 | info | fixed | 02-REVIEW-FIX.md |
-| IN-04 | info | fixed | 02-REVIEW-FIX.md |
-| IN-05 | info | fixed | 02-REVIEW-FIX.md |
-| IN-06 | info | fixed | 02-REVIEW-FIX.md |
-| IN-07 | info | fixed | 02-REVIEW-FIX.md |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
+| IN-01 | info | open | - |
+| IN-02 | info | open | - |
+| IN-03 | info | open | - |
+| IN-04 | info | open | - |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-05 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-05 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-06 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-07 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
