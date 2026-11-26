@@ -2,58 +2,61 @@
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 reviewed: 2026-11-26T00:00:00Z
 depth: standard
-files_reviewed: 13
+files_reviewed: 7
 files_reviewed_list:
-  - extensions/molecule/vm/tasks/pebble.yml
-  - roles/edge/tasks/main.yml
-  - roles/panel/defaults/main.yml
-  - roles/panel/meta/argument_specs.yml
-  - roles/panel/tasks/bootstrap.yml
-  - roles/panel/tasks/main.yml
-  - roles/panel/tasks/secrets.yml
   - roles/panel/tasks/stack.yml
-  - roles/panel/tasks/subpage.yml
-  - roles/podman_rootless/meta/argument_specs.yml
-  - roles/podman_rootless/tasks/restart_stale.yml
   - scripts/check_no_log.py
+  - roles/podman_rootless/tasks/restart_stale.yml
+  - roles/panel/tasks/secrets.yml
+  - roles/panel/tasks/main.yml
+  - roles/edge/tasks/main.yml
   - scripts/ci_watch.sh
 findings:
   critical: 0
-  warning: 2
-  info: 4
-  total: 6
+  warning: 3
+  info: 5
+  total: 8
   necessity: 0
 status: issues_found
 ---
 
-# Phase 2: Code Review Report (инкрементальный повторный обзор)
+# Phase 2: Code Review Report (повторный обзор после fix-коммитов WR-01/WR-02)
 
 **Reviewed:** 2026-11-26
 **Depth:** standard
-**Files Reviewed:** 13
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Просмотрены изменённые хунки fix-коммитов WR-01..WR-05 и IN-01..IN-07 и контекст файлов целиком. Критических дефектов и регрессий, ломающих сценарии первой установки или идемпотентность, не найдено. Новый механизм `restart_stale` логически корректен: на первой установке файл рендерится до старта юнита, поэтому повторного рестарта нет. Для уже запущенного юнита решение принимается по mtime. Для юнита, который не запускался, действует запасной вариант по флагу `changed`. Ссылки на удалённую переменную `xvpn_panel_bootstrap_password_key` в репозитории отсутствуют. Пути в `xvpn_podman_rootless_restart_files` совпадают с путями рендера.
+Просмотрены хунки коммитов bb95cbc (WR-01) и 1e31c28 (WR-02) и файлы целиком. Исправление WR-02 в основном корректно: free-form аргументы разбираются, список модулей расширен, декои добавлены. Исключение `ansible.builtin.file` из проверки по пути верно, потому что модуль не записывает содержимое. Исправление WR-01 неполное. Маскирование через `regex_replace` не скрывает значения секретов, и (с высокой вероятностью) ломает обратную ссылку `\1`. Файл в `/var/tmp` приемлем по правам (root, 0600), но выбор каталога и жизненный цикл файла неудачны. Сами задачи сбора журналов не имеют `no_log`. WR-01 и WR-02 в отчёт не переносятся. Новые находки нумеруются с WR-03 и IN-05. Четыре информационных находки IN-01..IN-04 перенесены без изменений из предыдущего отчёта (файлы не менялись).
 
-Остались два предупреждения: фильтр секретов в сообщении об ошибке и слепая зона `check_no_log.py`. Остальное носит информационный характер.
-
-Ограничение: `scripts/check_no_log.py` не удалось выполнить локально, потому что в окружении нет PyYAML (и pip). Корректность проверена чтением кода. Grep по `template` и `copy` с `.env` и `/secrets/` показал, что все такие задачи в `roles/panel/tasks` имеют `no_log: true` и `diff: false`, поэтому ложных срабатываний новой проверки по пути не ожидается.
+Ограничение: `scripts/check_no_log.py` не запускался, в окружении нет PyYAML. Grep по ролям не нашёл задач `lineinfile`, `blockinfile` и `ini_file`, то есть ложных срабатываний от расширения нет.
 
 ## Warnings
 
-### WR-01: Сообщение об ошибке запуска стека фильтрует логи чёрным списком по строкам
+### WR-03: Маскирование в `fail` через `regex_replace` не скрывает значения и, вероятно, портит обратную ссылку
 
-**File:** `roles/panel/tasks/stack.yml:101-107`
-**Issue:** `fail` выводит журнал и логи контейнеров, отфильтрованные по ключевым словам (`reject('search', 'token|password|...')`). Это denylist. Строки логов Postgres и backend, которые содержат значение секрета без этих слов, пройдут фильтр. Пример: эхо строки подключения без `DATABASE_URL`, значение `POSTGRES_USER` или дамп env `podman inspect`. Вывод попадает в stdout Ansible и в CI-логи публичной коллекции. Кроме того, `ansible_failed_result.msg` подставляется без фильтра. Задача без `no_log` выводит всё вместе с `msg`.
-**Fix:** Выводить из логов только то, что нужно для диагностики. Например, последние N строк со статусом юнита (`systemctl status` без env), без `podman logs` и `podman inspect`. Либо хранить полный вывод в файле `0600` на хосте и показывать в сообщении только путь к нему. Фильтр оставить как дополнительную защиту, а не как основную.
+**File:** `roles/panel/tasks/stack.yml:134-135`
+**Issue:** Паттерн `(token|bearer|...)[^\s,;]*` съедает только остаток слова после ключевого слова, но не значение. Проверено локально на эквивалентном регулярном выражении. Из `Authorization: Bearer abc123 password: hunter2` получается `Authorization=<redacted> Bearer=<redacted> abc123 password=<redacted> hunter2`. Значения `abc123` и `hunter2` остаются. Это тот же denylist, который WR-01 должен был убрать, только в `msg` от `ansible_failed_result`. Кроме того, в строковом литерале Jinja `'\1'` декодируется как `\x01` (проверено через `unicode-escape`), поэтому обратная ссылка не работает. Вместо `token=<redacted>` в вывод пойдёт управляющий символ, а само слово потеряется. Для Ansible нужно `\\1`.
+**Fix:** Не пытаться маскировать значения регулярным выражением. Либо выводить в `fail` только фиксированный текст и путь к файлу, либо маскировать до конца строки и писать без обратной ссылки:
+```yaml
+msg: >-
+  Panel stack start failed (details in /var/tmp/...). Failed task: {{ ansible_failed_result.invocation.module_name | default('unknown') }}
+```
+Если `msg` всё же нужен, использовать `regex_replace('(?i)(token|bearer|authorization|jwt|password|secret)\\S*(\\s*[:=]\\s*|\\s+)\\S+', '\\1=<redacted>')` и покрыть форматы `k: v`, `k=v`, `Bearer x`.
 
-### WR-02: `check_no_log.py` пропускает задачи с free-form аргументами
+### WR-04: Файл с логами в `/var/tmp` лежит бессрочно, под предсказуемым именем, а сообщение обещает его наличие безусловно
 
-**File:** `scripts/check_no_log.py:65-69`
-**Issue:** Проверка по пути работает, только если `args = task.get(module)` является `dict`. Free-form форма `ansible.builtin.template: src=x.env.j2 dest=.../a.env` (строка) даёт `by_path = False`, поэтому задача проходит без `no_log`. Самотест декоя этого варианта не покрывает. Проверка также не ловит `ansible.builtin.file`, `lineinfile` и `blockinfile` над env-файлами и `secrets/`, то есть другие пути записи секретов.
-**Fix:** Обработать строковую форму: если `args` является `str`, искать `SECRET_FILE` в значениях `src=`/`dest=`. Добавить декой со строковыми аргументами в `self_test`. Расширить множество модулей на `lineinfile`, `blockinfile`, `ini_file`.
+**File:** `roles/panel/tasks/stack.yml:116-138`
+**Issue:** (1) Права `root:root 0600` достаточны для чтения. Но `/var/tmp` это каталог с sticky bit, доступный на запись всем, и файл переживает перезагрузку. Журнал может содержать эхо env (секреты Postgres и backend), поэтому он остаётся на диске бессрочно. (2) Имя фиксировано, поэтому любой локальный пользователь (в том числе сервисный `xvpn_panel_user`, под которым работают контейнеры) может заранее создать в этом месте каталог или FIFO, и `copy` упадёт. Это скрыто `failed_when: false`. Символьную ссылку `copy` заменит атомарно, но предсказуемое имя в общем каталоге всё равно лишняя поверхность атаки. (3) При успешном следующем запуске файл не удаляется. Устаревший файл с секретами остаётся и вводит в заблуждение. (4) При сбое записи (`failed_when: false` и `no_log`) сообщение всё равно утверждает, что логи лежат в файле. SELinux проблем не создаёт, так как запись выполняет root в `tmp_t`, но полезнее каталог с контекстом, предназначенным для логов.
+**Fix:** Писать в каталог, принадлежащий root и не доступный другим, например `/var/log/xvpn/` (создать задачей `file` с `0700`) или `/root`. В конце успешного прохождения блока удалять файл (`ansible.builtin.file: state: absent`, в `always`-секции после проверки результата). В `fail` указывать путь только если запись удалась, сохранив результат `copy` через `register` и условие `is succeeded`.
+
+### WR-05: Задачи сбора журналов и логов контейнеров не имеют `no_log`
+
+**File:** `roles/panel/tasks/stack.yml:66-95`
+**Issue:** Комментарий говорит, что сырой вывод никогда не попадает в Ansible, но задачи `journalctl` и `podman logs`/`podman inspect` выполняются без `no_log: true`. Из-за `failed_when: false` результат считается `ok`, а стандартный callback при `-v` и выше печатает `stdout`. В CI-логах публичной коллекции это обычная ситуация (`ANSIBLE_VERBOSITY`, `-vv` при отладке). Тогда содержимое, ради которого был сделан файл, всё равно печатается. Проверка `check_no_log.py` этого не ловит, так как в задачах нет чувствительных имён.
+**Fix:** Добавить `no_log: true` в обе задачи (`journal` и `logs`), как уже сделано для `copy`.
 
 ## Info
 
@@ -80,6 +83,12 @@ status: issues_found
 **File:** `scripts/ci_watch.sh:25-28`
 **Issue:** При `set -euo pipefail` падение `gh run list` внутри `BASE="$(select_run max)"` (сеть, лимиты API) завершает скрипт с кодом без пояснения. До правки такая же выборка была отложена до цикла ожидания и повторялась. Теперь диспатч не выполнится, но причина останется неочевидной.
 **Fix:** `BASE="$(select_run max)" || { echo "ci-watch: cannot read the baseline of runs" >&2; exit 1; }`.
+
+### IN-05: `check_no_log.py` проверяет только модули записи и не видит чтение секретных файлов
+
+**File:** `scripts/check_no_log.py:36-38,81-84`
+**Issue:** Исключение `ansible.builtin.file` верно. Но тот же довод («проверять только то, что может вывести содержимое») оставляет без проверки модули чтения и другие модули записи: `slurp`, `fetch`, `replace`, `assemble`, `get_url`, а также `command`/`shell` с `cat` секретного файла. Задача `slurp` секретного файла с `register` под нейтральным именем пройдёт без `no_log`, если имя переменной не входит в `SENSITIVE`. Сейчас `slurp` встречается в `secrets.yml:35`, `subpage.yml:19` и `bootstrap.yml:138`. Они защищены именами переменных, но при переименовании защита исчезнет. Free-form разбор по `\w+=` также не учитывает значения путей, содержащие ` key=`.
+**Fix:** Добавить `slurp`, `fetch`, `replace`, `assemble`, `get_url` в `WRITER_MODULES` (переименовав в `FILE_MODULES`, с проверкой `diff` только для модулей записи) и декой на `slurp` секретного пути.
 
 ---
 
