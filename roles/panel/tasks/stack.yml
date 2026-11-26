@@ -74,6 +74,7 @@
       register: xvpn_panel_start_journal
       changed_when: false
       failed_when: false
+      no_log: true
 
     - name: Panel stack | collect the container logs of the failed start
       ansible.builtin.shell:
@@ -93,6 +94,7 @@
       register: xvpn_panel_start_logs
       changed_when: false
       failed_when: false
+      no_log: true
 
     - name: Panel stack | collect the container status of the failed start
       ansible.builtin.command:
