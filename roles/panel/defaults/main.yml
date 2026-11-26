@@ -56,8 +56,6 @@ xvpn_panel_api_token_file: "{{ xvpn_panel_home }}/secrets/api-token"
 
 # Internal: route that proves an API token is accepted (nodes list), shared by the bootstrap and the verifiers.
 xvpn_panel_api_token_probe_route: /api/nodes
-# Internal: name of the secrets file key quoted in the login failure message.
-xvpn_panel_bootstrap_password_key: admin_password
 
 # Internal paths (D-07), not meant to be overridden.
 xvpn_panel_home: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}/{{ xvpn_panel_user }}"

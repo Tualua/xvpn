@@ -108,7 +108,7 @@
 - name: Panel bootstrap | fail when the stored admin password was rejected
   ansible.builtin.fail:
     msg: >-
-      login with {{ xvpn_panel_bootstrap_password_key }} from {{ xvpn_panel_secrets_file }} was rejected
+      login with the stored admin credential from {{ xvpn_panel_secrets_file }} was rejected
       (HTTP {{ xvpn_panel_bs_login.status }}): the admin password was changed outside Ansible or password login
       is disabled; v1 does not rotate it (D-10)
   when:
