@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Сообщение об ошибке запуска стека фильтрует логи чёрным списком по строкам"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`check_no_log.py` пропускает задачи с free-form аргументами"
   - id: IN-01
     severity: info
@@ -51,17 +51,17 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 6
+open: 4
 total: 12
-recorded: 2026-11-26T09:32:50.359Z
+recorded: 2026-11-26T11:58:32.234Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
