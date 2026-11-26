@@ -22,7 +22,7 @@ fi
 BASE=0
 
 dispatch() {
-  BASE="$(select_run max)"
+  BASE="$(select_run max)" || { echo "ci-watch: cannot read the baseline of runs" >&2; exit 1; }
   BASE="${BASE:-0}"
   gh workflow run "$WORKFLOW" --ref main
 }
