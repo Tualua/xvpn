@@ -34,13 +34,13 @@ status: partial
 **Commit:** 399d4e5
 **Applied fix:** `no_log: true` добавлен в задачи `journalctl` и `podman logs`/`inspect`. Зарегистрированные переменные остаются доступны для записи в файл.
 
-### WR-03: Маскирование в `fail` через `regex_replace` не скрывает значения
+### WR-03: Маскирование в `fail` через `regex_replace` не скрывает значения и, вероятно, портит обратную ссылку
 
 **Files modified:** `roles/panel/tasks/stack.yml`
 **Commit:** 381a3cd
 **Applied fix:** Выбран упрощённый дизайн: `ansible_failed_result.msg` больше не выводится совсем, маскирующий `regex_replace` (с неработающей обратной ссылкой) удалён. Сообщение содержит имя упавшей задачи (`ansible_failed_task.name`) и статус контейнеров. Поскольку фильтра больше нет, проверять обратную ссылку на localhost не потребовалось.
 
-### WR-04: Файл логов в `/var/tmp` бессрочный, с предсказуемым именем, сообщение обещает его безусловно
+### WR-04: Файл с логами в `/var/tmp` лежит бессрочно, под предсказуемым именем, а сообщение обещает его наличие безусловно
 
 **Files modified:** `roles/panel/tasks/stack.yml`
 **Commit:** 3dc0d3f
@@ -64,7 +64,7 @@ status: partial
 **Commit:** 9334529
 **Applied fix:** `BASE="$(select_run max)" || { echo "ci-watch: cannot read the baseline of runs" >&2; exit 1; }`. Синтаксис проверен `bash -n`.
 
-### IN-05: `check_no_log.py` не видит чтение секретных файлов
+### IN-05: `check_no_log.py` проверяет только модули записи и не видит чтение секретных файлов
 
 **Files modified:** `scripts/check_no_log.py`
 **Commit:** 97ade02
