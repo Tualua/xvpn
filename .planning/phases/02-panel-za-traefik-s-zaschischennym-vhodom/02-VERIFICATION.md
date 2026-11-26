@@ -1,10 +1,10 @@
 ---
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
-verified: 2026-11-26T10:00:00Z
+verified: 2026-11-26T14:00:00Z
 status: human_needed
 score: 5/5 must-haves verified
-covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py"]
-covered_digest: "v4:sha256:88e3e6b77ded6d24d24c2869946f9f3533341fb519b5e901b4b74da9d19ac329"
+covered_files: [".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-01-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-02-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-03-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-04-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-05-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-06-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-07-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-08-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-09-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-10-SUMMARY.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-PLAN.md", ".planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-11-SUMMARY.md", "playbooks/panel.yml", "roles/edge/tasks/main.yml", "roles/edge/templates/traefik.yml.j2", "roles/panel/tasks/bootstrap.yml", "roles/panel/tasks/main.yml", "roles/panel/tasks/secrets.yml", "roles/panel/tasks/stack.yml", "roles/panel/tasks/subpage.yml", "roles/panel/templates/panel-routes.yml.j2", "roles/podman_rootless/tasks/restart_stale.yml", "scripts/check_no_log.py", "scripts/ci_watch.sh"]
+covered_digest: "v4:sha256:fc9f2faefc4fa3c337f7aff242490c0df54dea4b158b84d4764878e11fcc13e6"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -27,7 +27,7 @@ human_verification:
 **Цель фазы:** Оператор разворачивает Panel-хост одной командой: HTTPS на собственном домене, вход в админку закрыт cookie/secret-path гейтом, первый админ и API-токен создаются автоматически, subscription page на отдельном домене, повторный прогон ничего не ломает и не меняет секреты.
 **Проверено:** 2026-11-26
 **Статус:** human_needed (автоматические проверки пройдены, остались два ручных пункта)
-**Повторная верификация:** Да, после правок code review (WR-01..WR-05, IN-01..IN-07); регрессий нет
+**Повторная верификация:** Да, после коммитов code review 60dbb9e..HEAD (WR-03, WR-04, WR-05, IN-02..IN-05); регрессий нет
 
 ## Достижение цели
 
@@ -35,24 +35,42 @@ human_verification:
 
 | # | Истина | Статус | Свидетельство |
 |---|--------|--------|---------------|
-| 1 | HTTPS на домене Panel с валидным сертификатом (в CI Pebble/staging), в access log реальный IP клиента | VERIFIED | `roles/edge/templates/traefik.yml.j2`: HTTP-01 resolver `le`, caServer по переключателю production/staging/custom; `verify_edge.yml:344` проверяет реальный client address; `scripts/check.sh` (QA-05) запрещает production CA в Molecule-сценариях; CI molecule-vm (alma10+rocky10) на 5d29527 success |
-| 2 | Без cookie админка отдаёт decoy (200); секретный URL ставит cookie; /api (кроме /api/auth) и подписки доступны без cookie | VERIFIED | `panel-routes.yml.j2`: роутеры gate (prio 1000, Set-Cookie + redirect), cookie (500), api (400, исключает /api/auth), decoy (1); `verify_gate*.yml` — матрица запросов, ротация gate, отсутствие gate path в логах; `scripts/gate/run.sh` — регрессия на реальном Traefik образе (CI gate success) |
-| 3 | Админ и долгоживущий токен (0600) созданы; повторный прогон логинится, секреты не меняются, changed=0 | VERIFIED | `bootstrap.yml`: status -> register только если isRegisterAllowed и не isLoginAllowed, иначе login; токен проверяется пробой, пересоздаётся только при невалидности; файл 0600; `converge.yml` фиксирует sha256 секретов и токена, `side_effect.yml` сверяет после idempotence и reboot; CI VM success |
-| 4 | Subscription page на отдельном домене по HTTPS получает данные от Panel по API-токену без ручных шагов | VERIFIED | `subpage.yml` + `subpage.env.j2` (REMNAWAVE_API_TOKEN из bootstrap), `subscription-routes.yml.j2` (Host(sub-домен)), assert `xvpn_subscription_domain != xvpn_panel_domain`; `verify_subpage.yml` сверяет токен контейнера, запрашивает страницу пробного пользователя, негативный контроль неверного токена |
-| 5 | Секреты не в выводе (no_log), placeholder'ы отвергаются assert'ом | VERIFIED | `secrets.yml`: форматные regex + weak-words assert; `scripts/check_no_log.py` в `check.sh` (локально `check.sh: OK`); gitleaks в CI |
+| 1 | HTTPS на домене Panel с валидным сертификатом (в CI Pebble/staging), в access log реальный IP клиента | VERIFIED | `roles/edge/templates/traefik.yml.j2`: HTTP-01 resolver `le`, caServer по переключателю production/staging/custom; `verify_edge.yml` проверяет реальный client address; `scripts/check.sh` (QA-05) запрещает production CA в Molecule-сценариях. Новые assert'ы в `edge/tasks/main.yml` (порт <= 65535, строже regex email) только сужают допустимый ввод |
+| 2 | Без cookie админка отдаёт decoy (200); секретный URL ставит cookie; /api (кроме /api/auth) и подписки доступны без cookie | VERIFIED | `panel-routes.yml.j2`: роутеры gate / cookie / api / decoy по приоритетам; `verify_gate*.yml`, `scripts/gate/run.sh`; файлы не менялись после последнего зелёного CI |
+| 3 | Админ и долгоживущий токен (0600) созданы; повторный прогон логинится, секреты не меняются, changed=0 | VERIFIED | `bootstrap.yml` не менялся; `secrets.yml` изменён только текстом `fail_msg` (IN-02), логика generate-once и immutable-ключей сохранена; `converge.yml`/`side_effect.yml` сверяют sha256 |
+| 4 | Subscription page на отдельном домене по HTTPS получает данные от Panel по API-токену без ручных шагов | VERIFIED | `subpage.yml`, `subscription-routes.yml.j2`, assert `xvpn_subscription_domain != xvpn_panel_domain` сохранён в `panel/tasks/main.yml` (изменён только TLD-regex для punycode) |
+| 5 | Секреты не в выводе (no_log), placeholder'ы отвергаются assert'ом | VERIFIED | `secrets.yml`: weak-words и форматные assert'ы на месте; `check_no_log.py` расширен (slurp/fetch и доп. writer-модули); rescue в `stack.yml` не печатает `ansible_failed_result.msg` и логи, они уходят в root-only файл 0600 |
 
 **Оценка:** 5/5 истин подтверждено.
+
+### Проверка правок с 60dbb9e (регрессии)
+
+| Файл | Изменение | Итог |
+|------|-----------|------|
+| `roles/edge/tasks/main.yml` | порт <= 65535 для http/https entrypoint, regex email требует домен с точкой | Без регрессий, только ужесточение валидации |
+| `roles/panel/tasks/main.yml` | punycode-TLD `xn--` без дефиса на краях | Без регрессий; требования к FQDN и различию доменов сохранены |
+| `roles/panel/tasks/secrets.yml` | `fail_msg` уточнён (vault-переопределения не заменяют immutable-ключи) | Только сообщение, логика не затронута |
+| `roles/panel/tasks/stack.yml` | rescue: no_log на сборе логов, root-only `/var/log/xvpn` 0700, файл 0600, очистка старого лога после успешного старта | Секреты не попадают в вывод; успешный путь только удаляет устаревший файл (`state: absent`, идемпотентно, play имеет `become: true`) |
+| `scripts/check_no_log.py` | расширено покрытие slurp/fetch и writer-модулей | `check.sh: OK` (lint, syntax-check, no_log guard, сборка коллекции) |
+| `scripts/ci_watch.sh` | ошибка чтения baseline run прерывает скрипт | Инструмент CI, на артефакты фазы не влияет |
+
+### Замечания свежего code review (02-REVIEW.md, 810ad39)
+
+0 critical, 2 warning, 2 info; это advisory, на must-have не влияют.
+
+- **WR-01/WR-02** (`stack.yml`, `failed_when: false` делает проверки `is succeeded` всегда истинными): затрагивает только диагностику в rescue-ветке уже упавшего запуска. Если запись `/var/log/xvpn/panel-start-failure.log` не удалась, сообщение об ошибке всё равно сошлётся на файл. Секреты при этом не раскрываются, успешный путь, идемпотентность и сами истины 1-5 не затронуты. Статус: предупреждение (качество диагностики), рекомендуемое исправление: `ignore_errors: true` вместо `failed_when: false` на двух задачах.
+- **IN-01, IN-02**: захардкоженный путь лога и не покрытые `check_no_log.py` способы чтения секретного файла (`command cat`, `include_vars`); текущие роли таких конструкций не содержат. Дальний запас прочности.
 
 ### Покрытие требований
 
 | Требование | Статус | Свидетельство |
 |-----------|--------|---------------|
 | EDGE-01 | SATISFIED | traefik.container.j2: Network=host, file provider, без сокета Podman |
-| EDGE-02 | SATISFIED | httpChallenge, переключатель staging/production, `/acme/acme.json` на персистентном томе, проверка 0600 в verify_edge |
+| EDGE-02 | SATISFIED | httpChallenge, переключатель staging/production, `/acme/acme.json` на томе, 0600 проверяется |
 | EDGE-03 | SATISFIED | verify_edge: реальный IP клиента в access log |
-| PANEL-01 | SATISFIED | remnawave*.container.j2 + network/volume, Notify=healthy, Requires/After |
-| PANEL-02 | SATISFIED | secrets.yml generate-once, checksum стабилен в VM-тесте |
-| PANEL-03 | SATISFIED | bootstrap.yml на 127.0.0.1:3000 до записи route-файла (порядок в main.yml) |
+| PANEL-01 | SATISFIED | remnawave*.container.j2, network/volume, Notify=healthy |
+| PANEL-02 | SATISFIED | secrets.yml generate-once, sha256 стабилен в VM-тесте |
+| PANEL-03 | SATISFIED | bootstrap.yml на 127.0.0.1:3000 до записи route-файла |
 | PANEL-04 | SATISFIED | api-token 0600, проба и пересоздание |
 | PANEL-05 | SATISFIED | panel-routes.yml.j2, TLS через resolver le |
 | PANEL-06 | SATISFIED | см. истину 2 |
@@ -60,45 +78,19 @@ human_verification:
 | QA-05 | SATISFIED | check.sh guard + Pebble в VM-тире |
 | DOC-04 | SATISFIED | no_log gate, assert плейсхолдеров |
 
-Все 13 ID из PLAN frontmatter присутствуют в REQUIREMENTS.md и в ROADMAP фазы; осиротевших требований нет.
+Все 13 ID из PLAN frontmatter присутствуют в REQUIREMENTS.md и привязаны к Phase 2; осиротевших требований нет.
 
-### Anti-patterns и замечания code review
+### Anti-patterns
 
-TBD/FIXME/XXX в roles, playbooks, scripts, extensions не найдено. Блокеров нет. Все пять предупреждений WR-01..WR-05 исправлены и перепроверены по коду:
-
-| ID | Коммиты | Проверка в коде |
-|----|---------|-----------------|
-| WR-01 | 9032e4a, 312a6d1 | `secrets.yml`: булев `secrets_immutable_ok` (no_log) + assert без имён секретов; неизменяемые ключи обязательны в существующем файле. Негативного Molecule-кейса нет (информационно) |
-| WR-02 | 89bc1b4 | `stack.yml`: rescue фильтрует строки по token/password/secret/DATABASE_URL и т. п. |
-| WR-03 | 1af7039 | `main.yml`: TLD допускает `xn--...` для обоих доменов |
-| WR-04 | 6aae78b | `check_no_log.py`: самотест-приманки, правило для `.env`/`secrets`-шаблонов; `check.sh: OK` |
-| WR-05 | c389b83 | `restart_stale.yml` сравнивает mtime файла с `ExecMainStartTimestamp`; подключён в stack, subpage, edge; пустой timestamp = не устарел. Идемпотентность подтверждена молекулой VM (см. ниже) |
-
-02-SECURITY.md: threats_open 0.
+TBD/FIXME/XXX в `roles`, `playbooks`, `scripts` не найдено. Блокеров нет.
 
 ### Автоматические проверки
 
 | Проверка | Результат |
 |----------|-----------|
-| `scripts/check.sh` локально (повторно в этой верификации) | `check.sh: OK` |
-| CI на HEAD 7c6a2d9: lint, gate, molecule-container (run 45762412668) | success |
-| molecule-vm run 45763475691 (headSha 7c6a2d9, alma10 и rocky10, SELinux enforcing, idempotence) | success |
-
-Молекулу локально запустить нельзя; поведение WR-05 на EL10 (`systemctl --timestamp=unix`) подтверждено только зелёным VM-прогоном с идемпотентностью.
-
-### Повторная верификация после IN-01..IN-07 (2026-11-26)
-
-Изменены `roles/edge/tasks/main.yml`, `roles/panel/tasks/bootstrap.yml`, `roles/panel/tasks/secrets.yml`, `roles/podman_rootless/tasks/restart_stale.yml` (и defaults/argument_specs). Проверка по коду, регрессий нет:
-
-- IN-01 (`restart_stale`): запущенный юнит оценивается только по mtime файлов; не запускавшийся юнит (пустой timestamp) опирается на `changed`. Все пять вызовов (stack x2, subpage, edge x2) передают `restart_changed`; argument_specs обновлён. Лишний рестарт после первой установки устранён, исцеление после сбоя между рендером и рестартом (WR-05) сохранено.
-- IN-03/IN-04 (`secrets.yml`): пароли берутся из CSPRNG с повтором до нужных классов символов, форматы закреплены `\Z`; generate-once, immutable-ключи, запрет ротации (D-10), no_log сохранены.
-- IN-05 (`edge/main.yml`): строгая валидация email и адресов entrypoint, остальные assert без изменений.
-- IN-07: переменная `xvpn_panel_bootstrap_password_key` удалена, висячих ссылок нет; логика bootstrap (register только если разрешено и логин невозможен, проба токена, 0600) не затронута.
-- `scripts/check.sh` локально: `check.sh: OK` (lint, syntax-check, no_log guard).
-- CI на 64e5d9c (все код-правки IN-01..IN-07 включены; позднее изменены только 02-REVIEW*.md): lint, gate, molecule-container, molecule-vm (SELinux enforcing, идемпотентность) - success.
-- 02-REVIEW.md: 0 critical, 2 warning, 4 info, advisory, в 02-REVIEW-DISPOSITION.md открыты; блокеров нет.
-
-Покрытие всех 13 ID (EDGE-01..03, PANEL-01..06, SUB-01/02, QA-05, DOC-04) осталось в REQUIREMENTS.md как Complete и привязано к Phase 2; осиротевших нет.
+| `scripts/check.sh` локально (на HEAD 1242e98) | `check.sh: OK` |
+| CI на 64e5d9c: lint, gate, molecule-container, molecule-vm (alma10 и rocky10, SELinux enforcing, идемпотентность) | success |
+| CI на коммитах после 64e5d9c (WR-03/04/05, IN-02..IN-05) | Запусков нет; правки сводятся к сообщениям, валидации, rescue-ветке и dev-скриптам, поэтому риск низкий. Рекомендуется зелёный прогон перед релизом |
 
 ## Требуется проверка человеком
 
@@ -107,9 +99,9 @@ TBD/FIXME/XXX в roles, playbooks, scripts, extensions не найдено. Бл
 
 ## Итог
 
-Цель фазы достигнута по всем пяти критериям и тринадцати требованиям, подтверждена кодом и CI (включая VM-тир с SELinux enforcing). Блокирующих пробелов нет. Остаются два ручных пункта и два рекомендуемых исправления (WR-01, WR-05).
+Цель фазы достигнута по всем пяти критериям и тринадцати требованиям. Правки code review после 60dbb9e регрессий не вносят. WR-01/WR-02 из свежего ревью затрагивают только качество диагностики в rescue-ветке и не блокируют. Остаются два ручных пункта и один рекомендуемый прогон CI на актуальном HEAD.
 
 ---
 
-_Проверено: 2026-11-25_
+_Проверено: 2026-11-26_
 _Верификатор: Claude (gsd-verifier)_
