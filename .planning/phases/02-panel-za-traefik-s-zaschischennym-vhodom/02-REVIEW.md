@@ -2,63 +2,75 @@
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 reviewed: 2026-11-26T00:00:00Z
 depth: standard
-files_reviewed: 4
+files_reviewed: 3
 files_reviewed_list:
   - README.md
-  - roles/panel/defaults/main.yml
   - roles/panel/meta/argument_specs.yml
   - roles/panel/tasks/stack.yml
 findings:
   critical: 0
-  warning: 1
+  warning: 2
   info: 1
-  total: 2
+  total: 3
 status: issues_found
 ---
 
-# Phase 02: Code Review Report
+# Phase 2: Code Review Report
 
 **Reviewed:** 2026-11-26
-**Depth:** standard (incremental, diff against 810ad39)
-**Files Reviewed:** 4
+**Depth:** standard (incremental, commit 9951cd2)
+**Files Reviewed:** 3
 **Status:** issues_found
 
 ## Summary
 
-The previous WR-01, WR-02 and IN-01 fixes are confirmed correct.
+Commit 9951cd2 adds an assert that validates `xvpn_panel_failure_log_dir` before it is forced to root:root 0700. The default `/var/log/xvpn` passes. The regex `^/[^/]+/[^/]` correctly rejects relative paths, `//x`, `/var//x`, and single-component paths. The assert is placed before any use of the variable. The docs match the behavior.
 
-- **WR-01/WR-02 (stale or unsaved log reported as saved):** `xvpn_panel_start_log_saved` is reset to `false` first in the outer rescue. It becomes `true` only after both the `file` and `copy` tasks succeed inside the nested block. The nested `rescue` sets it back to `false`. The hard failure is no longer swallowed by `failed_when: false`, and the status flag does not depend on `is succeeded` or `is not skipped` of a registered result. The earlier case where a skipped copy was reported as saved is gone.
-- **`ansible_failed_task` overwrite:** the name is captured in the first rescue task, before any nested failure can replace it. The `fail` message uses the saved variable.
-- **IN-01 (hardcoded path):** the path is now `xvpn_panel_failure_log_dir`. It appears consistently in defaults, argument_specs, README, the save tasks, the message and the cleanup task.
-- **Line length:** the longest lines (163, 154 characters) stay under the yamllint limit of 160.
+The guard is a denylist, and it has holes. Two paths that the fix is meant to block still get through.
 
-Two remaining defects are listed below. Neither is a regression of the fixed items.
+## Narrative Findings (AI reviewer)
 
 ## Warnings
 
-### WR-01: `xvpn_panel_failure_log_dir` is a user-overridable path that is forced to root:root 0700 with no validation
+### WR-01: Denylist is bypassed by `.` components and by repeated or mid-path slashes
 
-**File:** `roles/panel/tasks/stack.yml:127-133` (also `roles/panel/meta/argument_specs.yml:130-135`)
-**Issue:** The variable was hardcoded and is now public (README table, argument_specs). The `file` task with `state: directory, owner: root, mode: "0700"` runs against whatever value the user sets. A value such as `/var/log`, `/tmp` or `/var/lib/xvpn` would chmod that directory to 0700. That would break journald and other services that write to it, or lock out the service user's own paths. An empty string or a relative path would resolve relative to the working directory or fail with an unclear error. The cleanup task at line 168 runs on every successful run and does `state: absent` on `<dir>/panel-start-failure.log`. The same bad value is therefore also hit on the happy path. argument_specs only checks `type: str`.
-**Fix:** Assert the value before use (for example in the stack validation task):
+**File:** `roles/panel/tasks/stack.yml:16-19`
+**Issue:** The check blocks `..` but not `.`. It strips only trailing slashes before comparing with the denylist.
+- `/var/log/.` passes: it has two components and is not in the denylist. It resolves to `/var/log`.
+- `/var/log/./` and `/var/./log` do not match the denylist exactly either.
+- The result is that `/var/log` gets chmod 0700 and chown root:root. That breaks log readers, journald-adjacent tooling and other services.
+
+**Fix:** Normalize before comparing. Reject any `.` or empty component, and compare against a normalized path.
 ```yaml
-- name: Panel stack | validate the failure log directory
-  ansible.builtin.assert:
-    that:
-      - xvpn_panel_failure_log_dir is string
-      - xvpn_panel_failure_log_dir is match('^/[^/]')
-      - xvpn_panel_failure_log_dir | regex_replace('/+$', '') not in ['/var/log', '/tmp', '/var/tmp', '/var/lib', '/etc', '/root', '/home']
-    quiet: true
+- "'.' not in xvpn_panel_failure_log_dir.split('/')"
+- "'' not in xvpn_panel_failure_log_dir.split('/')[1:]"
 ```
-Alternatively, document that the directory must be dedicated to this log, and keep the leaf name fixed (`/var/log/xvpn`).
+Alternatively, use a regex that allows only safe characters: `^/[A-Za-z0-9_.-]+(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)+$`.
+
+### WR-02: Denylist is incomplete, so many shared directories are still accepted
+
+**File:** `roles/panel/tasks/stack.yml:25-34`
+**Issue:** The check needs only two path components. Only 9 exact paths are denied, so these are still accepted and would be forced to root:root 0700:
+- `/etc/ssh`, `/etc/pki`, `/etc/sudoers.d`
+- `/usr/bin`, `/usr/sbin`, `/usr/share`
+- `/var/cache`, `/var/spool`, `/var/lib` (denied) but not `/var/www`
+- `/home/<user>`, `/boot`-style paths, and the service user's own home (`xvpn_panel_home`)
+
+This can break the host or the service. A 0700 chmod on `/home/<svc-user>` or `/etc/ssh` is a robust way to cause an outage.
+
+**Fix:** Use an allowlist instead of a denylist. Require a prefix of `/var/log/` or `/var/lib/xvpn`, or a dedicated documented base. For example:
+```yaml
+- xvpn_panel_failure_log_dir is match('^/(var/log|var/lib|opt|srv)/[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$')
+```
+Also assert that the value differs from `xvpn_panel_home` and from every other role directory variable.
 
 ## Info
 
-### IN-01: Rescue state variables stay set for the rest of the play
+### IN-01: Assert is unverified by tests
 
-**File:** `roles/panel/tasks/stack.yml:67-70`
-**Issue:** `set_fact` stores `xvpn_panel_start_failed_task` and `xvpn_panel_start_log_saved` as host facts. Within one play they persist after the rescue. This is harmless today because the following `fail` ends the host. It would become stale state if the `fail` were ever removed or the block wrapped in a retry loop.
-**Fix:** None required. Optionally use `vars:` or note in a comment that the `fail` is terminal.
+**File:** `roles/panel/tasks/stack.yml:12-34`
+**Issue:** The fix report says the assert logic was not run, and that only lint and syntax-check passed. The bypasses above show this matters. There is no negative Molecule or verify case.
+**Fix:** Add a small test that includes the task with `/var/log`, `/var/log/.`, `/var/log/`, `/tmp/x/../..` and `relative/path`, and expects the assert to fail for each. Then add one run with the default value that expects it to pass.
 
 ---
 
