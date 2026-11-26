@@ -123,3 +123,11 @@ Non-blocking note from the audit: `valkey/valkey:9-alpine` and `nginx-unprivileg
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-11-25
+
+## Security Audit 2026-11-26
+
+| Metric | Count |
+|---|---|
+| Threats found | 42 |
+| Closed | 42 |
+| Open | 0 |
