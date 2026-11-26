@@ -115,6 +115,16 @@
 
     # The journals and container logs may echo env values, so they never reach the Ansible output (it ends up in
     # CI logs of a public collection). The full text goes to a root-only file on the host instead.
+    - name: Panel stack | create the root-only directory for the failure logs
+      ansible.builtin.file:
+        path: /var/log/xvpn
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      register: xvpn_panel_start_log_dir
+      failed_when: false
+
     - name: Panel stack | save the unit journals and container logs to a root-only file
       ansible.builtin.copy:
         content: |
@@ -122,10 +132,12 @@
           {{ xvpn_panel_start_journal.stdout | default('') }}
           == containers
           {{ xvpn_panel_start_logs.stdout | default('') }}
-        dest: /var/tmp/xvpn-panel-start-failure.log
+        dest: /var/log/xvpn/panel-start-failure.log
         owner: root
         group: root
         mode: "0600"
+      register: xvpn_panel_start_log_file
+      when: xvpn_panel_start_log_dir is succeeded
       diff: false
       no_log: true
       failed_when: false
@@ -136,8 +148,15 @@
           Panel stack start failed at task "{{ ansible_failed_task.name | default('unknown') }}" (the module error text
           is not echoed, it may contain secret values).
           containers: {{ xvpn_panel_start_ps.stdout_lines | default([]) | join(' | ') }}
-          The unit journals and container logs are in /var/tmp/xvpn-panel-start-failure.log (root-only, 0600) on the
-          Panel host.
+          {{ 'The unit journals and container logs are in /var/log/xvpn/panel-start-failure.log (root-only, 0600) on the Panel host.'
+             if (xvpn_panel_start_log_file is succeeded and xvpn_panel_start_log_file is not skipped)
+             else 'The unit journals and container logs could not be saved; inspect them on the Panel host with journalctl.' }}
+
+# A successful start leaves no stale failure log with env echoes behind.
+- name: Panel stack | remove the failure log of an earlier failed start
+  ansible.builtin.file:
+    path: /var/log/xvpn/panel-start-failure.log
+    state: absent
 
 # The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7). The
 # restart also fires for a file that is newer than the running unit, so a run that failed after rendering heals
