@@ -25,35 +25,35 @@ findings:
     title: "Сигнал \"конфигурация изменилась\" теряется при сбое между рендером и рестартом"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Лишние рестарты при первой установке"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Канарейка AVC для Pebble считает любую ошибку `ausearch` чистым результатом"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`shuffle` использует не криптографический ГСЧ при сборке паролей"
   - id: IN-04
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Якорь `$` в regex-форматах секретов допускает хвостовой перевод строки"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Часть операторских значений интерполируется в YAML Traefik без валидации"
   - id: IN-06
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`ci_watch.sh` сравнивает `createdAt` запуска с локальными часами"
   - id: IN-07
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 7
+open: 0
 total: 12
-recorded: 2026-11-26T01:20:06.792Z
+recorded: 2026-11-26T07:18:52.355Z
 ---
 
 # Phase 02: Code Review Disposition
@@ -65,13 +65,13 @@ recorded: 2026-11-26T01:20:06.792Z
 | WR-03 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-04 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-05 | warning | fixed | 02-REVIEW-FIX.md |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
-| IN-07 | info | open | - |
+| IN-01 | info | fixed | 02-REVIEW-FIX.md |
+| IN-02 | info | fixed | 02-REVIEW-FIX.md |
+| IN-03 | info | fixed | 02-REVIEW-FIX.md |
+| IN-04 | info | fixed | 02-REVIEW-FIX.md |
+| IN-05 | info | fixed | 02-REVIEW-FIX.md |
+| IN-06 | info | fixed | 02-REVIEW-FIX.md |
+| IN-07 | info | fixed | 02-REVIEW-FIX.md |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
