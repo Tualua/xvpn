@@ -3,45 +3,80 @@ phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 fixed_at: 2026-11-26T00:00:00Z
 review_path: /workspaces/xvpn/.planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-REVIEW.md
 iteration: 1
-findings_in_scope: 2
-fixed: 2
-skipped: 0
-status: all_fixed
+findings_in_scope: 8
+fixed: 7
+skipped: 1
+status: partial
 ---
 
 # Phase 2: отчёт об исправлениях по code review
 
-**Исправлено:** 2026-11-26
-**Исходный отчёт:** 02-REVIEW.md
-**Итерация:** 1
+**Fixed at:** 2026-11-26
+**Source review:** /workspaces/xvpn/.planning/phases/02-panel-za-traefik-s-zaschischennym-vhodom/02-REVIEW.md
+**Iteration:** 1
 
-**Итого:**
-- Находок в области: 2 (WR-01, WR-02; Info вне области)
-- Исправлено: 2
-- Пропущено: 0
+**Summary:**
+- Findings in scope: 8
+- Fixed: 7
+- Skipped: 1
+
+Проверки после правок (запускались в основном каталоге, worktree не создавался: изменения небольшие, а ансибл-линт в worktree без окружения ненадёжен):
+- `ansible-lint` (профиль production): 0 failure(s), 0 warning(s), "Profile 'production' was required, and it passed".
+- `/opt/uv-tools/ansible-lint/bin/python scripts/check_no_log.py` (включая self-test): `check_no_log: OK`. Мутационная проверка: при `no_log: false` на `slurp` секретов скрипт падает, как и ожидается.
+- Регулярные выражения IN-03 проверены отдельным маленьким playbook на localhost (`a@b`, `xn--`, `xn--abc-`, порт 99999 отклоняются, `xn--p1ai`, `a@b.co`, `:8443` проходят).
+- Molecule/VM-прогон не выполнялся.
 
 ## Fixed Issues
 
-### WR-01: Сообщение об ошибке запуска стека фильтрует логи чёрным списком по строкам
+### WR-05: Задачи сбора журналов и логов контейнеров не имеют `no_log`
 
-**Изменённые файлы:** `roles/panel/tasks/stack.yml`
-**Коммит:** bb95cbc
-**Что сделано:** журналы юнитов и логи контейнеров больше не попадают в вывод Ansible. В rescue они пишутся в root-only файл `/var/tmp/xvpn-panel-start-failure.log` (0600, `no_log: true`, `diff: false`). В сообщении `fail` остались только статус контейнеров (`podman ps -a`: имя и статус), путь к файлу и `ansible_failed_result.msg`, прогнанный через `regex_replace` по ключевым словам секретов (дополнительная защита, а не основная). Подстановку проверил отдельным плейбуком: `token=abc` и `password: x` маскируются.
-**Статус:** fixed (логика сообщения проверена вручную, но стоит проверить на реальном падении старта).
+**Files modified:** `roles/panel/tasks/stack.yml`
+**Commit:** 399d4e5
+**Applied fix:** `no_log: true` добавлен в задачи `journalctl` и `podman logs`/`inspect`. Зарегистрированные переменные остаются доступны для записи в файл.
 
-### WR-02: `check_no_log.py` пропускает задачи с free-form аргументами
+### WR-03: Маскирование в `fail` через `regex_replace` не скрывает значения
 
-**Изменённые файлы:** `scripts/check_no_log.py`
-**Коммит:** 1e31c28
-**Что сделано:** добавлена функция `targets_secret_file`, разбирающая как dict-форму, так и строковую `src=... dest=... path=...`. Набор модулей расширен до `template`, `copy`, `lineinfile`, `blockinfile`, `ini_file`; проверяются ключи `src`, `dest`, `path`. `ansible.builtin.file` сознательно не включён: он меняет только права и владельца и не пишет содержимое, поэтому не может вывести секрет. В `self_test` добавлены 4 декоя (free-form template, lineinfile, free-form blockinfile, ini_file).
-**Статус:** fixed: requires human verification (изменена логика проверки; решение не включать `file` стоит подтвердить).
+**Files modified:** `roles/panel/tasks/stack.yml`
+**Commit:** 381a3cd
+**Applied fix:** Выбран упрощённый дизайн: `ansible_failed_result.msg` больше не выводится совсем, маскирующий `regex_replace` (с неработающей обратной ссылкой) удалён. Сообщение содержит имя упавшей задачи (`ansible_failed_task.name`) и статус контейнеров. Поскольку фильтра больше нет, проверять обратную ссылку на localhost не потребовалось.
 
-## Проверка
+### WR-04: Файл логов в `/var/tmp` бессрочный, с предсказуемым именем, сообщение обещает его безусловно
 
-- Место запуска: изолированный git worktree; затем fast-forward в `main`, worktree удалён.
-- `ansible-lint` (профиль production, весь проект): 0 failures, 0 warnings, профиль production пройден. Одно информационное предупреждение окружения о второй установленной копии коллекции `xvpn.remnawave` в `~/.ansible/collections` не относится к правилам линтера.
-- `scripts/check_no_log.py`: в системном `python3` PyYAML нет, поэтому запускал интерпретатором из venv ansible-lint (`/opt/uv-tools/ansible-lint/bin/python`), где PyYAML есть. Самотест и проход по `roles/*/tasks/*.yml` прошли: `check_no_log: OK`.
-- `scripts/check.sh` целиком не запускался: он требует `python3` с PyYAML и падает на системном интерпретаторе. Утверждать, что он проходит, я не могу.
+**Files modified:** `roles/panel/tasks/stack.yml`
+**Commit:** 3dc0d3f
+**Applied fix:** Логи пишутся в `/var/log/xvpn/panel-start-failure.log` (каталог `root:root 0700`, файл `0600`). Путь указывается в сообщении только если запись удалась (`register` + `is succeeded`), иначе сообщение отправляет к `journalctl`. После успешного старта стека старый файл удаляется отдельной задачей. WR-03, WR-04, WR-05 закоммичены отдельными коммитами.
+
+### IN-02: Проверка неизменяемых ключей игнорирует значения из vault
+
+**Files modified:** `roles/panel/tasks/secrets.yml`
+**Commit:** 46873cb
+**Applied fix:** Вычитать ключи overrides нельзя: `xvpn_panel_secrets_overrides` формируется позже по ходу файла. Поэтому дополнен `fail_msg`: поясняет, что vault-переопределения применяются после проверки и не заменяют недостающие immutable-ключи, файл нужно восстановить.
+
+### IN-03: Регулярные выражения валидации допускают некорректные значения
+
+**Files modified:** `roles/panel/tasks/main.yml`, `roles/edge/tasks/main.yml`
+**Commit:** 91d62f3
+**Applied fix:** Punycode-TLD теперь `xn--[a-z0-9]([a-z0-9-]{0,57}[a-z0-9])?`; добавлена проверка порта адресов точек входа `<= 65535`; email требует точку в доменной части. Пустой хост в адресе (`:80`) оставлен намеренно: для Traefik это допустимая запись.
+
+### IN-04: `ci_watch.sh` завершается без сообщения при сбое базовой выборки
+
+**Files modified:** `scripts/ci_watch.sh`
+**Commit:** 9334529
+**Applied fix:** `BASE="$(select_run max)" || { echo "ci-watch: cannot read the baseline of runs" >&2; exit 1; }`. Синтаксис проверен `bash -n`.
+
+### IN-05: `check_no_log.py` не видит чтение секретных файлов
+
+**Files modified:** `scripts/check_no_log.py`
+**Commit:** 97ade02
+**Applied fix:** Добавлены `READER_MODULES` (`slurp`, `fetch`) с проверкой только `no_log`, модули записи расширены (`replace`, `assemble`, `get_url`), пути секретных файлов распознаются и по переменным `xvpn_*secrets_file` / `xvpn_*api_token_file`. В self-test добавлены три декоя. Текущие задачи `slurp` проходят проверку.
+
+## Skipped Issues
+
+### IN-01: `restart_stale` сравнивает mtime и старт юнита с точностью до секунды
+
+**File:** `roles/podman_rootless/tasks/restart_stale.yml:55-56`
+**Reason:** skipped: замена `gt` на `ge` или различение `rc` `systemctl show` меняет баланс между пропуском рестарта и лишним рестартом Postgres сразу после initdb, а проверить это можно только на VM-уровне (SELinux, `systemd --user`), который в этой сессии недоступен. Риск регрессии выше пользы для узкого окна в одну секунду; оставлено на отдельное решение.
+**Original issue:** Сравнение mtime и `ExecMainStartTimestamp` идёт с секундной точностью, а падение `systemctl show` приравнивается к «юнит не запускался».
 
 ---
 
