@@ -177,9 +177,10 @@
 - name: Pebble | fail on AVC records of the Pebble processes
   ansible.builtin.assert:
     that:
-      - item.rc != 0
+      - item.rc == 1
+      - item.stderr is search('<no matches>')
     fail_msg: |-
-      AVC records for {{ item.item }} before converge (Pebble is test-only; this is a prepare defect, not a role defect):
+      AVC records for {{ item.item }} (or ausearch failed) before converge (Pebble is test-only; this is a prepare defect, not a role defect):
       {{ item.stdout }}
     quiet: true
   loop: "{{ xvpn_prepare_pebble_avc.results }}"
