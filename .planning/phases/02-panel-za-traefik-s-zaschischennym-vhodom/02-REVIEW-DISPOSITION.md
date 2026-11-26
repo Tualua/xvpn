@@ -3,6 +3,22 @@ phase: 02
 review: 02-REVIEW.md
 titles: json
 findings:
+  - id: WR-01
+    severity: warning
+    disposition: open
+    title: "`when: xvpn_panel_start_log_dir is succeeded` is a dead guard, because `failed_when: false` forces `failed=false`"
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "The failure message can claim the log was saved when the copy failed"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "The stale-log cleanup and the log directory rely on the play's `become`"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "`check_no_log.py` does not cover other ways of reading a secret file"
   - id: WR-03
     severity: warning
     disposition: fixed
@@ -15,14 +31,6 @@ findings:
     severity: warning
     disposition: fixed
     title: "Задачи сбора журналов и логов контейнеров не имеют `no_log`"
-  - id: IN-01
-    severity: info
-    disposition: skipped
-    title: "`restart_stale` сравнивает mtime и старт юнита с точностью до секунды"
-  - id: IN-02
-    severity: info
-    disposition: fixed
-    title: "Проверка неизменяемых ключей игнорирует значения из vault"
   - id: IN-03
     severity: info
     disposition: fixed
@@ -35,14 +43,6 @@ findings:
     severity: info
     disposition: fixed
     title: "`check_no_log.py` проверяет только модули записи и не видит чтение секретных файлов"
-  - id: WR-01
-    severity: warning
-    disposition: fixed
-    title: "Сообщение об ошибке запуска стека фильтрует логи чёрным списком по строкам"
-  - id: WR-02
-    severity: warning
-    disposition: fixed
-    title: "`check_no_log.py` пропускает задачи с free-form аргументами"
   - id: IN-06
     severity: info
     disposition: fixed
@@ -51,25 +51,25 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 0
+open: 4
 total: 12
-recorded: 2026-11-26T12:10:37.837Z
+recorded: 2026-11-26T12:17:44.239Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-04 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-05 | warning | fixed | 02-REVIEW-FIX.md |
-| IN-01 | info | skipped | 02-REVIEW-FIX.md |
-| IN-02 | info | fixed | 02-REVIEW-FIX.md |
-| IN-03 | info | fixed | 02-REVIEW-FIX.md |
-| IN-04 | info | fixed | 02-REVIEW-FIX.md |
-| IN-05 | info | fixed | 02-REVIEW-FIX.md |
-| WR-01 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| WR-02 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
+| IN-01 | info | open | - |
+| IN-02 | info | open | - |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-05 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-03 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-04 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-05 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | IN-06 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | IN-07 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
 
