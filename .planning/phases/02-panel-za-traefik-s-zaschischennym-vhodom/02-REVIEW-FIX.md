@@ -24,7 +24,7 @@ IN-01 is out of scope (`critical_warning`) and stays in REVIEW.md.
 
 ## Fixed Issues
 
-### WR-01: `xvpn_panel_failure_log_dir` forced to root:root 0700 with no validation
+### WR-01: `xvpn_panel_failure_log_dir` is a user-overridable path that is forced to root:root 0700 with no validation
 
 **Files modified:** `roles/panel/tasks/stack.yml`, `roles/panel/meta/argument_specs.yml`, `README.md`
 **Commit:** 9951cd2
