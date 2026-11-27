@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-27T03:00:06.965Z"
-last_activity: 2026-11-26
+last_updated: "2026-11-27T03:26:45.264Z"
+last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: c4eadeaea146eb3afa45b6bff3387248bc929fc1
+state_head: 1745c4f67c62a0ff7dd162b6d99f6407d414587c
 progress:
   total_phases: 5
   completed_phases: 1
@@ -134,6 +134,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 261126-hc8 | Fix WR-01/WR-02/IN-01: failure-log save in panel stack rescue via nested block/rescue, log dir as role variable | 2026-11-26 | 6bff6f0 | [261126-hc8-fix-wr-01-wr-02-in-01-failure-log-save-i](./quick/261126-hc8-fix-wr-01-wr-02-in-01-failure-log-save-i/) |
 | 261127-40g | Hardcode panel failure log dir as /var/log/xvpn and drop its validation | 2026-11-27 | c4eadea | [261127-40g-hardcode-panel-failure-log-dir-as-var-lo](./quick/261127-40g-hardcode-panel-failure-log-dir-as-var-lo/) |
+| 3 | Shorten COVERAGE.md capability cell (phase 02) to pass api-coverage gate | 2026-11-27 | 1745c4f | — |
 
 ## Deferred Items
 
