@@ -3,27 +3,29 @@ status: testing
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md]
 started: 2026-11-27T03:29:21Z
-updated: 2026-11-27T03:29:21Z
+updated: 2026-11-27T13:17:48Z
 ---
 
 ## Current Test
 <!-- OVERWRITE each test - shows where we are -->
 
-number: 1
-name: Вход через гейт в реальном браузере
+number: 3
+name: Повторный прогон идемпотентен и не меняет секреты
 expected: |
-  Открыть https://<panel-domain>/ без cookie: отдаётся сайт-заглушка. Открыть секретный URL из /var/lib/xvpn/rw-panel/secrets/admin-url: ставится cookie и происходит переход на форму логина Remnawave. Вход логином admin (пароль из panel-secrets.yml) проходит, админка работает.
+  Второй запуск ansible-playbook playbooks/panel.yml на том же хосте завершается с changed=0; panel-secrets.yml, api-token и admin-url не меняются (sha256 до и после совпадает), вход в админку работает с прежним паролем.
 awaiting: user response
 
 ## Tests
 
 ### 1. Вход через гейт в реальном браузере
-expected: Открыть https://<panel-domain>/ без cookie: отдаётся сайт-заглушка. Открыть секретный URL из /var/lib/xvpn/rw-panel/secrets/admin-url: ставится cookie и происходит переход на форму логина Remnawave. Вход логином admin (пароль из panel-secrets.yml) проходит, админка работает.
-result: [pending]
+expected: Открыть https://<panel-domain>/ без cookie: отдаётся сайт-заглушка. Открыть секретный URL из /var/lib/xvpn/rw-panel/secrets/admin-url: ставится cookie и происходит переход на форму логина Remnawave. Вход логином rwoperator (или значением xvpn_panel_admin_username; пароль — admin_password из /var/lib/xvpn/rw-panel/secrets/panel-secrets.yml) проходит, админка работает. При xvpn_edge_acme_ca: staging браузер предупредит о недоверенном сертификате — это ожидаемо, предупреждение нужно принять.
+result: pass
 
 ### 2. Production Let's Encrypt на реальном домене
 expected: Прогон playbooks/panel.yml на реальном публичном домене с xvpn_edge_acme_ca: production выпускает сертификат production Let's Encrypt; Panel и subscription page открываются по HTTPS без предупреждений браузера.
-result: [pending]
+result: issue
+reported: "PLAY RECAP panel1 : ok=574 changed=2 unreachable=0 failed=0 skipped=420. Сертификат остался staging. Подозреваю, что нужно перезапустить контейнер с traefik. Сделать я это не смог, у юзера /sbin/nologin"
+severity: major
 
 ### 3. Повторный прогон идемпотентен и не меняет секреты
 expected: Второй запуск ansible-playbook playbooks/panel.yml на том же хосте завершается с changed=0; panel-secrets.yml, api-token и admin-url не меняются (sha256 до и после совпадает), вход в админку работает с прежним паролем.
@@ -116,12 +118,20 @@ coverage_id: 02-03-D4
 ## Summary
 
 total: 19
-passed: 10
-issues: 0
-pending: 9
+passed: 11
+issues: 1
+pending: 7
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-[none yet]
+- truth: "Переключение xvpn_edge_acme_ca со staging на production и повторный прогон panel.yml дают production-сертификат Let's Encrypt"
+  status: failed
+  reason: "User reported: PLAY RECAP panel1 : ok=574 changed=2 unreachable=0 failed=0 skipped=420. Сертификат остался staging. Подозреваю, что нужно перезапустить контейнер с traefik. Сделать я это не смог, у юзера /sbin/nologin"
+  severity: major
+  test: 2
+  root_cause: ""
+  artifacts: []
+  missing: []
+  debug_session: ""
