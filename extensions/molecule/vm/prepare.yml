@@ -4,12 +4,14 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Install auditd and the SELinux policy inspection tools
+    # tar: the Oracle Linux 10 box ships without it, and unarchive needs it to unpack Pebble (tasks/pebble.yml).
+    - name: Install auditd, the SELinux policy inspection tools and tar
       ansible.builtin.dnf:
         name:
           - audit
           - setools-console
           - policycoreutils-python-utils
+          - tar
         state: present
 
     # Installing the SELinux policy packages the role needs rebuilds the policy and re-enables dontaudit
