@@ -2,9 +2,11 @@
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 reviewed: 2026-11-27T00:00:00Z
 depth: standard
-files_reviewed: 3
+files_reviewed: 5
 files_reviewed_list:
   - README.md
+  - extensions/molecule/container/verify.yml
+  - extensions/molecule/shared/panel_failure_log_dir_case.yml
   - roles/panel/meta/argument_specs.yml
   - roles/panel/tasks/stack.yml
 findings:
@@ -15,51 +17,45 @@ findings:
 status: issues_found
 ---
 
-# Phase 2: Code Review Report
+# Phase 2: Code Review Report (incremental)
 
 **Reviewed:** 2026-11-27
-**Depth:** standard (incremental: commit 054071a, failure log dir allowlist)
-**Files Reviewed:** 3
+**Depth:** standard
+**Files Reviewed:** 5
 **Status:** issues_found
+**Scope:** incremental review over `git diff 6244716e..HEAD` for the failure log dir fixes (`\Z` anchor, refusal to take over an existing directory, molecule cases, docs).
 
 ## Summary
 
-Commit 054071a replaces the denylist with the regex `^/(var/log|opt|srv)(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)+$` plus two home-directory checks. It closes the earlier problems: `..`, `.` and empty components, trailing slashes and `/var/log` itself are all rejected. The home check works for the `xvpn_panel_home` default, including when `xvpn_panel_home` has a trailing slash. `xvpn_panel_home` is defined in the role defaults, so the assert cannot hit an undefined variable.
-
-Two gaps remain. `$` accepts a trailing newline. The allowlist also does not guarantee a "dedicated" directory, which is the claim the README and the argument_specs make.
+The previous WR-01/WR-02/IN-01/IN-02 fixes are correct in substance. `\Z` is a valid Python anchor and survives YAML single quotes. `is match` uses `re.match`, so the pattern is anchored at both ends. The stat/assert pair runs under `become` (playbooks use `become: true`). It handles a symlink (`isdir` is false without follow) and a missing path. The molecule cases and the shared case file are structurally sound, and the Jinja test chains parse as intended. Remaining concerns: the "foreign directory" guard is weaker than the docs claim, and two of the new test cases do not exercise what their comments say.
 
 ## Warnings
 
-### WR-01: `$` in the regex accepts a trailing newline
+### WR-01: The foreign-directory guard accepts existing system directories that are already root:root 0700
 
-**File:** `roles/panel/tasks/stack.yml:18`
-**Issue:** The Jinja `match` test uses Python `re.match`, and `$` also matches just before a final `\n`. A value such as `"/var/log/xvpn\n"` passes the assert. This is easy to produce with a YAML `|` or `>` scalar, or with `-e` input. The value is then used in `file path:`, in `dest:` and in the fail message. The result is a directory whose name ends in a newline, which is awkward to handle later. The task comment and the README promise that the pattern admits no stray components. This one slips through.
-**Fix:** Anchor with `\Z`, or add an explicit check:
-```yaml
-- xvpn_panel_failure_log_dir is match('^/(var/log|opt|srv)(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)+\Z')
-```
+**File:** `roles/panel/tasks/stack.yml:38-48` (docs: `README.md:93`, `roles/panel/meta/argument_specs.yml:135-137`)
+**Issue:** The check accepts any existing directory that is root:root 0700. Several standard directories under the allowed bases look exactly like that, for example `/var/log/audit` and `/var/log/private`. They pass the allowlist (`/var/log/audit`) and the stat check. On a failed start the role would then write `panel-start-failure.log` into the auditd directory. On every successful run it would try to remove a file there. The README states "so no existing system or service directory is taken over", which is too strong. It also does not detect a directory the role did not create, such as an operator-owned root-only directory, so a collision is silent.
+**Fix:** Either narrow the claim in the docs ("only root:root 0700 directories are accepted; a pre-existing root-only directory of another service would still be reused"), or add a stricter guard. Examples are denying known system names (`/var/log/audit`, `/var/log/private`, `/var/log/journal`) in the assert, or requiring that an existing directory be empty or contain only `panel-start-failure.log` (`ansible.builtin.find` with `patterns` and an assert on the file count).
 
-### WR-02: The allowlist admits existing system directories, so "dedicated" is not enforced
+### WR-02: The home-directory guard is not exercised by the new test cases
 
-**File:** `roles/panel/tasks/stack.yml:18`
-**Issue:** The allowlist accepts any directory below `/var/log`, `/opt` or `/srv`. That includes `/var/log/journal`, `/var/log/audit`, `/var/log/sssd`, `/var/log/httpd`, `/var/log/nginx`, `/opt/containerd` and `/srv/www`. The `file` task at line 144 forces whatever it is given to `root:root 0700`. A user who points the variable at one of these directories would break the owning service. For example, `journal` is `root:systemd-journal 2755`, and the web server logs belong to other service accounts. The previous finding concerned exactly this "forced to 0700 on a shared directory" hazard. The allowlist only narrows it. A known-system-directory check, or at least a conflict check against already existing directories, is missing.
-**Fix:** Either of these works:
-- Add a pre-task `stat` of the path and `assert` that it does not exist, or is already `root:root 0700`. This is the cleanest option.
-- Or add a deny-list for first components below `/var/log` (`journal`, `audit`, `private`, `sa`, and so on). Note this is weaker.
+**File:** `extensions/molecule/container/verify.yml:~821-823`
+**Issue:** The cases `/var/lib/xvpn/rw-panel` and `/var/lib/xvpn` are commented as "the service user's home and a parent of it". Both lie outside `/var/log|/opt|/srv`, so they are rejected by the regex. The home assertions (`!= xvpn_panel_home`, `startswith`) never run. The final assert only checks the message for "dedicated absolute directory", which is the same message for all four assertions, so a regression in the home check would go unnoticed. The check can only matter when `xvpn_panel_home` is under an allowed base, and no case sets it that way.
+**Fix:** Add cases where `xvpn_panel_home` is overridden, for example `/opt/xvpn/rw-panel`, with `dir: /opt/xvpn/rw-panel` and `dir: /opt/xvpn`. Pass the override through the case (an optional `xvpn_case.home` forwarded as `xvpn_panel_home`). Alternatively, drop the misleading comment.
 
 ## Info
 
-### IN-01: Negative tests for the failure log dir assert are still missing
+### IN-01: Fixture cleanup is not in an `always` path
 
-**File:** `extensions/molecule/container/converge.yml` (and `verify.yml`)
-**Issue:** No Molecule scenario exercises the assert. The `extensions/molecule/preflight` scenario only covers the `preflight` role, via its `run_case.yml` and the case matrix in its `converge.yml`. The rejected inputs below have never been run, and the new regex's edge cases (WR-01) would have been caught by them.
-**Fix:** Add a negative-case play to the `container` scenario. The `container` scenario is the one that already converges the `panel` role. Include `xvpn.remnawave.panel` with `tasks_from: stack` inside `block/rescue` for each bad value, and assert that the rescue was reached and that `ansible_failed_result.msg` contains `dedicated absolute directory`. Alternatively, copy the `preflight` case-matrix pattern (`run_case.yml` plus an `expect_in` list) into a new `extensions/molecule/shared` task file. Cases that must be rejected: `/var/log`, `/var/log/`, `/var/log/xvpn/`, `/var/log/./x`, `/var/log/../etc`, `/var//log/x`, `/tmp/x`, `/etc/x`, `/var/log/xvpn\n` (WR-01), a path equal to `xvpn_panel_home`, and a path that is a parent of it. Cases that must pass: `/var/log/xvpn`, `/opt/xvpn-logs`, `/srv/a.b/c`.
+**File:** `extensions/molecule/container/verify.yml:~784-852`
+**Issue:** If the results assert fails, the `/var/log/xvpn-foreign` and `/opt/xvpn-own-logs` fixtures remain. Molecule destroys the instance, so the impact is limited to local `verify`-only reruns. A leftover `/var/log/xvpn-foreign` also changes how the next run behaves.
+**Fix:** Wrap the creation, the cases, and the assert in a `block` with the removal task in `always`.
 
-### IN-02: The accepted character set is undocumented
+### IN-02: Overlong line in the negative-case list
 
-**File:** `README.md:93`, `roles/panel/meta/argument_specs.yml:133`, `roles/panel/tasks/stack.yml:23`
-**Issue:** The regex limits each component to `[A-Za-z0-9_.-]`, and a component cannot start with `.`. Spaces and non-ASCII characters are rejected, as are hidden-directory components. None of the three places mention this, so a user with `/srv/xvpn logs` or `/opt/.xvpn` gets an error message that does not explain the cause.
-**Fix:** Add "components use only letters, digits, `_`, `-` and `.`, and do not start with `.`" to the README row, the argument_specs description and the `fail_msg`.
+**File:** `extensions/molecule/container/verify.yml:~862`
+**Issue:** The edited list has the line `'panel-secrets-corrupt', 'panel-secrets-lost-with-volume', 'panel-weak-admin-password', 'port-without-protocol', 'relative-template',`, which is well over 120 characters. This risks a yamllint `line-length` warning, depending on the project config.
+**Fix:** Rewrap the list to keep the same sorted order, with one or two names per line.
 
 ---
 
