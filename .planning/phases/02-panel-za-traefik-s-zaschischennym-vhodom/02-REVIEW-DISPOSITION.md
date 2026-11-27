@@ -6,19 +6,19 @@ findings:
   - id: WR-01
     severity: warning
     disposition: fixed
-    title: "Denylist is bypassed by `.` components and by repeated or mid-path slashes"
+    title: "`$` in the regex accepts a trailing newline"
   - id: WR-02
     severity: warning
     disposition: fixed
-    title: "Denylist is incomplete, so many shared directories are still accepted"
+    title: "The allowlist admits existing system directories, so \"dedicated\" is not enforced"
   - id: IN-01
     severity: info
-    disposition: open
-    title: "Assert is unverified by tests"
+    disposition: fixed
+    title: "Negative tests for the failure log dir assert are still missing"
   - id: IN-02
     severity: info
     disposition: fixed
-    title: "Проверка неизменяемых ключей игнорирует значения из vault"
+    title: "The accepted character set is undocumented"
   - id: WR-03
     severity: warning
     disposition: fixed
@@ -51,9 +51,9 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 1
+open: 0
 total: 12
-recorded: 2026-11-26T14:11:59.506Z
+recorded: 2026-11-27T02:24:38.144Z
 ---
 
 # Phase 02: Code Review Disposition
@@ -62,8 +62,8 @@ recorded: 2026-11-26T14:11:59.506Z
 |---------|----------|-------------|--------|
 | WR-01 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-02 | warning | fixed | 02-REVIEW-FIX.md |
-| IN-01 | info | open | - |
-| IN-02 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-01 | info | fixed | 02-REVIEW-FIX.md |
+| IN-02 | info | fixed | 02-REVIEW-FIX.md |
 | WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-05 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
