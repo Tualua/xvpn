@@ -25,6 +25,29 @@
       or one of its parents
     quiet: true
 
+# The directory is chmodded to 0700 and chowned to root on a failed start. A pre-existing directory of another
+# service (/var/log/journal, /srv/www, ...) must not be taken over, so only a missing one or one that an earlier run
+# already left as root:root 0700 is accepted. This runs on every converge, long before the directory is created.
+- name: Panel stack | check that the failure log directory is not a foreign directory
+  ansible.builtin.stat:
+    path: "{{ xvpn_panel_failure_log_dir }}"
+  register: xvpn_panel_failure_log_dir_stat
+
+- name: Panel stack | assert that the failure log directory is new or already root-only
+  ansible.builtin.assert:
+    that:
+      - >-
+        not xvpn_panel_failure_log_dir_stat.stat.exists or (
+        xvpn_panel_failure_log_dir_stat.stat.isdir
+        and xvpn_panel_failure_log_dir_stat.stat.pw_name == 'root'
+        and xvpn_panel_failure_log_dir_stat.stat.gr_name == 'root'
+        and xvpn_panel_failure_log_dir_stat.stat.mode == '0700')
+    fail_msg: >-
+      xvpn_panel_failure_log_dir {{ xvpn_panel_failure_log_dir }} already exists and is not a real directory owned by
+      root:root with mode 0700. The role takes this directory over (root:root 0700), so point the variable at a new,
+      dedicated directory instead of an existing system or service directory
+    quiet: true
+
 - name: Panel stack | create the env directory
   ansible.builtin.file:
     path: "{{ xvpn_panel_env_dir }}"
