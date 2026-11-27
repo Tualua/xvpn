@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-27T08:26:05.322Z"
+last_updated: "2026-11-27T10:22:16.326Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: 66699798317052df8226b4bc1d1adef4d0c19f20
+state_head: a841c2e69d53f6134cc02d6b6d7c852d6027b695
 progress:
   total_phases: 5
   completed_phases: 1
@@ -137,6 +137,7 @@ None yet.
 | 3 | Shorten COVERAGE.md capability cell (phase 02) to pass api-coverage gate | 2026-11-27 | 1745c4f | — |
 | 4 | Add examples/gitlab-deploy GitLab CI template for Panel deploy | 2026-11-27 | 1865e10 | — |
 | 5 | GitLab deploy template: community EE image, vendor/xvpn submodule, exact dependency pins | 2026-11-27 | 6669979 | — |
+| 6 | GitLab deploy template: fail fast when SSH variables are not of type File | 2026-11-27 | a841c2e | — |
 
 ## Deferred Items
 
