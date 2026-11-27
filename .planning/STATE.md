@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-27T08:03:34.995Z"
+last_updated: "2026-11-27T08:26:05.322Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: 1865e10c6853481ad87ed95c079393474b89ab8f
+state_head: 66699798317052df8226b4bc1d1adef4d0c19f20
 progress:
   total_phases: 5
   completed_phases: 1
@@ -136,6 +136,7 @@ None yet.
 | 261127-40g | Hardcode panel failure log dir as /var/log/xvpn and drop its validation | 2026-11-27 | c4eadea | [261127-40g-hardcode-panel-failure-log-dir-as-var-lo](./quick/261127-40g-hardcode-panel-failure-log-dir-as-var-lo/) |
 | 3 | Shorten COVERAGE.md capability cell (phase 02) to pass api-coverage gate | 2026-11-27 | 1745c4f | — |
 | 4 | Add examples/gitlab-deploy GitLab CI template for Panel deploy | 2026-11-27 | 1865e10 | — |
+| 5 | GitLab deploy template: community EE image, vendor/xvpn submodule, exact dependency pins | 2026-11-27 | 6669979 | — |
 
 ## Deferred Items
 
