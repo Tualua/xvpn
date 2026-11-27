@@ -90,7 +90,6 @@ Both FQDNs are required and must differ; their A records must point to the host 
 | `xvpn_panel_gate_cookie_samesite` | `Strict` | `Strict` or `Lax`, see Admin entry. |
 | `xvpn_panel_api_token_days` | `3650` | Lifetime of the automation API token in days. |
 | `xvpn_panel_bootstrap_retries` | `60` | Attempts, 5 seconds apart, to wait for the backend during the bootstrap. |
-| `xvpn_panel_failure_log_dir` | `/var/log/xvpn` | Root-only directory (0700) for `panel-start-failure.log`, written when the stack start fails and removed after the next successful start. Must be a dedicated absolute directory below `/var/log`, `/opt` or `/srv` (for example `/var/log/xvpn`), with no `.`, `..` or empty components and no trailing slash, and with components that use only letters, digits, `_`, `-` and `.` and do not start with `.`; it must not be the service user's home or one of its parents. An existing directory is accepted only when it is already a real directory owned by root:root with mode 0700, so no existing system or service directory is taken over. |
 | `xvpn_edge_decoy_src` | empty | Directory on the controller with your own decoy site; empty uses a neutral built-in page. |
 | `xvpn_panel_backend_image`, `xvpn_panel_postgres_image`, `xvpn_panel_valkey_image`, `xvpn_panel_subscription_image`, `xvpn_edge_traefik_image`, `xvpn_edge_decoy_image` | pinned exact tags | Container images; bump them by changing the variable. |
 
@@ -102,7 +101,7 @@ Both FQDNs are required and must differ; their A records must point to the host 
 | `/var/lib/xvpn/rw-panel/secrets/api-token` | Automation API token, mode 0600 |
 | `/var/lib/xvpn/rw-panel/secrets/admin-url` | Admin entry URL, mode 0600 |
 | `/var/lib/xvpn/rw-edge/traefik/` | Traefik state including `acme.json` (certificates), owner `rw-edge` |
-| `/var/log/xvpn/panel-start-failure.log` | Journals and container logs of a failed stack start, mode 0600, owner root; may contain environment values, removed after a successful start. |
+| `/var/log/xvpn/panel-start-failure.log` | Journals and container logs of a failed stack start, mode 0600, owner root, in the fixed (not configurable) directory `/var/log/xvpn` (root:root 0700); may contain environment values, removed after a successful start. |
 
 Back these files up: a lost secrets file together with a surviving database volume stops the run on purpose instead of generating values that no longer match the database.
 
