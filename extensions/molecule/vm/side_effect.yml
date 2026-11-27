@@ -607,12 +607,18 @@
       ansible.builtin.include_vars: vars/panel.yml
 
     - name: ACME CA switch | record the served leaf fingerprint before the switch
-      ansible.builtin.shell: >-
-        set -o pipefail;
-        openssl s_client -connect 127.0.0.1:443 -servername panel.xvpn.test </dev/null 2>/dev/null
-        | openssl x509 -noout -fingerprint -sha256
-      args:
-        executable: /bin/bash
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import hashlib, socket, ssl
+            c = ssl.create_default_context()
+            c.check_hostname = False
+            c.verify_mode = ssl.CERT_NONE
+            with socket.create_connection(("127.0.0.1", 443), timeout=10) as s:
+                with c.wrap_socket(s, server_hostname="panel.xvpn.test") as t:
+                    print(hashlib.sha256(t.getpeercert(binary_form=True)).hexdigest())
       changed_when: false
       register: xvpn_acme_switch_fp_before
       retries: 12
@@ -686,12 +692,20 @@
         fail_msg: "the CA switch did not restart Traefik or did not select the new store"
         quiet: true
 
-    # The routers use certResolver le without tls.domains, so Traefik orders only on a TLS handshake: each retry
+    # The routers use certResolver le without tls.domains, so Traefik orders only on a TLS handshake (SNI servername
+    # panel.xvpn.test; python3 ssl, the VM has no openssl CLI): each retry
     # re-triggers issuance with an SNI handshake and then counts the domain entries of the new store.
     - name: ACME CA switch | trigger and wait for issuance into the new store
-      ansible.builtin.shell: >-
-        set -o pipefail;
-        openssl s_client -connect 127.0.0.1:443 -servername panel.xvpn.test </dev/null >/dev/null 2>&1 || true;
+      ansible.builtin.shell: |
+        set -o pipefail
+        python3 - <<'PY' >/dev/null 2>&1 || true
+        import socket, ssl
+        c = ssl.create_default_context()
+        c.check_hostname = False
+        c.verify_mode = ssl.CERT_NONE
+        s = socket.create_connection(("127.0.0.1", 443), timeout=10)
+        c.wrap_socket(s, server_hostname="panel.xvpn.test").close()
+        PY
         grep -c -E '"main":[[:space:]]*"panel.xvpn.test"' /var/lib/xvpn/rw-edge/traefik/acme/acme-custom-dd20adf377e3.json || true
       args:
         executable: /bin/bash
@@ -763,12 +777,18 @@
         quiet: true
 
     - name: ACME CA switch | read the served leaf fingerprint after the switch back
-      ansible.builtin.shell: >-
-        set -o pipefail;
-        openssl s_client -connect 127.0.0.1:443 -servername panel.xvpn.test </dev/null 2>/dev/null
-        | openssl x509 -noout -fingerprint -sha256
-      args:
-        executable: /bin/bash
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import hashlib, socket, ssl
+            c = ssl.create_default_context()
+            c.check_hostname = False
+            c.verify_mode = ssl.CERT_NONE
+            with socket.create_connection(("127.0.0.1", 443), timeout=10) as s:
+                with c.wrap_socket(s, server_hostname="panel.xvpn.test") as t:
+                    print(hashlib.sha256(t.getpeercert(binary_form=True)).hexdigest())
       changed_when: false
       register: xvpn_acme_switch_fp_after
       retries: 12
