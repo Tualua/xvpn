@@ -395,6 +395,27 @@
             - not (ansible_failed_result.msg | string).startswith('negative case')
             - "'xvpn_panel_domain' in (ansible_failed_result | to_json)"
 
+    # xvpn_negative_case: panel-same-domains
+    - name: Negative case panel-same-domains
+      block:
+        - name: Run the panel role with the subscription domain equal to the Panel domain
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.panel
+          vars:
+            xvpn_panel_domain: panel.xvpn.test
+            xvpn_subscription_domain: panel.xvpn.test
+        - name: Fail when equal domains were accepted
+          ansible.builtin.fail:
+            msg: "negative case panel-same-domains was accepted"
+      rescue:
+        - name: Record that equal domains were rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['panel-same-domains'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_subscription_domain' in (ansible_failed_result | to_json)"
+            - "'different from xvpn_panel_domain' in (ansible_failed_result | to_json)"
+
     - name: Stat the Panel secrets directory and file
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -787,7 +808,7 @@
           - >-
             (xvpn_negative_rejected | default([])) | sort ==
             ['bad-user-name', 'broken-unit', 'edge-bad-route-name', 'edge-custom-ca-without-server', 'no-ssh-zone',
-             'panel-divergent-secret', 'panel-placeholder-domain', 'panel-placeholder-secret',
+             'panel-divergent-secret', 'panel-placeholder-domain', 'panel-placeholder-secret', 'panel-same-domains',
              'panel-secrets-corrupt', 'panel-secrets-lost-with-volume', 'panel-weak-admin-password', 'port-without-protocol', 'relative-template',
              'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
