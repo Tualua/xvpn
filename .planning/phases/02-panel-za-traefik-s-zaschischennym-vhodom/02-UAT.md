@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md]
 started: 2026-11-27T03:29:21Z
@@ -130,7 +130,16 @@ blocked: 0
   reason: "User reported: PLAY RECAP panel1 : ok=574 changed=2 unreachable=0 failed=0 skipped=420. Сертификат остался staging. Подозреваю, что нужно перезапустить контейнер с traefik. Сделать я это не смог, у юзера /sbin/nologin"
   severity: major
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
+  gap_id: 02-UAT-G1
+  root_cause: "Traefik restarted correctly (changed=2 = traefik.yml re-render + restart_stale restart), but the le resolver keeps one storage file /acme/acme.json for every CA. Traefik reuses a stored certificate for a domain until it is within 30 days of expiry and never compares it with the configured caServer, so the staging certificate (valid ~90 days) keeps being served after switching xvpn_edge_acme_ca to production."
+  artifacts:
+    - path: "roles/edge/templates/traefik.yml.j2"
+      issue: "storage: /acme/acme.json is the same file whatever xvpn_edge_acme_ca selects"
+    - path: "roles/edge/tasks/main.yml"
+      issue: "acme.json lookup/permission tasks hard-code the single file name"
+  missing:
+    - "Key the ACME storage file by the selected CA (e.g. acme-production.json, acme-staging.json, acme-custom-<hash of server>.json) so a CA switch starts from an empty store and issues new certificates, while switching back reuses the earlier store"
+    - "Keep the 0600 permission task and the VM/container verifiers (acme.json 0600 check) pointed at the active file"
+    - "Automated check that changing xvpn_edge_acme_ca changes the rendered storage path and restarts Traefik"
+    - "README note on switching staging -> production"
   debug_session: ""
