@@ -3,8 +3,14 @@ name: gate
 
 "on":
   push:
+    paths-ignore:
+      - ".planning/**"
+      - "**.md"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - ".planning/**"
+      - "**.md"
   workflow_dispatch:
     inputs:
       break:
