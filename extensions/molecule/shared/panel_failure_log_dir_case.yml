@@ -1,0 +1,24 @@
+---
+# One xvpn_panel_failure_log_dir case (loop var xvpn_case: dir, outcome). The panel role runs with
+# xvpn_panel_activate: false, so a path that passes the validation creates nothing (the directory is only created
+# when a stack start fails). The outcome and the message are recorded in xvpn_log_dir_results and judged by the caller.
+- name: Run one failure log directory case
+  block:
+    - name: Run the panel role with the case directory
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.panel
+      vars:
+        xvpn_panel_domain: panel.xvpn.test
+        xvpn_subscription_domain: sub.xvpn.test
+        xvpn_panel_activate: false
+        xvpn_panel_failure_log_dir: "{{ xvpn_case.dir }}"
+
+    - name: Record the passing case
+      ansible.builtin.set_fact:
+        xvpn_log_dir_results: "{{ (xvpn_log_dir_results | default([])) + [{'dir': xvpn_case.dir, 'outcome': 'pass', 'msg': ''}] }}"
+  rescue:
+    - name: Record the failing case
+      ansible.builtin.set_fact:
+        xvpn_log_dir_results: >-
+          {{ (xvpn_log_dir_results | default([])) +
+          [{'dir': xvpn_case.dir, 'outcome': 'fail', 'msg': (ansible_failed_result | to_json)}] }}

@@ -781,14 +781,83 @@
         fail_msg: "toggle on did not restore the sub-page unit file and the subscription route"
         quiet: true
 
+    # xvpn_negative_case: panel-failure-log-dir
+    # The role takes the directory over as root:root 0700, so a foreign directory must be refused. The two fixtures
+    # are an existing 0755 directory (rejected) and an existing root:root 0700 one (accepted, the idempotent re-run).
+    - name: Create the failure log directory fixtures
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /var/log/xvpn-foreign, mode: "0755"}
+        - {path: /opt/xvpn-own-logs, mode: "0700"}
+
+    - name: Run the failure log directory cases
+      ansible.builtin.include_tasks: ../shared/panel_failure_log_dir_case.yml
+      loop: "{{ xvpn_verify_log_dir_cases }}"
+      loop_control:
+        loop_var: xvpn_case
+        label: "{{ xvpn_case.dir | to_json }}"
+      vars:
+        xvpn_verify_log_dir_cases:
+          - {dir: /var/log/xvpn, outcome: pass}
+          - {dir: /opt/xvpn-logs, outcome: pass}
+          - {dir: /srv/a.b/c, outcome: pass}
+          - {dir: /opt/xvpn-own-logs, outcome: pass}
+          - {dir: /var/log, outcome: fail}
+          - {dir: /var/log/, outcome: fail}
+          - {dir: /var/log/xvpn/, outcome: fail}
+          - {dir: /var/log/./x, outcome: fail}
+          - {dir: /var/log/../etc, outcome: fail}
+          - {dir: /var//log/x, outcome: fail}
+          - {dir: /tmp/x, outcome: fail}
+          - {dir: /etc/x, outcome: fail}
+          # a trailing newline must not slip through the end anchor
+          - {dir: "/var/log/xvpn\n", outcome: fail}
+          # the service user's home and a parent of it
+          - {dir: /var/lib/xvpn/rw-panel, outcome: fail}
+          - {dir: /var/lib/xvpn, outcome: fail}
+          # an existing directory that is not root:root 0700
+          - {dir: /var/log/xvpn-foreign, outcome: fail}
+
+    - name: Assert every failure log directory case ended as expected
+      ansible.builtin.assert:
+        that:
+          - xvpn_log_dir_results | length == 16
+          - xvpn_log_dir_results | selectattr('outcome', 'equalto', 'pass') | map(attribute='dir') | sort ==
+            ['/opt/xvpn-logs', '/opt/xvpn-own-logs', '/srv/a.b/c', '/var/log/xvpn']
+          - >-
+            xvpn_log_dir_results | selectattr('outcome', 'equalto', 'fail')
+            | rejectattr('msg', 'search', 'dedicated absolute directory|already exists and is not a real directory')
+            | list | length == 0
+          - xvpn_log_dir_results | selectattr('dir', 'equalto', '/var/log/xvpn-foreign') | map(attribute='msg')
+            | join is search('already exists and is not a real directory')
+        fail_msg: "failure log directory cases did not end as expected: {{ xvpn_log_dir_results | default([]) }}"
+        quiet: true
+
+    - name: Record the failure log directory cases as rejected for the expected reason
+      ansible.builtin.set_fact:
+        xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['panel-failure-log-dir'] }}"
+
+    - name: Remove the failure log directory fixtures
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/xvpn-foreign
+        - /opt/xvpn-own-logs
+
     - name: Assert every negative case was rejected for the expected reason
       ansible.builtin.assert:
         that:
           - >-
             (xvpn_negative_rejected | default([])) | sort ==
             ['bad-user-name', 'broken-unit', 'edge-bad-route-name', 'edge-custom-ca-without-server', 'no-ssh-zone',
-             'panel-divergent-secret', 'panel-placeholder-domain', 'panel-placeholder-secret', 'panel-secrets-corrupt',
-             'panel-secrets-lost-with-volume', 'panel-weak-admin-password', 'port-without-protocol', 'relative-template',
+             'panel-divergent-secret', 'panel-failure-log-dir', 'panel-placeholder-domain', 'panel-placeholder-secret',
+             'panel-secrets-corrupt', 'panel-secrets-lost-with-volume', 'panel-weak-admin-password', 'port-without-protocol', 'relative-template',
              'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
         quiet: true
