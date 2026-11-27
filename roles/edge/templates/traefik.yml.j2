@@ -61,6 +61,6 @@ certificatesResolvers:
 {% if xvpn_edge_acme_email | length > 0 %}
       email: "{{ xvpn_edge_acme_email }}"
 {% endif %}
-      storage: /acme/acme.json
+      storage: /acme/{{ xvpn_edge_acme_storage_file }}
       httpChallenge:
         entryPoint: web

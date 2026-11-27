@@ -1,0 +1,13 @@
+---
+# Internal values of the edge role (not operator input, so not part of argument_specs).
+#
+# 02-UAT-G1: Traefik reuses a stored certificate until 30 days before expiry, whatever caServer says. One storage
+# file for every CA therefore keeps serving the old CA's certificate after xvpn_edge_acme_ca is changed. Each CA gets
+# its own store: a switch starts from an empty store (new order from the selected CA), a switch back reuses the
+# earlier store. The name is built only from the validated enum or hex characters, so no path component can be injected.
+xvpn_edge_acme_storage_file: >-
+  {{ 'acme-custom-' ~ (xvpn_edge_acme_ca_server | hash('sha256'))[:12] ~ '.json'
+  if xvpn_edge_acme_ca == 'custom'
+  else 'acme-' ~ xvpn_edge_acme_ca ~ '.json' }}
+# The single store of earlier collection versions; no longer read, only kept private.
+xvpn_edge_acme_legacy_file: acme.json

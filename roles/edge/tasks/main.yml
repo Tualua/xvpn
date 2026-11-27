@@ -71,19 +71,27 @@
   when: xvpn_edge_acme_trusted_ca_file | length > 0
   register: xvpn_edge_ca
 
-- name: Edge | look up acme.json
+- name: Edge | look up the ACME stores
   ansible.builtin.stat:
-    path: "{{ xvpn_edge_home }}/traefik/acme/acme.json"
-  register: xvpn_edge_acme_json
+    path: "{{ xvpn_edge_home }}/traefik/acme/{{ item }}"
+  loop:
+    - "{{ xvpn_edge_acme_storage_file }}"
+    - "{{ xvpn_edge_acme_legacy_file }}"
+  register: xvpn_edge_acme_stores
 
-# Traefik creates acme.json itself with 0600; it is never pre-created, slurped or printed (T-02-05).
-- name: Edge | keep acme.json private
+# Traefik creates every ACME store itself with 0600 (one file per CA, 02-UAT-G1). The role never pre-creates,
+# slurps, copies or prints a store (T-02-05). The legacy single store of earlier versions is not migrated (its CA is
+# unknown without reading it): it stays in place, only its mode is kept private; the active CA re-issues once.
+- name: Edge | keep the ACME stores private
   ansible.builtin.file:
-    path: "{{ xvpn_edge_home }}/traefik/acme/acme.json"
+    path: "{{ item.stat.path }}"
     owner: "{{ xvpn_edge_user }}"
     group: "{{ xvpn_edge_user }}"
     mode: "0600"
-  when: xvpn_edge_acme_json.stat.exists
+  loop: "{{ xvpn_edge_acme_stores.results }}"
+  loop_control:
+    label: "{{ item.stat.path | default(item.item) }}"
+  when: item.stat.exists
 
 # nginx-unprivileged runs as uid 101 inside the user namespace, not as the service user, so the public decoy
 # content must be world-readable; Traefik runs as container root (the service user) and keeps 0600/0700.

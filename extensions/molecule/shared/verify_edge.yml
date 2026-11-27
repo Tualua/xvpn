@@ -1,13 +1,13 @@
 ---
 # Edge assertions of the VM tier: HTTPS through the Pebble chain, decoy body, strict SNI, :80 behaviour,
-# real client IP, log hygiene, encoded slash, acme.json, listeners.
+# real client IP, log hygiene, encoded slash, the active ACME store, listeners.
 # Input: xvpn_verify_edge_domain (required). All HTTP probes run on the controller.
 - name: Verify edge | resolve the inputs
   ansible.builtin.set_fact:
     xvpn_verify_edge_ip: "{{ ansible_host | default(inventory_hostname) }}"
 
 # Pebble builds a new in-memory CA on every start, so after the reboot roots/0 is no longer the issuer of the
-# certificate in acme.json. The first run (before the reboot) stores the root on the VM; later runs reuse it.
+# certificate in the active ACME store. The first run (before the reboot) stores the root on the VM; later runs reuse it.
 - name: Verify edge | look for the stored Pebble root
   ansible.builtin.stat:
     path: /var/lib/xvpn-molecule/pebble-root.pem
@@ -360,26 +360,46 @@
       probe line keys: {{ (xvpn_verify_edge_probe_lines | first | default({})).keys() | list | sort }}
     quiet: true
 
-# EDGE-02: acme.json is private and carries the domain.
-- name: Verify edge | stat acme.json
+# EDGE-02: the active ACME store is private and carries the domain. The store is per CA (02-UAT-G1), so its
+# name comes from the rendered static configuration.
+- name: Verify edge | read the rendered static configuration
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn/rw-edge/traefik/static/traefik.yml
+  register: xvpn_verify_edge_static
+
+- name: Verify edge | find the active ACME store
+  ansible.builtin.set_fact:
+    xvpn_verify_edge_acme_storage: "{{ (xvpn_verify_edge_static.content | b64decode | from_yaml).certificatesResolvers.le.acme.storage }}"
+
+- name: Verify edge | assert the active ACME store name
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_edge_acme_storage is match('^/acme/acme-(production|staging|custom-[0-9a-f]{12})[.]json$')
+    quiet: true
+
+- name: Verify edge | resolve the active ACME store path
+  ansible.builtin.set_fact:
+    xvpn_verify_edge_acme_path: "/var/lib/xvpn/rw-edge/traefik/acme/{{ xvpn_verify_edge_acme_storage | basename }}"
+
+- name: Verify edge | stat the active ACME store
   ansible.builtin.stat:
-    path: /var/lib/xvpn/rw-edge/traefik/acme/acme.json
+    path: "{{ xvpn_verify_edge_acme_path }}"
   register: xvpn_verify_edge_acme
 
-- name: Verify edge | count the domain entries in acme.json
+- name: Verify edge | count the domain entries in the active ACME store
   ansible.builtin.command:
     argv:
       - grep
       - -c
       - -E
       - '"main":[[:space:]]*"{{ xvpn_verify_edge_domain }}"'
-      - /var/lib/xvpn/rw-edge/traefik/acme/acme.json
+      - "{{ xvpn_verify_edge_acme_path }}"
   register: xvpn_verify_edge_acme_count
   changed_when: false
   failed_when: false
   no_log: true
 
-- name: Verify edge | assert acme.json
+- name: Verify edge | assert the active ACME store
   ansible.builtin.assert:
     that:
       - xvpn_verify_edge_acme.stat.exists
@@ -387,7 +407,7 @@
       - xvpn_verify_edge_acme.stat.pw_name == 'rw-edge'
       - xvpn_verify_edge_acme_count.stdout | trim | int >= 1
     fail_msg: >-
-      acme.json: exists {{ xvpn_verify_edge_acme.stat.exists }}, mode {{ xvpn_verify_edge_acme.stat.mode | default('') }},
+      the active ACME store: exists {{ xvpn_verify_edge_acme.stat.exists }}, mode {{ xvpn_verify_edge_acme.stat.mode | default('') }},
       owner {{ xvpn_verify_edge_acme.stat.pw_name | default('') }}, domain entries {{ xvpn_verify_edge_acme_count.stdout | default('') }}
     quiet: true
 
