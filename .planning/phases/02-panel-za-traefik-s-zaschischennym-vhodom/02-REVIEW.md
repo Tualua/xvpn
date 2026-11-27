@@ -2,60 +2,114 @@
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 reviewed: 2026-11-27T00:00:00Z
 depth: standard
-files_reviewed: 5
+files_reviewed: 32
 files_reviewed_list:
-  - README.md
-  - extensions/molecule/container/verify.yml
-  - extensions/molecule/shared/panel_failure_log_dir_case.yml
+  - roles/edge/tasks/main.yml
+  - roles/edge/templates/traefik.yml.j2
+  - roles/edge/vars/main.yml
+  - roles/panel/defaults/main.yml
   - roles/panel/meta/argument_specs.yml
+  - roles/panel/tasks/secrets.yml
   - roles/panel/tasks/stack.yml
+  - roles/panel/vars/main.yml
+  - roles/preflight/defaults/main.yml
+  - roles/preflight/meta/argument_specs.yml
+  - roles/preflight/tasks/main.yml
+  - scripts/check.sh
+  - scripts/check_until_set_fact.py
+  - scripts/gate/render.yml
+  - extensions/molecule/container/molecule.yml
+  - extensions/molecule/container/verify.yml
+  - extensions/molecule/preflight/converge.yml
+  - extensions/molecule/preflight/molecule.yml
+  - extensions/molecule/shared/panel_failure_log_dir_case.yml
+  - extensions/molecule/shared/verify_edge.yml
+  - extensions/molecule/vm/molecule.yml
+  - extensions/molecule/vm/prepare.yml
+  - extensions/molecule/vm/side_effect.yml
+  - examples/gitlab-deploy/.gitlab-ci.yml
+  - examples/gitlab-deploy/inventory/hosts.yml
+  - examples/gitlab-deploy/requirements.yml
+  - .github/workflows/gate.yml
+  - .github/workflows/lint.yml
+  - .github/workflows/molecule-container.yml
+  - .github/workflows/molecule-vm.yml
+  - galaxy.yml
+  - README.md
 findings:
   critical: 0
   warning: 2
-  info: 2
-  total: 4
+  info: 4
+  total: 6
+  necessity: 0
 status: issues_found
 ---
 
-# Phase 2: Code Review Report (incremental)
+# Phase 2: Code Review Report (incremental, diff base 75d71a4)
 
 **Reviewed:** 2026-11-27
 **Depth:** standard
-**Files Reviewed:** 5
+**Files Reviewed:** 32
 **Status:** issues_found
-**Scope:** incremental review over `git diff 6244716e..HEAD` for the failure log dir fixes (`\Z` anchor, refusal to take over an existing directory, molecule cases, docs).
+**Scope:** `git diff 75d71a4 HEAD`: plan 02-12 per-CA ACME storage, rejection-sampling password draw plus `check_until_set_fact.py`, Oracle Linux 10 support, the GitLab deploy example and the CI `paths-ignore` change. This review replaces the earlier 02-REVIEW.md (diff base 6244716e); `shared/panel_failure_log_dir_case.yml` was deleted by the diff and no longer exists.
 
 ## Summary
 
-The previous WR-01/WR-02/IN-01/IN-02 fixes are correct in substance. `\Z` is a valid Python anchor and survives YAML single quotes. `is match` uses `re.match`, so the pattern is anchored at both ends. The stat/assert pair runs under `become` (playbooks use `become: true`). It handles a symlink (`isdir` is false without follow) and a missing path. The molecule cases and the shared case file are structurally sound, and the Jinja test chains parse as intended. Remaining concerns: the "foreign directory" guard is weaker than the docs claim, and two of the new test cases do not exercise what their comments say.
+The core changes are sound.
+
+- **Store names.** The per-CA store name uses only the validated enum or 12 hex characters of a sha256, so no path component can be injected. I recomputed the two hashes hard-coded in `side_effect.yml` (`6d8ba56d5d58`, `dd20adf377e3`) and they match the URLs.
+- **Password draw.** The rejection-sampling template is correct. The Jinja loop filter is evaluated lazily, so `ns.value` is seen on each iteration. `failed_when` on the `set_fact` register is valid, and `no_log` keeps the draw out of logs.
+- **`check_until_set_fact.py`.** The script copes with empty files and with non-list YAML.
+
+The remaining problems are a CI coverage gap, a spec/defaults inconsistency, and a few robustness points.
 
 ## Warnings
 
-### WR-01: The foreign-directory guard accepts existing system directories that are already root:root 0700
+### WR-01: `paths-ignore` skips the secret scan and the gate on planning-only and Markdown-only changes
 
-**File:** `roles/panel/tasks/stack.yml:38-48` (docs: `README.md:93`, `roles/panel/meta/argument_specs.yml:135-137`)
-**Issue:** The check accepts any existing directory that is root:root 0700. Several standard directories under the allowed bases look exactly like that, for example `/var/log/audit` and `/var/log/private`. They pass the allowlist (`/var/log/audit`) and the stat check. On a failed start the role would then write `panel-start-failure.log` into the auditd directory. On every successful run it would try to remove a file there. The README states "so no existing system or service directory is taken over", which is too strong. It also does not detect a directory the role did not create, such as an operator-owned root-only directory, so a collision is silent.
-**Fix:** Either narrow the claim in the docs ("only root:root 0700 directories are accepted; a pre-existing root-only directory of another service would still be reused"), or add a stricter guard. Examples are denying known system names (`/var/log/audit`, `/var/log/private`, `/var/log/journal`) in the assert, or requiring that an existing directory be empty or contain only `panel-start-failure.log` (`ansible.builtin.find` with `patterns` and an assert on the file count).
+**File:** `.github/workflows/gate.yml:6-13` (same block in `lint.yml`, `molecule-container.yml`)
+**Issue:**
+- `scripts/check.sh` states that the secret scan covers "every tracked file (.planning/ included)", and the planning documents are where the debug and UAT notes with pasted output live. A push or PR that touches only `.planning/**` or `*.md` now runs none of lint, gate or the secret scan. A secret committed there reaches `main` unscanned.
+- If these workflows are required status checks, a PR that only changes `README.md` never gets a check run. GitHub leaves the checks pending as "Expected" and the PR cannot be merged without admin bypass.
 
-### WR-02: The home-directory guard is not exercised by the new test cases
+**Fix:** Keep the secret scan outside the filter, for example a small always-run `secrets` job or workflow without `paths-ignore` that calls the scan part of `scripts/check.sh`. Keep `paths-ignore` only on the heavy Molecule workflows. If the checks are required, use a path-filter step inside the job (for example `dorny/paths-filter`) so the job always reports a status.
 
-**File:** `extensions/molecule/container/verify.yml:~821-823`
-**Issue:** The cases `/var/lib/xvpn/rw-panel` and `/var/lib/xvpn` are commented as "the service user's home and a parent of it". Both lie outside `/var/log|/opt|/srv`, so they are rejected by the regex. The home assertions (`!= xvpn_panel_home`, `startswith`) never run. The final assert only checks the message for "dedicated absolute directory", which is the same message for all four assertions, so a regression in the home check would go unnoticed. The check can only matter when `xvpn_panel_home` is under an allowed base, and no case sets it that way.
-**Fix:** Add cases where `xvpn_panel_home` is overridden, for example `/opt/xvpn/rw-panel`, with `dir: /opt/xvpn/rw-panel` and `dir: /opt/xvpn`. Pass the override through the case (an optional `xvpn_case.home` forwarded as `xvpn_panel_home`). Alternatively, drop the misleading comment.
+### WR-02: preflight `argument_specs` default contradicts `defaults/main.yml`
+
+**File:** `roles/preflight/meta/argument_specs.yml:14-16`
+**Issue:** `choices` gained `OracleLinux`, but the spec `default` is still `[Rocky, AlmaLinux]`, while `roles/preflight/defaults/main.yml:2-5` now defaults to all three. The spec is the user-facing documentation (`ansible-doc`) and says Oracle Linux is not supported by default. Spec defaults and role defaults must agree.
+
+**Fix:** Add `- OracleLinux` to the spec `default`.
 
 ## Info
 
-### IN-01: Fixture cleanup is not in an `always` path
+### IN-01: `check_until_set_fact.py` scans only `roles/*/tasks/*.yml`
 
-**File:** `extensions/molecule/container/verify.yml:~784-852`
-**Issue:** If the results assert fails, the `/var/log/xvpn-foreign` and `/opt/xvpn-own-logs` fixtures remain. Molecule destroys the instance, so the impact is limited to local `verify`-only reruns. A leftover `/var/log/xvpn-foreign` also changes how the next run behaves.
-**Fix:** Wrap the creation, the cases, and the assert in a `block` with the removal task in `always`.
+**File:** `scripts/check_until_set_fact.py:34`
+**Issue:** The glob is not recursive. Subdirectories of `tasks/`, `handlers/`, and the playbooks and Molecule files under `extensions/` are not covered. Tasks that use the `action:` or `local_action:` forms are also missed. The guard can silently pass on a task that contains the bug it targets.
+**Fix:** Use `root.glob("roles/*/{tasks,handlers}/**/*.yml")` and also scan `extensions/**` and `playbooks/*.yml`. The name matching can recognise `action:` too.
 
-### IN-02: Overlong line in the negative-case list
+### IN-02: the ACME CA-switch test hard-codes the derived store hashes
 
-**File:** `extensions/molecule/container/verify.yml:~862`
-**Issue:** The edited list has the line `'panel-secrets-corrupt', 'panel-secrets-lost-with-volume', 'panel-weak-admin-password', 'port-without-protocol', 'relative-template',`, which is well over 120 characters. This risks a yamllint `line-length` warning, depending on the project config.
-**Fix:** Rewrap the list to keep the same sorted order, with one or two names per line.
+**File:** `extensions/molecule/vm/side_effect.yml` (the `acme-custom-6d8ba56d5d58.json` and `acme-custom-dd20adf377e3.json` literals)
+**Issue:** The values match today, but they silently depend on the URL in `vm/vars/panel.yml` and on the hash scheme. Changing either gives a confusing failure in a slow VM job.
+**Fix:** Compute the names in the test with `(url | hash('sha256'))[:12]`, as `roles/edge/vars/main.yml` does, or load `roles/edge/vars/main.yml` and reuse `xvpn_edge_acme_storage_file`.
+
+### IN-03: old ACME stores are kept forever and the legacy `acme.json` is orphaned
+
+**File:** `roles/edge/tasks/main.yml:74-95`
+**Issue:**
+- Every CA switch leaves another file with private keys on disk, and the role never prunes them.
+- On upgrade, an operator with a valid production certificate in `acme.json` triggers a fresh order. Repeated re-deploys of new hosts or CA toggles can approach the Let's Encrypt duplicate-certificate limit (5 per week).
+- Both points are documented in the README, so this is awareness only.
+
+**Fix:** Consider an opt-in variable to remove stores of non-active CAs. Optionally migrate `acme.json` when `xvpn_edge_acme_ca == production` and no per-CA store exists, but that needs the CA to be known, which the README already says it is not.
+
+### IN-04: `xvpn_panel_failure_log_dir` was removed without a deprecation notice
+
+**File:** `roles/panel/vars/main.yml:4`, `roles/panel/meta/argument_specs.yml`
+**Issue:** An inventory that sets the old variable is now silently ignored. The path is forced to `/var/log/xvpn` by role vars, and argument_specs no longer knows the name. This is acceptable at version 0.1.0 and it removes the foreign-directory takeover risk from the earlier review. It is a behaviour change that a changelog or README note should state.
+**Fix:** Mention the removal in the README or changelog. Optionally add a `fail` or `debug` warning when `xvpn_panel_failure_log_dir is defined`.
 
 ---
 
