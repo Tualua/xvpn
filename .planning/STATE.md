@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-27T10:22:16.326Z"
+last_updated: "2026-11-27T10:39:53.557Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: a841c2e69d53f6134cc02d6b6d7c852d6027b695
+state_head: 4c05877a115689850e0ed16d28295c59fe6dd05a
 progress:
   total_phases: 5
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
 Plan: 11 of 11
 Status: Phase complete — ready for verification
-Last activity: 2026-11-27 - Completed quick task 261127-40g: Hardcode panel failure log dir as /var/log/xvpn and drop its validation
+Last activity: 2026-11-27 - Completed quick task 261127-ej4: Add Oracle Linux 10 as a supported target OS with CI coverage
 
 Progress: [██░░░░░░░░] 20%
 
@@ -138,6 +138,7 @@ None yet.
 | 4 | Add examples/gitlab-deploy GitLab CI template for Panel deploy | 2026-11-27 | 1865e10 | — |
 | 5 | GitLab deploy template: community EE image, vendor/xvpn submodule, exact dependency pins | 2026-11-27 | 6669979 | — |
 | 6 | GitLab deploy template: fail fast when SSH variables are not of type File | 2026-11-27 | a841c2e | — |
+| 261127-ej4 | Add Oracle Linux 10 as a supported target OS with CI coverage | 2026-11-27 | 4c05877 | [261127-ej4-add-oracle-linux-10-as-a-supported-targe](./quick/261127-ej4-add-oracle-linux-10-as-a-supported-targe/) |
 
 ## Deferred Items
 
