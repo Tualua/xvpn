@@ -2,37 +2,41 @@
 # Minimal GitLab pipeline that deploys the Remnawave Panel host with xvpn.remnawave.
 # Copy this directory into a PRIVATE GitLab project: the inventory names real hosts.
 #
+# One-time setup in that project:
+#   git submodule add https://github.com/Tualua/xvpn.git vendor/xvpn
+#   git -C vendor/xvpn checkout <tag or commit>   # the deployed collection version
+#   git commit -am "Pin xvpn.remnawave"
+#
 # CI/CD variables (Settings > CI/CD > Variables), all Protected:
 #   SSH_PRIVATE_KEY   type File   - key of the deploy user on the Panel host (sudo without password)
 #   SSH_KNOWN_HOSTS   type File   - output of `ssh-keyscan -t ed25519 <panel-host>`
 #   ANSIBLE_VAULT_PASSWORD  type File, optional - only if group_vars hold ansible-vault values
 #
-# The deploy job is manual and runs only on the default branch; resource_group keeps
-# two deploys from running against the host at the same time.
+# The image is the community execution environment with ansible-core only: it has ssh
+# but no git, so the collection comes from the submodule that the runner checks out.
 
 stages:
   - check
   - deploy
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  ANSIBLE_FORCE_COLOR: "true"
+  ANSIBLE_HOST_KEY_CHECKING: "true"
+  ANSIBLE_INVENTORY: "inventory/hosts.yml"
+  ANSIBLE_COLLECTIONS_PATH: "$CI_PROJECT_DIR/.collections"
+
 default:
-  image: docker.io/library/python:3.12-slim
+  image: ghcr.io/ansible-community/community-ee-minimal:2.21.6-1
   before_script:
-    - apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client git >/dev/null
-    - pip install --quiet --no-cache-dir "ansible-core>=2.21,<2.22"
-    - ansible-galaxy collection install -r requirements.yml
-    - install -d -m 0700 ~/.ssh
-    - install -m 0600 "$SSH_PRIVATE_KEY" ~/.ssh/id_deploy
-    - install -m 0644 "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+    - ansible-galaxy collection install -r requirements.yml -p "$ANSIBLE_COLLECTIONS_PATH"
+    - export SSH_DIR="$(mktemp -d)"
+    - install -m 0600 "$SSH_PRIVATE_KEY" "$SSH_DIR/id_deploy"
+    - export ANSIBLE_PRIVATE_KEY_FILE="$SSH_DIR/id_deploy"
+    - export ANSIBLE_SSH_COMMON_ARGS="-o UserKnownHostsFile=$SSH_KNOWN_HOSTS"
     - >-
       if [ -n "${ANSIBLE_VAULT_PASSWORD:-}" ]; then
       export ANSIBLE_VAULT_PASSWORD_FILE="$ANSIBLE_VAULT_PASSWORD"; fi
-
-variables:
-  ANSIBLE_FORCE_COLOR: "true"
-  ANSIBLE_HOST_KEY_CHECKING: "true"
-  ANSIBLE_PRIVATE_KEY_FILE: "~/.ssh/id_deploy"
-  ANSIBLE_INVENTORY: "inventory/hosts.yml"
-  PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 check-connection:
   stage: check

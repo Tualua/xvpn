@@ -1,9 +1,16 @@
 ---
-# The collection is not on Galaxy yet: install it from the Git repository.
-# Pin `version` to a tag or commit SHA so a deploy never picks up unreviewed changes.
-# Its dependencies (fedora.linux_system_roles, ansible.posix, community.general,
-# containers.podman) are resolved from its galaxy.yml.
+# The collection is installed from the vendor/xvpn submodule (see .gitlab-ci.yml):
+# the submodule commit is the deployed version.
+# Its galaxy.yml declares dependencies as ranges (>=), so they are pinned here to the exact
+# versions the collection is tested with (vendor/xvpn/requirements.yml); keep both in sync.
 collections:
-  - name: https://github.com/Tualua/xvpn.git
-    type: git
-    version: main
+  - name: vendor/xvpn
+    type: dir
+  - name: fedora.linux_system_roles
+    version: 2.5.0
+  - name: ansible.posix
+    version: 2.2.2
+  - name: community.general
+    version: 14.0.1
+  - name: containers.podman
+    version: 1.21.2
