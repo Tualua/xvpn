@@ -10,12 +10,13 @@
     quiet: true
 
 # The directory is forced to root:root 0700, so only a dedicated directory below an allowed base is accepted. The
-# pattern admits no '.', '..' or empty path component (so no '/var/log/.', '/var//x' or a trailing slash).
+# pattern admits no '.', '..' or empty path component (so no '/var/log/.', '/var//x' or a trailing slash). It ends in
+# \Z, not $: $ would also accept a trailing newline.
 - name: Panel stack | validate the failure log directory
   ansible.builtin.assert:
     that:
       - xvpn_panel_failure_log_dir is string
-      - xvpn_panel_failure_log_dir is match('^/(var/log|opt|srv)(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)+$')
+      - xvpn_panel_failure_log_dir is match('^/(var/log|opt|srv)(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)+\Z')
       - xvpn_panel_failure_log_dir != xvpn_panel_home
       - not (xvpn_panel_home ~ '/').startswith(xvpn_panel_failure_log_dir ~ '/')
     fail_msg: >-
