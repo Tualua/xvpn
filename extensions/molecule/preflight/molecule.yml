@@ -8,6 +8,12 @@ platforms:
     command: /usr/sbin/init
     systemd: always
     privileged: true
+  - name: oracle10-preflight
+    image: docker.io/library/oraclelinux:10
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    privileged: true
 ansible:
   executor:
     backend: ansible-playbook

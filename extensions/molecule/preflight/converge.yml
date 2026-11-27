@@ -7,7 +7,7 @@
     xvpn_case_results: []
     # Mirrors the role defaults; run_case.yml passes them explicitly per case.
     xvpn_case_defaults:
-      supported_distributions: [Rocky, AlmaLinux]
+      supported_distributions: [Rocky, AlmaLinux, OracleLinux]
       podman_min_version: "5.4"
       ports: [80, 443]
       service_users: [rw-edge, rw-panel, rw-node]

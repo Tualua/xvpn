@@ -4,12 +4,13 @@ argument_specs:
     short_description: Read-only OS, SELinux, Podman, port and DNS checks with one aggregated failure
     options:
       xvpn_preflight_supported_distributions:
-        description: Supported distribution names as reported by Ansible facts.
+        description: Supported distribution names as reported by Ansible facts (Rocky, AlmaLinux, OracleLinux).
         type: list
         elements: str
         choices:
           - Rocky
           - AlmaLinux
+          - OracleLinux
         default:
           - Rocky
           - AlmaLinux

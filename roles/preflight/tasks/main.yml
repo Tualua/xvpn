@@ -70,7 +70,8 @@
     xvpn_preflight_errors: >-
       {{ xvpn_preflight_errors + ['Unsupported OS: '
       ~ ansible_facts['distribution'] ~ ' ' ~ ansible_facts['distribution_major_version']
-      ~ ' (supported: Rocky/AlmaLinux 10)'] }}
+      ~ ' (supported: ' ~ xvpn_preflight_supported_distributions | join('/')
+      ~ ' ' ~ xvpn_preflight_supported_major_versions | join('/') ~ ')'] }}
   when: >-
     ansible_facts['distribution'] not in xvpn_preflight_supported_distributions
     or ansible_facts['distribution_major_version'] not in xvpn_preflight_supported_major_versions

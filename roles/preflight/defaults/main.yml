@@ -2,6 +2,7 @@
 xvpn_preflight_supported_distributions:
   - Rocky
   - AlmaLinux
+  - OracleLinux
 xvpn_preflight_supported_major_versions:
   - "10"
 xvpn_preflight_podman_min_version: "5.4"
