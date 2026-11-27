@@ -1,0 +1,9 @@
+---
+# The collection is not on Galaxy yet: install it from the Git repository.
+# Pin `version` to a tag or commit SHA so a deploy never picks up unreviewed changes.
+# Its dependencies (fedora.linux_system_roles, ansible.posix, community.general,
+# containers.podman) are resolved from its galaxy.yml.
+collections:
+  - name: https://github.com/Tualua/xvpn.git
+    type: git
+    version: main
