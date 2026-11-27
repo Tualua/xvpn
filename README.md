@@ -93,6 +93,10 @@ Both FQDNs are required and must differ; their A records must point to the host 
 | `xvpn_edge_decoy_src` | empty | Directory on the controller with your own decoy site; empty uses a neutral built-in page. |
 | `xvpn_panel_backend_image`, `xvpn_panel_postgres_image`, `xvpn_panel_valkey_image`, `xvpn_panel_subscription_image`, `xvpn_edge_traefik_image`, `xvpn_edge_decoy_image` | pinned exact tags | Container images; bump them by changing the variable. |
 
+#### Switching the ACME CA
+
+Test with `xvpn_edge_acme_ca: staging`, then set `production` and re-run the playbook. The run re-renders `traefik.yml` and restarts Traefik; the empty production store makes Traefik order trusted certificates within a minute or two (the A records and port 80 must be reachable). The staging store stays on disk and is reused if you switch back. No manual restart and no login as `rw-edge` are needed. A file `acme.json` left by an earlier collection version is no longer read; it keeps mode `0600` and may be deleted by root. The stores hold private keys: back them up like the secrets files and never share them.
+
 ### Files on the Panel host
 
 | Path | Content |
@@ -100,7 +104,7 @@ Both FQDNs are required and must differ; their A records must point to the host 
 | `/var/lib/xvpn/rw-panel/secrets/panel-secrets.yml` | Generated secrets, mode 0600, owner `rw-panel` |
 | `/var/lib/xvpn/rw-panel/secrets/api-token` | Automation API token, mode 0600 |
 | `/var/lib/xvpn/rw-panel/secrets/admin-url` | Admin entry URL, mode 0600 |
-| `/var/lib/xvpn/rw-edge/traefik/` | Traefik state including `acme.json` (certificates), owner `rw-edge` |
+| `/var/lib/xvpn/rw-edge/traefik/` | Traefik state; the ACME stores (certificates and keys) are one file per CA in `traefik/acme/`: `acme-production.json`, `acme-staging.json`, `acme-custom-<hash>.json`, mode `0600`, owner `rw-edge` |
 | `/var/log/xvpn/panel-start-failure.log` | Journals and container logs of a failed stack start, mode 0600, owner root, in the fixed (not configurable) directory `/var/log/xvpn` (root:root 0700); may contain environment values, removed after a successful start. |
 
 Back these files up: a lost secrets file together with a surviving database volume stops the run on purpose instead of generating values that no longer match the database.

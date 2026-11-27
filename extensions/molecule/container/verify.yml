@@ -272,6 +272,7 @@
           - "'https://acme-v02.api.letsencrypt.org/directory' not in xvpn_verify_edge_text"
           - xvpn_verify_edge_parsed.accessLog.fields.names.RequestPath == 'drop'
           - xvpn_verify_edge_parsed.accessLog.fields.headers.defaultMode == 'drop'
+          - xvpn_verify_edge_parsed.certificatesResolvers.le.acme.storage == '/acme/acme-staging.json'
           - "xvpn_verify_edge_parsed.accessLog.fields.headers.names == {'User-Agent': 'keep'}"
         fail_msg: "rendered traefik.yml does not meet QA-05 / D-19"
         quiet: true
@@ -813,3 +814,70 @@
              'selinux-permissive']
         fail_msg: "negative cases rejected for the expected reason: {{ xvpn_negative_rejected | default([]) }}"
         quiet: true
+
+# Positive case edge-acme-storage-per-ca (02-UAT-G1): every CA value renders its own ACME store, a repeated value the
+# same store. Scratch renders only; the deployed traefik.yml is not touched and no CA is contacted (QA-05).
+- name: Verify the per-CA ACME storage (container tier)
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../../roles/edge/vars/main.yml
+  tasks:
+    - name: Edge-acme-storage-per-ca | create a scratch directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: xvpn-acme-per-ca-
+      register: xvpn_acme_per_ca_dir
+
+    - name: Edge-acme-storage-per-ca | run the variants
+      block:
+        - name: Edge-acme-storage-per-ca | render the static configuration per variant
+          ansible.builtin.template:
+            src: "{{ (playbook_dir ~ '/../../../roles/edge/templates/traefik.yml.j2') | realpath }}"
+            dest: "{{ xvpn_acme_per_ca_dir.path }}/{{ item.key }}.yml"
+            mode: "0600"
+          vars:
+            xvpn_edge_acme_ca: "{{ item.ca }}"
+            xvpn_edge_acme_ca_server: "{{ item.server }}"
+            xvpn_edge_acme_email: ""
+            xvpn_edge_http_address: ":80"
+            xvpn_edge_https_address: ":443"
+          loop:
+            - {key: production, ca: production, server: ""}
+            - {key: staging, ca: staging, server: ""}
+            - {key: custom-a, ca: custom, server: "https://acme-a.invalid/directory"}
+            - {key: custom-b, ca: custom, server: "https://acme-b.invalid/directory"}
+            - {key: custom-a-again, ca: custom, server: "https://acme-a.invalid/directory"}
+          loop_control:
+            label: "{{ item.key }}"
+
+        - name: Edge-acme-storage-per-ca | read the rendered files
+          ansible.builtin.slurp:
+            src: "{{ xvpn_acme_per_ca_dir.path }}/{{ item }}.yml"
+          loop: [production, staging, custom-a, custom-b, custom-a-again]
+          register: xvpn_acme_per_ca_files
+
+        - name: Edge-acme-storage-per-ca | assert one distinct store per CA
+          ansible.builtin.assert:
+            that:
+              - xvpn_acme_per_ca_paths[0] == '/acme/acme-production.json'
+              - xvpn_acme_per_ca_paths[1] == '/acme/acme-staging.json'
+              - xvpn_acme_per_ca_paths[2] is match('^/acme/acme-custom-[0-9a-f]{12}[.]json$')
+              - xvpn_acme_per_ca_paths[3] is match('^/acme/acme-custom-[0-9a-f]{12}[.]json$')
+              - xvpn_acme_per_ca_paths[2] != xvpn_acme_per_ca_paths[3]
+              - xvpn_acme_per_ca_paths[4] == xvpn_acme_per_ca_paths[2]
+              - xvpn_acme_per_ca_paths[:4] | unique | length == 4
+            fail_msg: "ACME store paths per CA variant: {{ xvpn_acme_per_ca_paths }}"
+            quiet: true
+          vars:
+            xvpn_acme_per_ca_paths: >-
+              {{ xvpn_acme_per_ca_files.results
+              | map(attribute='content') | map('b64decode') | map('from_yaml')
+              | map(attribute='certificatesResolvers') | map(attribute='le')
+              | map(attribute='acme') | map(attribute='storage') | list }}
+      always:
+        - name: Edge-acme-storage-per-ca | remove the scratch directory
+          ansible.builtin.file:
+            path: "{{ xvpn_acme_per_ca_dir.path }}"
+            state: absent
