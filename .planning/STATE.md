@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-26T12:34:06.352Z"
+last_updated: "2026-11-27T03:00:06.965Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 02 execution started
-state_head: 6bff6f051b449bf8933cc6fd5c7534b48064007d
+state_head: c4eadeaea146eb3afa45b6bff3387248bc929fc1
 progress:
   total_phases: 5
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
 Plan: 11 of 11
 Status: Phase complete — ready for verification
-Last activity: 2026-11-26 - Completed quick task 261126-hc8: Fix WR-01/WR-02/IN-01 failure-log save in panel stack rescue
+Last activity: 2026-11-27 - Completed quick task 261127-40g: Hardcode panel failure log dir as /var/log/xvpn and drop its validation
 
 Progress: [██░░░░░░░░] 20%
 
@@ -133,6 +133,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261126-hc8 | Fix WR-01/WR-02/IN-01: failure-log save in panel stack rescue via nested block/rescue, log dir as role variable | 2026-11-26 | 6bff6f0 | [261126-hc8-fix-wr-01-wr-02-in-01-failure-log-save-i](./quick/261126-hc8-fix-wr-01-wr-02-in-01-failure-log-save-i/) |
+| 261127-40g | Hardcode panel failure log dir as /var/log/xvpn and drop its validation | 2026-11-27 | c4eadea | [261127-40g-hardcode-panel-failure-log-dir-as-var-lo](./quick/261127-40g-hardcode-panel-failure-log-dir-as-var-lo/) |
 
 ## Deferred Items
 

@@ -5,19 +5,19 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The foreign-directory guard accepts existing system directories that are already root:root 0700"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The home-directory guard is not exercised by the new test cases"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Fixture cleanup is not in an `always` path"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Overlong line in the negative-case list"
   - id: WR-03
     severity: warning
@@ -51,7 +51,7 @@ findings:
     severity: info
     disposition: fixed
     title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 4
+open: 0
 total: 12
 recorded: 2026-11-27T02:36:18.047Z
 ---
@@ -60,10 +60,10 @@ recorded: 2026-11-27T02:36:18.047Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
+| WR-01 | warning | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
+| WR-02 | warning | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
+| IN-01 | info | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
+| IN-02 | info | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
 | WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
 | WR-05 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
