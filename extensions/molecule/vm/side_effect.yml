@@ -599,6 +599,196 @@
         xvpn_verify_port: 80
         xvpn_verify_http_status: 404
 
+    # 02-UAT-G1: ACME CA switch. A changed CA must re-render traefik.yml, restart Traefik and order from an empty
+    # per-CA store; switching back must reuse the earlier store. The same throwaway Pebble serves a second, distinct
+    # CA identity through a query string on the directory URL (the Go router ignores it). Stores are only stat'ed
+    # (sha256) or counted with no_log grep; their content is never read or printed.
+    - name: ACME CA switch | load the VM-tier Panel values
+      ansible.builtin.include_vars: vars/panel.yml
+
+    - name: ACME CA switch | record the served leaf fingerprint before the switch
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        openssl s_client -connect 127.0.0.1:443 -servername panel.xvpn.test </dev/null 2>/dev/null
+        | openssl x509 -noout -fingerprint -sha256
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: xvpn_acme_switch_fp_before
+      retries: 12
+      delay: 5
+      until: xvpn_acme_switch_fp_before.stdout | trim | length > 0
+
+    - name: ACME CA switch | read the InvocationID before the switch
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - traefik.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+      changed_when: false
+      register: xvpn_acme_switch_inv0
+
+    - name: ACME CA switch | stat the original store
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-edge/traefik/acme/acme-custom-6d8ba56d5d58.json
+        checksum_algorithm: sha256
+      register: xvpn_acme_switch_store0
+
+    - name: ACME CA switch | assert the original store exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_acme_switch_store0.stat.exists
+          - xvpn_acme_switch_fp_before.stdout | trim | length > 0
+        quiet: true
+
+    - name: ACME CA switch | switch to a distinct CA identity of the same Pebble
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.edge
+      vars:
+        xvpn_edge_acme_ca_server: "https://127.0.0.1:14000/dir?xvpn-ca-switch=1"
+
+    - name: ACME CA switch | read the InvocationID after the switch
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - traefik.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+      changed_when: false
+      register: xvpn_acme_switch_inv1
+
+    - name: ACME CA switch | read the rendered static configuration
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/traefik/static/traefik.yml
+      register: xvpn_acme_switch_static1
+
+    - name: ACME CA switch | assert the restart and the new store name
+      ansible.builtin.assert:
+        that:
+          - xvpn_acme_switch_inv1.stdout | trim | length > 0
+          - xvpn_acme_switch_inv1.stdout | trim != xvpn_acme_switch_inv0.stdout | trim
+          - (xvpn_acme_switch_static1.content | b64decode | from_yaml).certificatesResolvers.le.acme.storage == '/acme/acme-custom-dd20adf377e3.json'
+        fail_msg: "the CA switch did not restart Traefik or did not select the new store"
+        quiet: true
+
+    # The routers use certResolver le without tls.domains, so Traefik orders only on a TLS handshake: each retry
+    # re-triggers issuance with an SNI handshake and then counts the domain entries of the new store.
+    - name: ACME CA switch | trigger and wait for issuance into the new store
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        openssl s_client -connect 127.0.0.1:443 -servername panel.xvpn.test </dev/null >/dev/null 2>&1 || true;
+        grep -c -E '"main":[[:space:]]*"panel.xvpn.test"' /var/lib/xvpn/rw-edge/traefik/acme/acme-custom-dd20adf377e3.json || true
+      args:
+        executable: /bin/bash
+      register: xvpn_acme_switch_count
+      changed_when: false
+      no_log: true
+      retries: 36
+      delay: 5
+      until: (xvpn_acme_switch_count.stdout | trim | default('0')) is match('^[0-9]+$') and (xvpn_acme_switch_count.stdout | trim | int) >= 1
+
+    - name: ACME CA switch | stat the new and the original store
+      ansible.builtin.stat:
+        path: "/var/lib/xvpn/rw-edge/traefik/acme/{{ item }}"
+        checksum_algorithm: sha256
+      loop:
+        - acme-custom-dd20adf377e3.json
+        - acme-custom-6d8ba56d5d58.json
+      register: xvpn_acme_switch_stores
+
+    - name: ACME CA switch | assert the new store is private and the original one untouched
+      ansible.builtin.assert:
+        that:
+          - xvpn_acme_switch_stores.results[0].stat.exists
+          - xvpn_acme_switch_stores.results[0].stat.mode == '0600'
+          - xvpn_acme_switch_stores.results[0].stat.pw_name == 'rw-edge'
+          - xvpn_acme_switch_stores.results[1].stat.checksum == xvpn_acme_switch_store0.stat.checksum
+        fail_msg: "new store missing/not private, or the original store changed during the switch"
+        quiet: true
+
+    - name: ACME CA switch | switch back to the original CA
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.edge
+
+    - name: ACME CA switch | read the InvocationID after the switch back
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - traefik.service
+      become: true
+      become_user: rw-edge
+      become_method: ansible.builtin.sudo
+      environment: "{{ xvpn_side_effect_env }}"
+      changed_when: false
+      register: xvpn_acme_switch_inv2
+
+    - name: ACME CA switch | read the static configuration after the switch back
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/traefik/static/traefik.yml
+      register: xvpn_acme_switch_static2
+
+    - name: ACME CA switch | stat the original store after the switch back
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-edge/traefik/acme/acme-custom-6d8ba56d5d58.json
+        checksum_algorithm: sha256
+      register: xvpn_acme_switch_store2
+
+    - name: ACME CA switch | assert the restart, the original store name and its checksum
+      ansible.builtin.assert:
+        that:
+          - xvpn_acme_switch_inv2.stdout | trim != xvpn_acme_switch_inv1.stdout | trim
+          - (xvpn_acme_switch_static2.content | b64decode | from_yaml).certificatesResolvers.le.acme.storage == '/acme/acme-custom-6d8ba56d5d58.json'
+          - xvpn_acme_switch_store2.stat.checksum == xvpn_acme_switch_store0.stat.checksum
+        fail_msg: "switch back did not restart Traefik, select the original store, or the original store changed"
+        quiet: true
+
+    - name: ACME CA switch | read the served leaf fingerprint after the switch back
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        openssl s_client -connect 127.0.0.1:443 -servername panel.xvpn.test </dev/null 2>/dev/null
+        | openssl x509 -noout -fingerprint -sha256
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: xvpn_acme_switch_fp_after
+      retries: 12
+      delay: 5
+      until: xvpn_acme_switch_fp_after.stdout | trim | length > 0
+
+    - name: ACME CA switch | assert the certificate of the reused store is served
+      ansible.builtin.assert:
+        that:
+          - xvpn_acme_switch_fp_after.stdout | trim == xvpn_acme_switch_fp_before.stdout | trim
+        fail_msg: "the served certificate changed after the switch back: the original store was not reused"
+        quiet: true
+
+    - name: ACME CA switch | verify the runtime after the switch back
+      ansible.builtin.include_tasks: ../shared/verify_runtime.yml
+      vars:
+        xvpn_verify_unit: traefik.service
+        xvpn_verify_port: 80
+        xvpn_verify_http_status: 404
+
     # B-2 boot window: remember the binary policy that was just proven dontaudit-free.
     - name: Find the binary policy files before the reboot
       ansible.builtin.find:
