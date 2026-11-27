@@ -9,46 +9,6 @@
     fail_msg: "xvpn_panel_jwt_auth_lifetime must be between 12 and 168 hours"
     quiet: true
 
-# The directory is forced to root:root 0700, so only a dedicated directory below an allowed base is accepted. The
-# pattern admits no '.', '..' or empty path component (so no '/var/log/.', '/var//x' or a trailing slash). It ends in
-# \Z, not $: $ would also accept a trailing newline.
-- name: Panel stack | validate the failure log directory
-  ansible.builtin.assert:
-    that:
-      - xvpn_panel_failure_log_dir is string
-      - xvpn_panel_failure_log_dir is match('^/(var/log|opt|srv)(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)+\Z')
-      - xvpn_panel_failure_log_dir != xvpn_panel_home
-      - not (xvpn_panel_home ~ '/').startswith(xvpn_panel_failure_log_dir ~ '/')
-    fail_msg: >-
-      xvpn_panel_failure_log_dir must be a dedicated absolute directory below /var/log, /opt or /srv (for example
-      /var/log/xvpn): no '.', '..' or empty path components, no trailing slash, path components made only of
-      letters, digits, '_', '-' and '.' that do not start with '.', and not the service user's home or one of
-      its parents
-    quiet: true
-
-# The directory is chmodded to 0700 and chowned to root on a failed start. A pre-existing directory of another
-# service (/var/log/journal, /srv/www, ...) must not be taken over, so only a missing one or one that an earlier run
-# already left as root:root 0700 is accepted. This runs on every converge, long before the directory is created.
-- name: Panel stack | check that the failure log directory is not a foreign directory
-  ansible.builtin.stat:
-    path: "{{ xvpn_panel_failure_log_dir }}"
-  register: xvpn_panel_failure_log_dir_stat
-
-- name: Panel stack | assert that the failure log directory is new or already root-only
-  ansible.builtin.assert:
-    that:
-      - >-
-        not xvpn_panel_failure_log_dir_stat.stat.exists or (
-        xvpn_panel_failure_log_dir_stat.stat.isdir
-        and xvpn_panel_failure_log_dir_stat.stat.pw_name == 'root'
-        and xvpn_panel_failure_log_dir_stat.stat.gr_name == 'root'
-        and xvpn_panel_failure_log_dir_stat.stat.mode == '0700')
-    fail_msg: >-
-      xvpn_panel_failure_log_dir {{ xvpn_panel_failure_log_dir }} already exists and is not a real directory owned by
-      root:root with mode 0700. The role takes this directory over (root:root 0700), so point the variable at a new,
-      dedicated directory instead of an existing system or service directory
-    quiet: true
-
 - name: Panel stack | create the env directory
   ansible.builtin.file:
     path: "{{ xvpn_panel_env_dir }}"
@@ -166,7 +126,7 @@
       block:
         - name: Panel stack | create the root-only directory for the failure logs
           ansible.builtin.file:
-            path: "{{ xvpn_panel_failure_log_dir }}"
+            path: "{{ xvpn_panel_start_failure_log_dir }}"
             state: directory
             owner: root
             group: root
@@ -179,7 +139,7 @@
               {{ xvpn_panel_start_journal.stdout | default('') }}
               == containers
               {{ xvpn_panel_start_logs.stdout | default('') }}
-            dest: "{{ xvpn_panel_failure_log_dir }}/panel-start-failure.log"
+            dest: "{{ xvpn_panel_start_failure_log_dir }}/panel-start-failure.log"
             owner: root
             group: root
             mode: "0600"
@@ -200,14 +160,14 @@
           Panel stack start failed at task "{{ xvpn_panel_start_failed_task | default('unknown') }}" (the module error text
           is not echoed, it may contain secret values).
           containers: {{ xvpn_panel_start_ps.stdout_lines | default([]) | join(' | ') }}
-          {{ 'The unit journals and container logs are in ' ~ xvpn_panel_failure_log_dir ~ '/panel-start-failure.log (root-only, 0600) on the Panel host.'
+          {{ 'The unit journals and container logs are in ' ~ xvpn_panel_start_failure_log_dir ~ '/panel-start-failure.log (root-only, 0600) on the Panel host.'
              if (xvpn_panel_start_log_saved | default(false))
              else 'The unit journals and container logs could not be saved; inspect them on the Panel host with journalctl.' }}
 
 # A successful start leaves no stale failure log with env echoes behind.
 - name: Panel stack | remove the failure log of an earlier failed start
   ansible.builtin.file:
-    path: "{{ xvpn_panel_failure_log_dir }}/panel-start-failure.log"
+    path: "{{ xvpn_panel_start_failure_log_dir }}/panel-start-failure.log"
     state: absent
 
 # The env file is read at container creation, so a change needs a restart of that unit only (Pitfall 7). The

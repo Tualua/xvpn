@@ -1,0 +1,4 @@
+---
+# Fixed internal constants. vars/main.yml outranks inventory variables, so these cannot be overridden.
+# Root-only directory (root:root 0700) for panel-start-failure.log; the path is deliberately not configurable.
+xvpn_panel_start_failure_log_dir: /var/log/xvpn
