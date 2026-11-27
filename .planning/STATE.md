@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
-stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-27T13:43:31.512Z"
+stopped_at: Completed 02-12-PLAN.md
+last_updated: "2026-11-27T16:20:38.048Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: f111d6148845b849f881fca0685c73fa93674269
+state_head: ed8d4442e065fdfde4185129ad3685607209759b
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 24
+  completed_plans: 24
 ---
 
 # Project State
@@ -79,6 +79,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P09 | 55min | 2 tasks | 6 files |
 | Phase 02 P10 | 130min | 2 tasks | 10 files |
 | Phase 02 P11 | ~3h | 2 tasks | 5 files |
+| Phase 02 P12 | ~3h (CI waits) | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-09: gitleaks key rules use [ \t]* around the separator (no cross-line matches); (?-i) on the FHS exemption is load-bearing (observed)
 - [Phase 02]: Sub-page 8.0.1 with backend 3.4.11 verified; rejected-token outcome is HTTP 502 without data-panel; healthcheck via curl /internal/health
 - [Phase 02]: 02-11: sub-page toggle removes the unit directly when xvpn_panel_activate is false (LSR cleanup needs the user manager bus)
+- [Phase 02]: 02-12: ACME store is one persistent 0600 file per CA (acme-production/staging/custom-<hash12>.json); legacy acme.json not migrated
 
 ### Pending Todos
 
@@ -152,6 +154,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-25T18:21:56.798Z
-Stopped at: Completed 02-11-PLAN.md
+Last session: 2026-11-27T16:20:37.625Z
+Stopped at: Completed 02-12-PLAN.md
 Resume file: None
