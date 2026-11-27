@@ -29,6 +29,11 @@ variables:
 default:
   image: ghcr.io/ansible-community/community-ee-minimal:2.21.6-1
   before_script:
+    - |
+      for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS; do
+        eval "f=\${$v:-}"
+        [ -n "$f" ] && [ -f "$f" ] || { echo "ERROR: $v must be a CI/CD variable of type File" >&2; exit 1; }
+      done
     - ansible-galaxy collection install -r requirements.yml -p "$ANSIBLE_COLLECTIONS_PATH"
     - export SSH_DIR="$(mktemp -d)"
     - install -m 0600 "$SSH_PRIVATE_KEY" "$SSH_DIR/id_deploy"
