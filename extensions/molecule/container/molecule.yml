@@ -16,6 +16,14 @@ platforms:
     systemd: always
     privileged: true
     groups: [remnawave_panel]
+  # The official oraclelinux image already contains systemd and /usr/sbin/init, so no -init variant exists or is needed.
+  - name: oracle10
+    image: docker.io/library/oraclelinux:10
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    privileged: true
+    groups: [remnawave_panel]
 ansible:
   executor:
     backend: ansible-playbook

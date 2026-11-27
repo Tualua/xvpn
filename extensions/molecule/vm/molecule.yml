@@ -35,6 +35,20 @@ platforms:
     groups: [remnawave_panel]
     provider_options:
       cpu_mode: host-passthrough
+  - name: oracle10
+    # Official Oracle box from the catalog https://oracle.github.io/vagrant-projects/boxes/oraclelinux/10.json
+    # (sha256 is taken from there; compare when bumping). The box is OL 10.1 while converge pulls current
+    # packages from ol10_*_latest. It boots the default UEK8 kernel, so this leg is the UEK proof.
+    box: oraclelinux10-libvirt-10.1.710
+    box_url: https://yum.oracle.com/boxes/oraclelinux/ol10/OL10U1_x86_64-vagrant-libvirt-b710.box
+    box_download_checksum: 66b15e98537906b1d0f60bcba12a2c47fad25d421760ed1ec8eafd0fbe59a25a
+    box_download_checksum_type: sha256
+    box_architecture: amd64
+    memory: 4096
+    cpus: 2
+    groups: [remnawave_panel]
+    provider_options:
+      cpu_mode: host-passthrough
 ansible:
   executor:
     backend: ansible-playbook
