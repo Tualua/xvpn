@@ -21,8 +21,9 @@
       - not (xvpn_panel_home ~ '/').startswith(xvpn_panel_failure_log_dir ~ '/')
     fail_msg: >-
       xvpn_panel_failure_log_dir must be a dedicated absolute directory below /var/log, /opt or /srv (for example
-      /var/log/xvpn): no '.', '..' or empty path components, no trailing slash, and not the service user's home
-      or one of its parents
+      /var/log/xvpn): no '.', '..' or empty path components, no trailing slash, path components made only of
+      letters, digits, '_', '-' and '.' that do not start with '.', and not the service user's home or one of
+      its parents
     quiet: true
 
 # The directory is chmodded to 0700 and chowned to root on a failed start. A pre-existing directory of another

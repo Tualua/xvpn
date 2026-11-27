@@ -132,6 +132,7 @@ argument_specs:
           Root-only directory for the stack-start failure log; panel-start-failure.log inside it is mode 0600 and
           removed after a successful start. Must be a dedicated absolute directory below /var/log, /opt or /srv
           (it is forced to root:root 0700), without '.', '..' or empty path components and without a trailing slash,
+          with components that use only letters, digits, '_', '-' and '.' and do not start with '.',
           and must not be the service user's home or one of its parents. An existing directory is accepted only when
           it is already a real directory owned by root:root with mode 0700.
         type: str
