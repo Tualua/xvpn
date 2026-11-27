@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-12-PLAN.md
-last_updated: "2026-11-27T16:20:38.048Z"
+last_updated: "2026-11-27T16:36:38.198Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: ed8d4442e065fdfde4185129ad3685607209759b
+state_head: 2d08b0019f8861c6aeefb7e16eda04fa10347627
 progress:
   total_phases: 5
   completed_phases: 1
@@ -143,6 +143,7 @@ None yet.
 | 261127-ej4 | Add Oracle Linux 10 as a supported target OS with CI coverage | 2026-11-27 | 4c05877 | [261127-ej4-add-oracle-linux-10-as-a-supported-targe](./quick/261127-ej4-add-oracle-linux-10-as-a-supported-targe/) |
 | 8 | CI: paths-ignore .planning/** and **.md on push/PR workflows | 2026-11-27 | 97a3f99 | — |
 | 9 | Container-tier negative case: equal Panel and subscription domains rejected | 2026-11-27 | f111d61 | — |
+| 10 | VM prepare installs tar (Oracle Linux 10 box lacks it; Pebble unarchive failed) | 2026-11-27 | 2d08b00 | — |
 
 ## Deferred Items
 
