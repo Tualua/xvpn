@@ -1,6 +1,6 @@
 # xvpn.remnawave
 
-Ansible collection for deploying Remnawave Panel and Remnawave Node on Rocky/Alma Linux 10
+Ansible collection for deploying Remnawave Panel and Remnawave Node on Rocky Linux 10, AlmaLinux 10 and Oracle Linux 10
 (SELinux enforcing, rootless Podman with Quadlet). Nodes use VLESS Reality in self-steal mode
 behind a plausible decoy site, and a dedicated client group can reach the node's internal LAN.
 
@@ -151,17 +151,18 @@ Tests run in three tiers.
 |------|---------|-------|--------|
 | Static | `bash scripts/check.sh` | nothing but the Python tooling | ansible-lint, yamllint, syntax-check, collection build; no containers |
 | Container | `molecule test -s container`, `molecule test -s preflight` | Podman | role logic, templates, Quadlet generator dry run, idempotence |
-| VM | `molecule test -s vm` | Linux host with `/dev/kvm`, libvirt, Vagrant and the vagrant-libvirt plugin | real AlmaLinux 10 and Rocky 10 VMs: SELinux enforcing, reboot survival, zero AVC |
+| VM | `molecule test -s vm` | Linux host with `/dev/kvm`, libvirt, Vagrant and the vagrant-libvirt plugin | real AlmaLinux 10, Rocky 10 and Oracle Linux 10 VMs: SELinux enforcing, reboot survival, zero AVC |
 
-Run a single distribution with `molecule test -s vm --platform-name alma10` (or `rocky10`).
+Run a single distribution with `molecule test -s vm --platform-name alma10` (or `rocky10`, `oracle10`).
 
 CI notes:
 
 - The `molecule-vm` workflow runs on pull requests to `main`, nightly and on demand. It is not a required merge check until it has five consecutive green runs.
 - The workflow's `MODE="0666"` udev rule for `/dev/kvm` is for ephemeral GitHub-hosted runners only. Do not copy it to self-hosted runners.
 - Rootless services bind port 80, so the `podman_rootless` role sets the host-wide `net.ipv4.ip_unprivileged_port_start=80`; every local user can then bind ports 80 and above.
-- Both VM legs run Podman 6.1.x. Podman 5.4-5.8 is allowed by the preflight floor but is untested beyond the version check (risk accepted, VM coverage deferred to Phase 5, QA-06).
-- `fedora.linux_system_roles.podman` additionally installs `iptables-nft` on EL10. This is harmless on the nftables-only Podman 6 host but expected in package lists.
+- All three VM legs run Podman 6.1.x. Podman 5.4-5.8 is allowed by the preflight floor but is untested beyond the version check (risk accepted, VM coverage deferred to Phase 5, QA-06).
+- `fedora.linux_system_roles.podman` additionally installs `iptables-nft` on EL10. This is harmless on the nftables-only Podman 6 host but expected in package lists. On Oracle Linux it falls back to its generic RedHat vars and does not install `iptables-nft`.
+- The Oracle Linux VM leg uses the official libvirt box from yum.oracle.com (OL 10.1 base, updated from the ol10 latest repos at converge) and boots the default UEK kernel. The RHCK kernel is not tested.
 - `xvpn_verify_expected_ports` in `extensions/molecule/shared/verify_common.yml` is the cross-phase contract of the exact-set firewall check: every later phase that adds a port must extend it in its scenario vars.
 - Phase 1 adds no SELinux boolean, port or module; any future need must be proven by the zero-AVC check first.
 - `passt-selinux` is installed only when the enabled repositories offer it (EL10.3 and later).

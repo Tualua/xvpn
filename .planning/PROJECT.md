@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Публичная Ansible-коллекция `xvpn.remnawave` с ролями для развёртывания Remnawave Panel и Remnawave Node на Rocky/Alma Linux 10 (SELinux enforcing, rootless Podman + Quadlet). Ноды используют VLESS Reality в режиме self-steal: Reality указывает на собственный домен ноды, за ним стоит правдоподобный сайт-заглушка. Отдельная группа клиентов может через ноду выходить во внутреннюю сеть (LAN), в которой стоит нода. Коллекция предназначена для сообщества (open source) и для любого, кто поднимает Remnawave на RHEL-совместимых хостах.
+Публичная Ansible-коллекция `xvpn.remnawave` с ролями для развёртывания Remnawave Panel и Remnawave Node на Rocky/Alma/Oracle Linux 10 (SELinux enforcing, rootless Podman + Quadlet). Ноды используют VLESS Reality в режиме self-steal: Reality указывает на собственный домен ноды, за ним стоит правдоподобный сайт-заглушка. Отдельная группа клиентов может через ноду выходить во внутреннюю сеть (LAN), в которой стоит нода. Коллекция предназначена для сообщества (open source) и для любого, кто поднимает Remnawave на RHEL-совместимых хостах.
 
 ## Core Value
 
@@ -52,7 +52,7 @@
 
 ## Constraints
 
-- **Платформа**: Rocky Linux 10 / AlmaLinux 10 — единственная целевая ОС v1
+- **Платформа**: Rocky Linux 10 / AlmaLinux 10 / Oracle Linux 10 (ядро UEK по умолчанию) — целевые ОС v1
 - **Безопасность**: SELinux enforcing обязателен, permissive не допускается
 - **Рантайм**: rootless Podman + Quadlet (systemd user units), без Docker
 - **Прокси**: Traefik, если технически подходит для self-steal и Panel; иначе решение пересматривается с обоснованием
@@ -65,7 +65,7 @@
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Только EL10 (Rocky/Alma) | Фокус на одной современной платформе | — Pending |
+| Только EL10 (Rocky/Alma/Oracle) | Фокус на одной современной платформе | — Pending |
 | Rootless Podman + Quadlet вместо Docker | Нативно для RHEL, systemd-интеграция, меньше привилегий | ✓ Good — Phase 1: тестовый Quadlet на порту 80 переживает reboot на VM-тире |
 | SELinux enforcing | Не ослаблять безопасность хоста | ✓ Good — Phase 1: ноль AVC на VM-тире, гейт Enforcing до изменений хоста |
 | Traefik как reverse proxy | Привычен пользователю | — Pending (проверить для self-steal) |
@@ -78,6 +78,7 @@
 | Rocky 10 в VM-тире Molecule — официальный libvirt Vagrant box с dl.rockylinux.org (версионированный, sha256 из CHECKSUM), а не nightly cloud-image job из CLAUDE.md | D-18 требует Alma и Rocky в самом VM-тире; box `rockylinux/10` в Vagrant Cloud устарел. Принято пользователем 2026-11-23 (Phase 1, планы 01-11/01-12) | ✓ Принято |
 | CI Phase 1 только на ansible-core 2.21; нога 2.22 отложена до QA-06 (Phase 5), а не матрица {2.21, 2.22} из CLAUDE.md | Сознательное отступление от CLAUDE.md: фокус Phase 1 на фундаменте и VM-тире; `check.sh` локально уже идёт на 2.22. Решение пользователя 2026-11-24, D-23 (Phase 1, план 01-09) | ✓ Принято |
 | Traefik на Panel-хосте в `Network=host` (а не pasta, как в таблице стека CLAUDE.md) и образ `traefik:v3.7.20` вместо пина v3.7.19 | `Network=host` нужен для EDGE-01 (реальный IP клиента, бинд 80/443, доступ к сервисам на 127.0.0.1) и входит в зону усмотрения Claude по CONTEXT фазы 2. В v3.7.20 закрыты три advisory (02-RESEARCH). При AVC-отказе нужна эскалация через `checkpoint:decision`, а не тихий boolean (планы 02-01, 02-03) | — Pending (подтверждается VM-тиром плана 02-03) |
+| Oracle Linux 10 добавлен как целевая ОС | Реальный деплой упал в preflight на OL10. Покрытие: container-тир на docker.io/library/oraclelinux:10, VM-тир на официальном libvirt box yum.oracle.com b710 (пин sha256) | — Pending (CI после согласованного push) |
 
 ## Evolution
 

@@ -5,7 +5,7 @@ version: 0.1.0
 readme: README.md
 authors:
   - Dmitry Popovich
-description: Remnawave Panel and Node on Rocky/Alma Linux 10 (rootless Podman, Quadlet, SELinux enforcing)
+description: Remnawave Panel and Node on Rocky, AlmaLinux and Oracle Linux 10 (rootless Podman, Quadlet, SELinux enforcing)
 license:
   - GPL-3.0-or-later
 repository: https://github.com/Tualua/xvpn
