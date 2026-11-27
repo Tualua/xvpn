@@ -98,6 +98,8 @@ if [ -z "$ANSIBLE_PYTHON" ] || ! "$ANSIBLE_PYTHON" -c 'import yaml' >/dev/null 2
   ANSIBLE_PYTHON=python3
 fi
 "$ANSIBLE_PYTHON" scripts/check_no_log.py
+# set_fact templates its arguments once, so until/retries around it never re-evaluate a random draw.
+"$ANSIBLE_PYTHON" scripts/check_until_set_fact.py
 
 # DOC-04 / D-20: no real secret in the repository. Self-test first (proves the scan still catches planted
 # secrets), then the scan of the working-tree content of every tracked file (.planning/ included).
