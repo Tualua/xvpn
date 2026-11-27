@@ -5,74 +5,39 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "The foreign-directory guard accepts existing system directories that are already root:root 0700"
+    disposition: open
+    title: "`paths-ignore` skips the secret scan and the gate on planning-only and Markdown-only changes"
   - id: WR-02
     severity: warning
     disposition: fixed
-    title: "The home-directory guard is not exercised by the new test cases"
+    title: "preflight `argument_specs` default contradicts `defaults/main.yml`"
   - id: IN-01
     severity: info
-    disposition: fixed
-    title: "Fixture cleanup is not in an `always` path"
+    disposition: open
+    title: "`check_until_set_fact.py` scans only `roles/*/tasks/*.yml`"
   - id: IN-02
     severity: info
-    disposition: fixed
-    title: "Overlong line in the negative-case list"
-  - id: WR-03
-    severity: warning
-    disposition: fixed
-    title: "Маскирование в `fail` через `regex_replace` не скрывает значения и, вероятно, портит обратную ссылку"
-  - id: WR-04
-    severity: warning
-    disposition: fixed
-    title: "Файл с логами в `/var/tmp` лежит бессрочно, под предсказуемым именем, а сообщение обещает его наличие безусловно"
-  - id: WR-05
-    severity: warning
-    disposition: fixed
-    title: "Задачи сбора журналов и логов контейнеров не имеют `no_log`"
+    disposition: open
+    title: "the ACME CA-switch test hard-codes the derived store hashes"
   - id: IN-03
     severity: info
-    disposition: fixed
-    title: "Регулярные выражения валидации допускают некорректные значения"
+    disposition: deferred
+    title: "old ACME stores are kept forever and the legacy `acme.json` is orphaned"
   - id: IN-04
     severity: info
-    disposition: fixed
-    title: "`ci_watch.sh` завершается без сообщения при сбое базовой выборки"
-  - id: IN-05
-    severity: info
-    disposition: fixed
-    title: "`check_no_log.py` проверяет только модули записи и не видит чтение секретных файлов"
-  - id: IN-06
-    severity: info
-    disposition: fixed
-    title: "`ci_watch.sh` сравнивает `createdAt` запуска с локальными часами"
-  - id: IN-07
-    severity: info
-    disposition: fixed
-    title: "Переменная `xvpn_panel_bootstrap_password_key` (necessity: generality without instantiation)"
-open: 0
-total: 12
-recorded: 2026-11-27T02:36:18.047Z
+    disposition: open
+    title: "`xvpn_panel_failure_log_dir` was removed without a deprecation notice"
 ---
 
-# Phase 02: Code Review Disposition
+# Phase 02 — code review disposition (incremental review, diff base 75d71a4)
 
-| Finding | Severity | Disposition | Source |
-|---------|----------|-------------|--------|
-| WR-01 | warning | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
-| WR-02 | warning | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
-| IN-01 | info | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
-| IN-02 | info | fixed | quick 261127-40g: failure log dir hardcoded, validation removed |
-| WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| WR-04 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| WR-05 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| IN-03 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| IN-04 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| IN-05 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| IN-06 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
-| IN-07 | info | fixed | 02-REVIEW-FIX.md (not in the current review) |
+Previous ledger (full phase review) is in git history before this commit; all its findings were fixed or skipped.
 
-Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
-Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
-Re-running the gate keeps every row it can. A row the current review no longer reports is kept and its Source cell flagged, so a finding does not leave this record silently. ONE exception: when a finding id is REUSED by a different finding, the earlier decision cannot keep a row — the id is taken — and it is dropped. A RECORDED decision (anything but `open`) is named on the console when that happens; a row still at `open` is replaced silently, because `open` records no decision to lose.
+| id | severity | disposition | source |
+|----|----------|-------------|--------|
+| WR-01 | warning | open | trade-off of the user-requested CI skip for non-code pushes; decision pending |
+| WR-02 | warning | fixed | a7d502a |
+| IN-01 | info | open | |
+| IN-02 | info | open | |
+| IN-03 | info | deferred | documented in README (CA switch section); cleanup is an operator action |
+| IN-04 | info | open | |
