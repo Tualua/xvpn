@@ -1,19 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md]
 started: 2026-11-27T03:29:21Z
-updated: 2026-11-27T13:17:48Z
+updated: 2026-11-27T13:56:58.183Z
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-number: 3
-name: Повторный прогон идемпотентен и не меняет секреты
-expected: |
-  Второй запуск ansible-playbook playbooks/panel.yml на том же хосте завершается с changed=0; panel-secrets.yml, api-token и admin-url не меняются (sha256 до и после совпадает), вход в админку работает с прежним паролем.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -29,31 +24,35 @@ severity: major
 
 ### 3. Повторный прогон идемпотентен и не меняет секреты
 expected: Второй запуск ansible-playbook playbooks/panel.yml на том же хосте завершается с changed=0; panel-secrets.yml, api-token и admin-url не меняются (sha256 до и после совпадает), вход в админку работает с прежним паролем.
-result: [pending]
+result: pass
 
 ### 4. Subscription page на отдельном домене
 expected: https://<sub-domain>/<shortUuid> существующего пользователя открывается по HTTPS без cookie гейта и показывает страницу подписки с данными пользователя из Panel; на домене Panel этот путь не открывает админку.
-result: [pending]
+result: pass
 
 ### 5. Секреты не попадают в вывод
 expected: В выводе ansible-playbook (в том числе с -v и --diff) нет паролей, JWT, API-токена и cookie-значения гейта; из admin-url печатается только путь к файлу. Файлы секретов имеют права 0600, каталог 0700.
-result: [pending]
+result: pass
 
 ### 6. Защитные проверки входных данных
 expected: Placeholder-домен (panel.example.com) или одинаковые домены Panel и subscription отклоняются до каких-либо изменений с понятным сообщением, где названа переменная; попытка задать через vault другой секрет на уже развёрнутом хосте отклоняется (ротация не выполняется молча).
-result: [pending]
+result: pass
+source: automated
+note: по просьбе пользователя переведён в автотест; placeholder-домен, одинаковые домены (panel-same-domains, f111d61) и расхождение секрета с vault (panel-divergent-secret) проверяет container tier, отказ ротации admin_password проверяет VM tier (side_effect.yml); CI run 46009584443 success
 
 ### 7. Отключение subscription page
 expected: С xvpn_panel_subscription_enabled: false повторный прогон останавливает юнит subscription page, затем удаляет юнит, subpage.env и файл маршрута; Panel продолжает работать. Возврат в true восстанавливает страницу подписки.
-result: [pending]
+result: skipped
+reason: пользователь не видит смысла в ручной проверке; удаление и восстановление юнита, subpage.env и маршрута покрыты автотестом panel-subpage-toggle (container tier)
 
 ### 8. README, раздел «Panel host»
 expected: По разделу «Panel host» в README внешний пользователь понимает, какие переменные задать в inventory, как запустить playbooks/panel.yml, где найти admin-url, токен и логи, и какие есть известные ограничения.
-result: [pending]
+result: pass
 
 ### 9. ci_watch.sh: ветки cancelled-run и dispatch
 expected: scripts/ci_watch.sh ждёт именно запуск для текущего HEAD; если запуск был отменён (cancelled), выбирает новый запуск для того же HEAD, а не завершается с ложным результатом.
-result: [pending]
+result: skipped
+reason: внутренний dev-скрипт, не для оператора; ветку cancelled вручную не воспроизвести, скрипт работает в CI-потоке каждой фазы
 
 ### 10. Edge role renders hardened rootless Traefik unit, static config and 00-edge route file, passing the Quadlet generator dry-run
 expected: Edge role renders hardened rootless Traefik unit, static config and 00-edge route file, passing the Quadlet generator dry-run
@@ -118,10 +117,10 @@ coverage_id: 02-03-D4
 ## Summary
 
 total: 19
-passed: 11
+passed: 16
 issues: 1
-pending: 7
-skipped: 0
+pending: 0
+skipped: 2
 blocked: 0
 
 ## Gaps
