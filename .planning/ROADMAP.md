@@ -74,7 +74,7 @@ Plans:
   3. После первого прогона существует администратор и долгоживущий API-токен (файл 0600 на Panel-хосте); повторный прогон логинится, а не регистрирует, секреты не меняются, `changed=0`
   4. Клиент открывает subscription page на отдельном домене по HTTPS, и она получает данные от Panel по API-токену без ручных шагов
   5. Токены, пароли и ключи не появляются в выводе Ansible (`no_log`), а placeholder-значения секретов отвергаются assert'ом
-**Plans:** 11/11 plans executed
+**Plans:** 11/12 plans executed
 Plans:
 **Wave 1**
 - [x] 02-01-PLAN.md — Роль edge (Traefik v3.7.20 + decoy, ACME HTTP-01, route-интерфейс): рендер и dry-run в контейнерном тире, input-guards, CI-хелпер scripts/ci_watch.sh (wave 1)
@@ -108,6 +108,9 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [x] 02-11-PLAN.md — Переключатель subscription page (с остановкой юнита, цикл в VM), README Panel host без секретов, весь CI зелёный (wave 11)
+
+**Wave 12** *(gap closure 02-UAT-G1)*
+- [ ] 02-12-PLAN.md — ACME-хранилище по CA (acme-production/staging/custom-<hash>.json): смена xvpn_edge_acme_ca выпускает сертификат нового CA, возврат переиспользует старое хранилище; container-кейс, переключение CA в VM, README (wave 12)
 **UI hint**: yes
 **Research flag**: HIGH RISK: cookie/secret-path гейт на чистом Traefik без плагинов не подтверждён, а пользователь выбрал его для v1 без fallback на IP allowlist (allowlist отложен в PANEL-V2-01). Нужен ранний спайк; при неудаче потребуется решение пользователя. Также проверить набор env (`APP_SECRET` vs JWT-секреты) и forwarded-заголовки backend 3.4.11
 
