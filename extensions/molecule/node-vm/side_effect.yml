@@ -1,0 +1,244 @@
+---
+# Profile drift and override proof (API-03, D-03, D-04): a foreign writer edits the stored profile through the API,
+# the next role run restores the declared config and keeps the Reality keys; operator overrides survive re-runs and
+# cannot change keys or drop the private-destination BLOCK rule. The key checksum is compared with the one recorded
+# after the first converge; no key content is printed (every key-touching task has no_log).
+- name: Profile drift on the Panel host
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Profile drift | read the stored profile
+      ansible.builtin.include_tasks: ../shared/node_panel_read.yml
+      vars:
+        xvpn_np_name: node
+
+    - name: Profile drift | simulate a UI edit, only log.loglevel changes
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/config-profiles
+        method: PATCH
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_np_token.content | b64decode | trim }}"
+        body_format: json
+        body:
+          uuid: "{{ xvpn_np_uuid }}"
+          config: "{{ xvpn_np_config | combine({'log': {'loglevel': 'debug'}}, recursive=True) }}"
+      changed_when: true
+      no_log: true
+
+- name: Profile drift repair on the node host
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Profile drift | run the registration of the node role
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+
+    - name: Profile drift | assert the run reverted the edit
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_profile.changed
+        fail_msg: "the profile run did not report the UI edit as a change"
+        quiet: true
+
+- name: Profile drift assertions on the Panel host
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Profile drift | read the repaired profile
+      ansible.builtin.include_tasks: ../shared/node_panel_read.yml
+      vars:
+        xvpn_np_name: node
+
+    - name: Profile drift | read the recorded key checksum
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/reality_checksum_after_first_converge
+      register: xvpn_se_recorded
+      no_log: true
+
+    - name: Profile drift | assert loglevel, declared Reality fields and keys
+      ansible.builtin.assert:
+        that:
+          - xvpn_np_config.log.loglevel == 'warning'
+          - xvpn_np_config.inbounds[0].streamSettings.realitySettings.target == '127.0.0.1:8443'
+          - xvpn_np_config.inbounds[0].streamSettings.realitySettings.xver | int == 0
+          - xvpn_np_config.inbounds[0].streamSettings.realitySettings.serverNames == ['node.xvpn.test']
+          - xvpn_np_checksum == (xvpn_se_recorded.content | b64decode | trim)
+        fail_msg: "the drift repair did not restore the declared profile or changed the Reality keys"
+        quiet: true
+      no_log: true
+
+- name: Operator override cases
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+    xvpn_se_foreign_key: "{{ lookup('ansible.builtin.pipe', \"python3 -c 'import secrets;print(secrets.token_urlsafe(32))'\") }}"
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Override | set loglevel info
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+        xvpn_node_profile_override:
+          log:
+            loglevel: info
+
+    - name: Override | assert the first run changed the profile
+      ansible.builtin.assert:
+        that: xvpn_node_profile.changed
+        fail_msg: "the override of loglevel did not change the profile"
+        quiet: true
+
+    - name: Override | run again with the same override
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+        xvpn_node_profile_override:
+          log:
+            loglevel: info
+
+    - name: Override | assert the second run changed nothing
+      ansible.builtin.assert:
+        that: not xvpn_node_profile.changed
+        fail_msg: "a run with an unchanged override reported a change"
+        quiet: true
+
+    # The inbounds list is replaced by the recursive combine: the whole rendered inbound with a foreign key.
+    - name: Override | run with an inbound that carries a foreign key
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+        xvpn_node_profile_override:
+          log:
+            loglevel: info
+          inbounds:
+            - tag: vless-reality-node
+              port: 443
+              protocol: vless
+              settings: {clients: [], decryption: none}
+              streamSettings:
+                network: tcp
+                security: reality
+                realitySettings:
+                  show: false
+                  target: 127.0.0.1:8443
+                  xver: 0
+                  serverNames: [node.xvpn.test]
+                  privateKey: "{{ xvpn_se_foreign_key }}"
+                  shortIds: [aaaaaaaaaaaaaaaa]
+              sniffing: {enabled: true, destOverride: [http, tls, quic]}
+      no_log: true
+
+    # xvpn_negative_case: profile-override-drops-block
+    - name: Override | run with an override that drops the BLOCK rule
+      block:
+        - name: Override | include the registration with routing.rules replaced
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+            tasks_from: register
+          vars:
+            xvpn_edge_https_address: "127.0.0.1:8443"
+            xvpn_node_profile_override:
+              routing:
+                rules: []
+
+        - name: Override | record that the run passed (must not happen)
+          ansible.builtin.set_fact:
+            xvpn_se_block_msg: ""
+      rescue:
+        - name: Override | keep the failure message
+          ansible.builtin.set_fact:
+            xvpn_se_block_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Override | assert the refusal names the override variable
+      ansible.builtin.assert:
+        that:
+          - "'xvpn_node_profile_override' in xvpn_se_block_msg"
+        fail_msg: "profile-override-drops-block: message '{{ xvpn_se_block_msg }}'"
+        quiet: true
+
+- name: Override assertions on the Panel host
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Override | read the profile
+      ansible.builtin.include_tasks: ../shared/node_panel_read.yml
+      vars:
+        xvpn_np_name: node
+
+    - name: Override | read the recorded key checksum
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/reality_checksum_after_first_converge
+      register: xvpn_se_recorded
+      no_log: true
+
+    - name: Override | assert loglevel, BLOCK rule and unchanged keys
+      ansible.builtin.assert:
+        that:
+          - xvpn_np_config.log.loglevel == 'info'
+          - (xvpn_np_config.routing.rules | last).outboundTag == 'BLOCK'
+          - xvpn_np_checksum == (xvpn_se_recorded.content | b64decode | trim)
+        fail_msg: "an override changed the Reality keys, dropped the BLOCK rule or did not apply the loglevel"
+        quiet: true
+      no_log: true
+
+- name: Restore the scenario profile
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    # No override in the task vars: the value is the scenario one (vars/node-vm.yml, empty here) or the role default.
+    - name: Restore | run the registration with the scenario override
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+
+- name: Restore assertions on the Panel host
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Restore | verify the profile equals the template again
+      ansible.builtin.include_tasks: ../shared/verify_node_panel.yml
+
+    - name: Restore | read the profile for the loglevel
+      ansible.builtin.include_tasks: ../shared/node_panel_read.yml
+      vars:
+        xvpn_np_name: node
+
+    - name: Restore | assert the template loglevel
+      ansible.builtin.assert:
+        that: xvpn_np_config.log.loglevel == 'warning'
+        fail_msg: "the profile did not return to the template loglevel"
+        quiet: true
+      no_log: true
