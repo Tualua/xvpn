@@ -5,10 +5,10 @@ current_phase: 02
 current_phase_name: Panel за Traefik с защищённым входом
 status: verifying
 stopped_at: Completed 02-12-PLAN.md
-last_updated: "2026-11-27T17:36:36.155Z"
+last_updated: "2026-11-28T04:15:33.248Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 02 execution started
-state_head: a7d502a9601d4201b230648cc6ffabd01107ff39
+state_head: f6f6786dd294c1de08f3badc62337582614d06d7
 progress:
   total_phases: 5
   completed_phases: 1
@@ -145,6 +145,7 @@ None yet.
 | 9 | Container-tier negative case: equal Panel and subscription domains rejected | 2026-11-27 | f111d61 | — |
 | 10 | VM prepare installs tar (Oracle Linux 10 box lacks it; Pebble unarchive failed) | 2026-11-27 | 2d08b00 | — |
 | 11 | Preflight argument_specs default lists OracleLinux (review WR-02) | 2026-11-27 | a7d502a | — |
+| 12 | ci(gate): run gate/gitleaks on every push, lint and Molecule keep the skip (WR-01) | 2026-11-28 | f6f6786 | — |
 
 ## Deferred Items
 
