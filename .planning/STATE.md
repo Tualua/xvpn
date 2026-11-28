@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 03
 current_phase_name: Нода с Reality self-steal и авто-регистрацией
 status: executing
-stopped_at: Completed 03-09-PLAN.md
-last_updated: "2026-11-28T15:39:21.627Z"
+stopped_at: Completed 03-10-PLAN.md
+last_updated: "2026-11-28T16:01:22.039Z"
 last_activity: 2026-11-28
 last_activity_desc: Phase 03 execution started
-state_head: 38a179fd997316d8fae0401f75635dbf379510d7
+state_head: c03b7c7a8bcbb9409e49efbcd6f3a8e564cc6316
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 33
+  completed_plans: 34
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-28)
 ## Current Position
 
 Phase: 03 (Нода с Reality self-steal и авто-регистрацией) — EXECUTING
-Plan: 10 of 16
+Plan: 11 of 16
 Status: Ready to execute
 Last activity: 2026-11-28 — Phase 03 execution started
 
@@ -90,6 +90,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P07 | 60min | 2 tasks | 15 files |
 | Phase 03 P08 | 60min | 2 tasks | 11 files |
 | Phase 03 P09 | ~1h40m | 2 tasks | 3 files |
+| Phase 03 P10 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Recent decisions affecting current work:
 - [Phase 03]: Own remnawave_* modules with stdlib unittest and a fake Panel; client pins Panel 3.4.x before first write
 - [Phase 03]: node-vm stand reuses shared/verify_runtime.yml for zero-AVC on both VMs; Task 2 pushed with Task 1 fix, one dispatched run (46146662440) proves both
 - [Phase 03]: 03-08: 443 opens only after the loopback cert gate; node API 2222 only via Panel-source IPv4 rich rules
+- [Phase 03]: 03-10: IPv4-mapped ::ffff:0:0/96 dropped from xvpn_node_blocked_cidrs (Xray 26.11.9 rejects it in routing ip)
+- [Phase 03]: 03-10: config profile keys never from declaration; module.params config redacted so invocation carries no key
 
 ### Pending Todos
 
@@ -175,6 +178,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T15:39:21.158Z
-Stopped at: Completed 03-09-PLAN.md
+Last session: 2026-11-28T16:01:21.491Z
+Stopped at: Completed 03-10-PLAN.md
 Resume file: None

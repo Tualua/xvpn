@@ -125,7 +125,7 @@ Plans:
   3. После прогона в Panel существуют config profile, node и hosts для ноды из inventory, нода в состоянии connected; повторный прогон не создаёт дубликатов и не меняет Reality-ключи/shortIds (`changed=0`)
   4. Модули `remnawave_config_profile`, `remnawave_node`, `remnawave_host`, `remnawave_internal_squad` работают в `--check` и `--diff` и честно сообщают `changed`
   5. Порт 2222 ноды доступен только с IP Panel; нода с `state: absent` и явным флагом удаляется из Panel вместе с hosts, а её юниты останавливаются
-**Plans:** 9/16 plans executed
+**Plans:** 10/16 plans executed
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md — Роль node (скелет, input-guards), self-steal маршрут на loopback-edge, playbooks/node.yml, контейнерный сценарий node, QA-05 для node.yml; D-14 по доказательствам исполненного спайка (wave 1)
@@ -155,7 +155,7 @@ Plans:
 - [x] 03-09-PLAN.md — Матрица alma/rocky/oracle для двух-VM стенда, отказ гейта без сертификата, 0 AVC на обеих VM (wave 9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 03-10-PLAN.md — Шаблон профиля в гейте + модуль remnawave_config_profile с unit-тестами: ключи из Panel, ключи из override отбрасываются, redacted diff (wave 10)
+- [x] 03-10-PLAN.md — Шаблон профиля в гейте + модуль remnawave_config_profile с unit-тестами: ключи из Panel, ключи из override отбрасываются, redacted diff (wave 10)
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [ ] 03-11-PLAN.md — Шаг регистрации профиля в роли: профиль в реальной Panel, ключи стабильны, дрейф из UI исправляется, override переживает прогоны (wave 11)
@@ -211,6 +211,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Rootless-фундамент и тестовый стенд | 12/12 | Complete    | 2026-11-25 |
 | 2. Panel за Traefik с защищённым входом | 12/12 | Complete    | 2026-11-28 |
-| 3. Нода с Reality self-steal и авто-регистрацией | 9/16 | In Progress | - |
+| 3. Нода с Reality self-steal и авто-регистрацией | 10/16 | In Progress | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
 | 5. Эксплуатация, hardening и готовность к публикации | 0/3 | Not started | - |
