@@ -32,8 +32,8 @@ Let's Encrypt / Pebble ACME is spoken by Traefik, not by the collection.
 | keygen (GET /api/keygen, SECRET_KEY, generate-once) | INTEGRATE | |
 | system.tools.x25519.generate (GET /api/system/tools/x25519/generate) | INTEGRATE | |
 | system.metadata (GET /api/system/metadata, version pin check) | INTEGRATE | |
-| users.create + users.get-by-username (probe user `xvpn-molecule-client`) | INTEGRATE | test fixture only: called by the two-VM verify to obtain a real client subscription (Plan 03-08); the roles never create users (REQUIREMENTS Out of Scope) |
-| subscription /api/sub/{shortUuid} (raw links) | INTEGRATE | test fixture only: the two-VM verify reads the issued vless:// link to configure the Xray client (Plan 03-08) |
+| users.create + users.get-by-username (probe user `xvpn-molecule-client`) | INTEGRATE | test fixture only: called by the two-VM verify to obtain a real client subscription (Plan 03-13); the roles never create users (REQUIREMENTS Out of Scope) |
+| subscription /api/sub/{shortUuid} (raw links) | INTEGRATE | test fixture only: the two-VM verify reads the issued vless:// link to configure the Xray client (Plan 03-13) |
 | users / subscriptions management in roles | OPT-OUT | explicitly out of scope for v1: VPN users are managed by the operator in the Panel UI |
 | config-profiles computed config / inbounds-by-profile endpoints | OPT-OUT | not needed: the list response already carries `config` and `inbounds[]` with uuids and tags |
 | Reality key rotation (any endpoint) | OPT-OUT | explicitly out of scope: D-03, API-V2-01 (v2) |
