@@ -11,3 +11,9 @@
   vars:
     xvpn_edge_route_name: node-selfsteal
     xvpn_edge_route_src: "{{ xvpn_node_route_src }}"
+
+- name: Node | fetch the SECRET_KEY and write the env files
+  ansible.builtin.include_tasks: secret.yml
+
+- name: Node | deploy remnanode
+  ansible.builtin.include_tasks: service.yml

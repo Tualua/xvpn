@@ -43,6 +43,30 @@ argument_specs:
         description: Register the node in the Panel through the API.
         type: bool
         default: true
+      xvpn_node_panel_host:
+        description: Inventory host of the Panel that issues the SECRET_KEY. Defaults to the first host of the Panel group.
+        type: str
+        default: "{{ (groups[xvpn_panel_hosts_group | default('remnawave_panel')] | default([]))[0] | default('') }}"
+      xvpn_node_panel_api_url:
+        description: Panel API URL as seen from the Panel host.
+        type: str
+        default: http://127.0.0.1:3000
+      xvpn_node_panel_api_token_file:
+        description: Path of the Panel API token file on the Panel host.
+        type: path
+        default: /var/lib/xvpn/rw-panel/secrets/api-token
+      xvpn_node_api_port:
+        description: Port of the node API (NODE_PORT), 1024..65535.
+        type: int
+        default: 2222
+      xvpn_node_env_dir:
+        description: Directory with the 0600 env files of remnanode (node.env with SECRET_KEY, runtime.env).
+        type: path
+        default: "{{ xvpn_node_home }}/env"
+      xvpn_node_rekey:
+        description: "Explicit opt-in: issue a new SECRET_KEY on this run; node.env is rewritten and remnanode restarts."
+        type: bool
+        default: false
       xvpn_node_state:
         description: present, or absent (decommission, not implemented yet).
         type: str

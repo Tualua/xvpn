@@ -50,6 +50,18 @@
         fail_msg: "xvpn_node_state must be present or absent, got '{{ xvpn_node_state }}'"
         quiet: true
 
+    - name: Node | validate the Panel host and the node API port
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_api_port | int >= 1024
+          - xvpn_node_api_port | int <= 65535
+          - not (xvpn_node_register | bool) or xvpn_node_panel_host | length > 0
+          - not (xvpn_node_register | bool) or xvpn_node_panel_host in groups['all']
+        fail_msg: >-
+          xvpn_node_api_port must be 1024..65535 and, with xvpn_node_register, xvpn_node_panel_host must be an inventory host:
+          set xvpn_node_panel_host or put exactly one host into group remnawave_panel
+        quiet: true
+
     - name: Node | refuse the decommission until it is implemented
       ansible.builtin.assert:
         that:

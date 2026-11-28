@@ -1,0 +1,20 @@
+[Unit]
+Description=xvpn Remnawave node (remnanode, Xray-core)
+
+[Container]
+Image={{ xvpn_node_image }}
+ContainerName=remnanode
+Network=host
+EnvironmentFile={{ xvpn_node_env_dir }}/runtime.env
+EnvironmentFile={{ xvpn_node_env_dir }}/node.env
+Ulimit=nofile=524288:524288
+LogDriver=k8s-file
+LogOpt=max-size=50m
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

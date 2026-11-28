@@ -568,3 +568,27 @@
           - xvpn_negative_rejected | sort == xvpn_negative_expected | sort
         fail_msg: "rejected {{ xvpn_negative_rejected | default([]) | sort }}, expected {{ xvpn_negative_expected | sort }}"
         quiet: true
+
+    - name: Stat the remnanode env files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /var/lib/xvpn/rw-node/env/runtime.env
+        - /var/lib/xvpn/rw-node/env/node.env
+      register: xvpn_verify_node_envs
+
+    - name: Read runtime.env
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-node/env/runtime.env
+      register: xvpn_verify_node_runtime_env
+
+    - name: Assert runtime.env carries NODE_PORT and node.env is absent (register false)
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_node_envs.results[0].stat.exists
+          - xvpn_verify_node_envs.results[0].stat.mode == '0600'
+          - xvpn_verify_node_envs.results[0].stat.pw_name == 'rw-node'
+          - (xvpn_verify_node_runtime_env.content | b64decode) is search('(?m)^NODE_PORT=2222$')
+          - not xvpn_verify_node_envs.results[1].stat.exists
+        fail_msg: "runtime.env / node.env state is wrong in the container tier"
+        quiet: true

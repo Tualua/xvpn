@@ -40,3 +40,100 @@
       - xvpn_verify_node_ss.stdout_lines | map('split') | map(attribute=3) | unique | list == ['127.0.0.1:8443']
     fail_msg: "8443 is not bound to loopback only: {{ xvpn_verify_node_ss.stdout }}"
     quiet: true
+
+# remnanode (NODE-01): rootless, host network, no capability, container_t. The AVC check runs after this file.
+- name: Verify node | read the uid of the node service user
+  ansible.builtin.getent:
+    database: passwd
+    key: rw-node
+
+- name: Verify node | wait until remnanode is active
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - is-active
+      - remnanode.service
+  become: true
+  become_user: rw-node
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-node'][1] }}"
+  register: xvpn_verify_node_active
+  until: xvpn_verify_node_active.stdout | trim == 'active'
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: Verify node | list the listener on 2222
+  ansible.builtin.command:
+    argv:
+      - ss
+      - -H
+      - -ltnpe
+      - sport = :2222
+  register: xvpn_verify_node_api_ss
+  until: xvpn_verify_node_api_ss.stdout_lines | length > 0
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: Verify node | assert the listener belongs to rw-node
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_node_api_ss.stdout is search('uid:' ~ ansible_facts['getent_passwd']['rw-node'][1] ~ '(\s|$)')
+    fail_msg: "the :2222 listener is not owned by rw-node: {{ xvpn_verify_node_api_ss.stdout }}"
+    quiet: true
+
+- name: Verify node | inspect the remnanode container
+  ansible.builtin.command:
+    argv:
+      - podman
+      - inspect
+      - --format
+      - "{{ '{{.HostConfig.NetworkMode}}|{{len .HostConfig.CapAdd}}|{{.ProcessLabel}}' }}"
+      - remnanode
+  become: true
+  become_user: rw-node
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-node'][1] }}"
+  register: xvpn_verify_node_inspect
+  changed_when: false
+
+- name: Verify node | assert host network, no added capability, container_t
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_node_inspect.stdout | trim | split('|') | first == 'host'
+      - (xvpn_verify_node_inspect.stdout | trim).split('|')[1] == '0'
+      - (xvpn_verify_node_inspect.stdout | trim).split('|')[2] is search('container_t')
+    fail_msg: "remnanode is not host-networked, capability-free and container_t: {{ xvpn_verify_node_inspect.stdout }}"
+    quiet: true
+
+- name: Verify node | stat node.env and runtime.env
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    checksum_algorithm: sha256
+  loop:
+    - /var/lib/xvpn/rw-node/env/node.env
+    - /var/lib/xvpn/rw-node/env/runtime.env
+  register: xvpn_verify_node_envs
+
+- name: Verify node | read the recorded node.env checksum and runtime.env
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop:
+    - /var/lib/xvpn-molecule/node_env_sha256
+    - /var/lib/xvpn/rw-node/env/runtime.env
+  register: xvpn_verify_node_env_read
+
+- name: Verify node | assert the env files
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_node_envs.results[0].stat.mode == '0600'
+      - xvpn_verify_node_envs.results[0].stat.pw_name == 'rw-node'
+      - xvpn_verify_node_envs.results[0].stat.checksum == (xvpn_verify_node_env_read.results[0].content | b64decode | trim)
+      - xvpn_verify_node_envs.results[1].stat.mode == '0600'
+      - (xvpn_verify_node_env_read.results[1].content | b64decode) is search('(?m)^NODE_PORT=2222$')
+    fail_msg: "node.env changed since the first converge or the env files have the wrong mode/owner"
+    quiet: true

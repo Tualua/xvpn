@@ -1,0 +1,29 @@
+---
+# remnanode Quadlet unit under the node service user (NODE-01). role_path is resolved before the include: inside
+# include_role it would be the podman_rootless role's.
+- name: Node service | build the Quadlet specs
+  ansible.builtin.set_fact:
+    xvpn_node_quadlet_specs:
+      - template_src: "{{ role_path }}/templates/remnanode.container.j2"
+
+- name: Node service | deploy the remnanode unit
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: quadlet
+  vars:
+    xvpn_podman_rootless_quadlet_user: "{{ xvpn_node_user }}"
+    xvpn_podman_rootless_quadlet_specs: "{{ xvpn_node_quadlet_specs }}"
+    xvpn_podman_rootless_quadlet_activate: "{{ xvpn_node_activate }}"
+
+- name: Node service | restart remnanode after an env file change
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.podman_rootless
+    tasks_from: restart_stale
+  vars:
+    xvpn_podman_rootless_restart_user: "{{ xvpn_node_user }}"
+    xvpn_podman_rootless_restart_unit: remnanode.service
+    xvpn_podman_rootless_restart_files:
+      - "{{ xvpn_node_env_dir }}/node.env"
+      - "{{ xvpn_node_env_dir }}/runtime.env"
+    xvpn_podman_rootless_restart_changed: "{{ (xvpn_node_env | default({})) is changed or xvpn_node_runtime_env is changed }}"
+  when: xvpn_node_activate | bool

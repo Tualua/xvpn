@@ -17,3 +17,65 @@
   ansible.builtin.import_playbook: ../../../playbooks/node.yml
   vars:
     ansible_pipelining: true
+
+- name: Record the remnanode state after the first converge
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Stat node.env
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-node/env/node.env
+        checksum_algorithm: sha256
+      register: xvpn_converge_node_env
+
+    - name: Read the uid of the node service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-node
+
+    - name: Read the InvocationID of remnanode
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - show
+          - -p
+          - InvocationID
+          - --value
+          - remnanode.service
+      become: true
+      become_user: rw-node
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-node'][1] }}"
+      register: xvpn_converge_node_invocation
+      changed_when: false
+      check_mode: false
+
+    - name: Assert node.env exists and remnanode has an invocation
+      ansible.builtin.assert:
+        that:
+          - xvpn_converge_node_env.stat.exists
+          - xvpn_converge_node_env.stat.checksum | length > 0
+          - xvpn_converge_node_invocation.stdout | trim | length > 0
+        fail_msg: "node.env is missing or remnanode did not start after the first converge"
+        quiet: true
+
+    - name: Record the node.env checksum
+      ansible.builtin.copy:
+        content: "{{ xvpn_converge_node_env.stat.checksum }}\n"
+        dest: /var/lib/xvpn-molecule/node_env_sha256
+        owner: root
+        group: root
+        mode: "0600"
+        force: false
+
+    - name: Record the remnanode InvocationID
+      ansible.builtin.copy:
+        content: "{{ xvpn_converge_node_invocation.stdout | trim }}\n"
+        dest: /var/lib/xvpn-molecule/remnanode_invocation
+        owner: root
+        group: root
+        mode: "0600"
+        force: false

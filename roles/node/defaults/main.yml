@@ -34,3 +34,15 @@ xvpn_node_state: present
 
 # The loopback websecure address (xvpn_edge_https_address: 127.0.0.1:8443) is pinned in the play vars of
 # playbooks/node.yml, which beat inventory variables; changing the port means editing the playbook.
+
+# SECRET_KEY of the node comes from the Panel (GET /api/keygen), once, executed on the Panel host so the API token
+# never leaves it. The default Panel host is the first host of the Panel group.
+xvpn_node_panel_host: "{{ (groups[xvpn_panel_hosts_group | default('remnawave_panel')] | default([]))[0] | default('') }}"
+xvpn_node_panel_api_url: http://127.0.0.1:3000
+xvpn_node_panel_api_token_file: /var/lib/xvpn/rw-panel/secrets/api-token
+# Port of the node API (NODE_PORT of remnanode); the Panel connects here.
+xvpn_node_api_port: 2222
+# Directory of the 0600 env files of remnanode.
+xvpn_node_env_dir: "{{ xvpn_node_home }}/env"
+# Explicit one-shot opt-in (usually -e xvpn_node_rekey=true): issue a new SECRET_KEY, rewrite node.env, restart remnanode.
+xvpn_node_rekey: false
