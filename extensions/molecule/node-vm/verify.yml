@@ -128,6 +128,59 @@
         xvpn_verify_node_user: rw-edge
         xvpn_verify_node_domain: node.xvpn.test
 
+- name: Gate failure case on the node host
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Gate | record the open ports before
+      ansible.builtin.command:
+        argv: [firewall-cmd, --list-ports]
+      register: xvpn_gate_ports_before
+      changed_when: false
+
+    # xvpn_negative_case: gate-no-certificate
+    - name: Gate | run the certificate gate for a domain without a certificate
+      block:
+        - name: Gate | include the gate tasks for absent.xvpn.test
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+            tasks_from: gate
+          vars:
+            xvpn_node_domain: absent.xvpn.test
+            xvpn_node_cert_gate_retries: 2
+            xvpn_node_cert_gate_delay: 1
+
+        - name: Gate | record that the gate passed (must not happen)
+          ansible.builtin.set_fact:
+            xvpn_gate_failure_msg: ""
+      rescue:
+        - name: Gate | keep the failure message
+          ansible.builtin.set_fact:
+            xvpn_gate_failure_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Gate | record the open ports after
+      ansible.builtin.command:
+        argv: [firewall-cmd, --list-ports]
+      register: xvpn_gate_ports_after
+      changed_when: false
+
+    - name: Gate | assert the message and the unchanged firewall
+      ansible.builtin.assert:
+        that:
+          - "'certificate for absent.xvpn.test' in xvpn_gate_failure_msg"
+          - "'STEAL-05' in xvpn_gate_failure_msg"
+          - xvpn_gate_ports_before.stdout.split() | sort == xvpn_gate_ports_after.stdout.split() | sort
+        fail_msg: >-
+          gate-no-certificate: message '{{ xvpn_gate_failure_msg }}',
+          ports before '{{ xvpn_gate_ports_before.stdout }}' after '{{ xvpn_gate_ports_after.stdout }}'
+        quiet: true
+
 - name: Verify the runtime and zero AVC on both VMs
   hosts: all
   become: true
