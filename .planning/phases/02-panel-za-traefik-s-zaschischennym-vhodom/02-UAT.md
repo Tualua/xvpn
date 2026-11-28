@@ -3,7 +3,7 @@ status: complete
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md]
 started: 2026-11-27T03:29:21Z
-updated: 2026-11-28T04:18:45.850Z
+updated: 2026-11-28T04:22:37.730Z
 ---
 
 ## Current Test
@@ -43,8 +43,9 @@ note: по просьбе пользователя переведён в авт�
 
 ### 7. Отключение subscription page
 expected: С xvpn_panel_subscription_enabled: false повторный прогон останавливает юнит subscription page, затем удаляет юнит, subpage.env и файл маршрута; Panel продолжает работать. Возврат в true восстанавливает страницу подписки.
-result: skipped
-reason: пользователь не видит смысла в ручной проверке; удаление и восстановление юнита, subpage.env и маршрута покрыты автотестом panel-subpage-toggle (container tier)
+result: pass
+source: automated
+note: ручная проверка не нужна (решение пользователя); удаление и восстановление юнита, subpage.env и маршрута проверяет позитивный кейс panel-subpage-toggle (extensions/molecule/container/verify.yml, container tier)
 
 ### 8. README, раздел «Panel host»
 expected: По разделу «Panel host» в README внешний пользователь понимает, какие переменные задать в inventory, как запустить playbooks/panel.yml, где найти admin-url, токен и логи, и какие есть известные ограничения.
@@ -53,7 +54,7 @@ result: pass
 ### 9. ci_watch.sh: ветки cancelled-run и dispatch
 expected: scripts/ci_watch.sh ждёт именно запуск для текущего HEAD; если запуск был отменён (cancelled), выбирает новый запуск для того же HEAD, а не завершается с ложным результатом.
 result: skipped
-reason: внутренний dev-скрипт, не для оператора; ветку cancelled вручную не воспроизвести, скрипт работает в CI-потоке каждой фазы
+reason: "Deferred follow-up: внутренний dev-скрипт, не для оператора; ветку cancelled вручную не воспроизвести, скрипт работает в CI-потоке каждой фазы"
 
 ### 10. Edge role renders hardened rootless Traefik unit, static config and 00-edge route file, passing the Quadlet generator dry-run
 expected: Edge role renders hardened rootless Traefik unit, static config and 00-edge route file, passing the Quadlet generator dry-run
@@ -118,11 +119,17 @@ coverage_id: 02-03-D4
 ## Summary
 
 total: 19
-passed: 17
+passed: 18
 issues: 0
 pending: 0
-skipped: 2
+skipped: 1
 blocked: 0
+
+## Deferred Follow-Ups
+
+- test: 9
+  idea: "Автотест scripts/ci_watch.sh для веток cancelled-run и dispatch (подставной gh); сейчас внутренний dev-скрипт без отдельной проверки"
+  deferred_at: 2026-11-28
 
 ## Gaps
 
