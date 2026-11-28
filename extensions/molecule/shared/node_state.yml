@@ -1,0 +1,36 @@
+---
+# Reads node.env and remnanode state on the node VM into xvpn_node_state_* facts.
+- name: Node state | stat node.env
+  ansible.builtin.stat:
+    path: /var/lib/xvpn/rw-node/env/node.env
+    checksum_algorithm: sha256
+  register: xvpn_node_state_stat
+
+- name: Node state | read the InvocationID and the active state
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - show
+      - -p
+      - "{{ item }}"
+      - --value
+      - remnanode.service
+  become: true
+  become_user: rw-node
+  become_method: ansible.builtin.sudo
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-node'][1] }}"
+  loop: [InvocationID, ActiveState]
+  register: xvpn_node_state_show
+  changed_when: false
+  check_mode: false
+
+- name: Node state | publish the facts
+  ansible.builtin.set_fact:
+    xvpn_node_state_exists: "{{ xvpn_node_state_stat.stat.exists }}"
+    xvpn_node_state_sha: "{{ xvpn_node_state_stat.stat.checksum | default('') }}"
+    xvpn_node_state_mode: "{{ xvpn_node_state_stat.stat.mode | default('') }}"
+    xvpn_node_state_owner: "{{ xvpn_node_state_stat.stat.pw_name | default('') }}"
+    xvpn_node_state_invocation: "{{ xvpn_node_state_show.results[0].stdout | trim }}"
+    xvpn_node_state_active: "{{ xvpn_node_state_show.results[1].stdout | trim }}"

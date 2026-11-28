@@ -1,0 +1,13 @@
+---
+# Runs the secret and service steps of the node role on the node VM. Input: xvpn_rekey_flag (bool).
+- name: Node run | fetch the key and write the env files
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.node
+    tasks_from: secret
+  vars:
+    xvpn_node_rekey: "{{ xvpn_rekey_flag }}"
+
+- name: Node run | deploy and restart remnanode
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.node
+    tasks_from: service
