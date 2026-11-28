@@ -39,7 +39,7 @@
 
 ### Node (NODE)
 
-- [ ] **NODE-01**: Оператор разворачивает remnanode (Xray) как rootless Quadlet-сервис с host network
+- [x] **NODE-01**: Оператор разворачивает remnanode (Xray) как rootless Quadlet-сервис с host network
 - [ ] **NODE-02**: Порт API ноды (2222) доступен только с IP Panel (firewalld rich rule)
 - [x] **NODE-03**: Клиент подключается к ноде по VLESS Reality (xtls-rprx-vision) на 443 и выходит в интернет
 
@@ -153,7 +153,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PANEL-06 | Phase 2 | Complete |
 | SUB-01 | Phase 2 | Complete |
 | SUB-02 | Phase 2 | Complete |
-| NODE-01 | Phase 3 | Pending |
+| NODE-01 | Phase 3 | Complete |
 | NODE-02 | Phase 3 | Pending |
 | NODE-03 | Phase 3 | Complete |
 | STEAL-01 | Phase 3 | Complete |

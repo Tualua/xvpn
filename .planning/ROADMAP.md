@@ -125,7 +125,7 @@ Plans:
   3. После прогона в Panel существуют config profile, node и hosts для ноды из inventory, нода в состоянии connected; повторный прогон не создаёт дубликатов и не меняет Reality-ключи/shortIds (`changed=0`)
   4. Модули `remnawave_config_profile`, `remnawave_node`, `remnawave_host`, `remnawave_internal_squad` работают в `--check` и `--diff` и честно сообщают `changed`
   5. Порт 2222 ноды доступен только с IP Panel; нода с `state: absent` и явным флагом удаляется из Panel вместе с hosts, а её юниты останавливаются
-**Plans:** 6/16 plans executed
+**Plans:** 7/16 plans executed
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md — Роль node (скелет, input-guards), self-steal маршрут на loopback-edge, playbooks/node.yml, контейнерный сценарий node, QA-05 для node.yml; D-14 по доказательствам исполненного спайка (wave 1)
@@ -146,7 +146,7 @@ Plans:
 - [x] 03-06-PLAN.md — Двух-VM стенд Panel+Node (SELinux enforcing, Pebble): сертификат домена ноды на loopback, 8443 недоступен с другого хоста (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 03-07-PLAN.md — SECRET_KEY один раз через Panel, remnanode rootless Quadlet с Network=host, 0 AVC, путь перевыпуска ключа (wave 7)
+- [x] 03-07-PLAN.md — SECRET_KEY один раз через Panel, remnanode rootless Quadlet с Network=host, 0 AVC, путь перевыпуска ключа (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 03-08-PLAN.md — Сертификатный гейт STEAL-05 (443 только после пробы), rich rule 2222 только для Panel, защищённое разрешение IP Panel (wave 8)
@@ -211,6 +211,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Rootless-фундамент и тестовый стенд | 12/12 | Complete    | 2026-11-25 |
 | 2. Panel за Traefik с защищённым входом | 12/12 | Complete    | 2026-11-28 |
-| 3. Нода с Reality self-steal и авто-регистрацией | 6/16 | In Progress | - |
+| 3. Нода с Reality self-steal и авто-регистрацией | 7/16 | In Progress | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
 | 5. Эксплуатация, hardening и готовность к публикации | 0/3 | Not started | - |
