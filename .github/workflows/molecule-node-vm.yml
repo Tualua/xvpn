@@ -25,6 +25,32 @@ jobs:
     # ubuntu-24.04 standard runner of this public repository: 4 vCPU / 16 GiB RAM (Plan 03-06 assumptions).
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [alma10, rocky10, oracle10]
+        include:
+          # Box values copied from extensions/molecule/vm/molecule.yml (T-01-19, T-03-SC).
+          - platform: alma10
+            box: almalinux/10
+            box_version: 10.2.20260914
+            box_url: ""
+            box_sha256: ""
+          - platform: rocky10
+            box: rocky10-libvirt-10.3-20261112.0
+            box_version: ""
+            box_url: https://dl.rockylinux.org/pub/rocky/10/images/x86_64/Rocky-10-Vagrant-Libvirt-10.3-20261112.0.x86_64.vagrant.libvirt.box
+            box_sha256: 491cf68af9e485bdd9317051ccfeb68301e86d04476a15b5cfd065d0bd7159ea
+          - platform: oracle10
+            box: oraclelinux10-libvirt-10.1.710
+            box_version: ""
+            box_url: https://yum.oracle.com/boxes/oraclelinux/ol10/OL10U1_x86_64-vagrant-libvirt-b710.box
+            box_sha256: 66b15e98537906b1d0f60bcba12a2c47fad25d421760ed1ec8eafd0fbe59a25a
+    env:
+      XVPN_NODE_VM_BOX: ${{ matrix.box }}
+      XVPN_NODE_VM_BOX_VERSION: ${{ matrix.box_version }}
+      XVPN_NODE_VM_BOX_URL: ${{ matrix.box_url }}
+      XVPN_NODE_VM_BOX_SHA256: ${{ matrix.box_sha256 }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
