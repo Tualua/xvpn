@@ -116,6 +116,10 @@ jobs:
           ln -sfn "$GITHUB_WORKSPACE" .ansible/collections/ansible_collections/xvpn/remnawave
           ansible-galaxy collection install -r requirements.yml -p .ansible/collections
           echo "ANSIBLE_COLLECTIONS_PATH=$GITHUB_WORKSPACE/.ansible/collections" >> "$GITHUB_ENV"
+      - name: Drop the box version constraint for direct box files
+        # Vagrant rejects a version constraint together with a direct box_url path (an empty value still counts).
+        if: matrix.box_version == ''
+        run: sed -i '/box_version:/d' extensions/molecule/node-vm/molecule.yml
       - name: Molecule
         env:
           ANSIBLE_FORCE_COLOR: "1"
