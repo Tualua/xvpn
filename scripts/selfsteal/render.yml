@@ -17,6 +17,8 @@
     xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem
     xvpn_edge_acme_email: ""
     xvpn_edge_decoy_port: 18080
+    # the gate keeps the catch-all page; Plan 03-04 adds the strict-404 cases
+    xvpn_edge_decoy_strict: false
     xvpn_node_domain: node.test
   tasks:
     - name: Self-steal gate | require the work directory
