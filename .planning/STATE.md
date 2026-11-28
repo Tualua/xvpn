@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 03
 current_phase_name: Нода с Reality self-steal и авто-регистрацией
 status: executing
-stopped_at: Completed 03-07-PLAN.md
-last_updated: "2026-11-28T13:49:17.692Z"
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-11-28T14:44:18.033Z"
 last_activity: 2026-11-28
 last_activity_desc: Phase 03 execution started
-state_head: c139c05247b9ecac45fd3e1a74b8ce98d875ce8e
+state_head: 9c0e9ad30bf922a8b07ce86917c2da191e702977
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 31
+  completed_plans: 32
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-28)
 ## Current Position
 
 Phase: 03 (Нода с Reality self-steal и авто-регистрацией) — EXECUTING
-Plan: 8 of 16
+Plan: 9 of 16
 Status: Ready to execute
 Last activity: 2026-11-28 — Phase 03 execution started
 
@@ -88,6 +88,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P05 | 25min | 2 tasks | 9 files |
 | Phase 03 P06 | ~1h40m | 2 tasks | 8 files |
 | Phase 03 P07 | 60min | 2 tasks | 15 files |
+| Phase 03 P08 | 60min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-04: selfsteal gate installs the decoy through the production decoy.yml; node verify helpers live in extensions/molecule/shared
 - [Phase 03]: Own remnawave_* modules with stdlib unittest and a fake Panel; client pins Panel 3.4.x before first write
 - [Phase 03]: node-vm stand reuses shared/verify_runtime.yml for zero-AVC on both VMs; Task 2 pushed with Task 1 fix, one dispatched run (46146662440) proves both
+- [Phase 03]: 03-08: 443 opens only after the loopback cert gate; node API 2222 only via Panel-source IPv4 rich rules
 
 ### Pending Todos
 
@@ -172,6 +174,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T13:49:17.270Z
-Stopped at: Completed 03-07-PLAN.md
+Last session: 2026-11-28T14:44:17.633Z
+Stopped at: Completed 03-08-PLAN.md
 Resume file: None

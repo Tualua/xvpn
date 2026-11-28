@@ -40,7 +40,7 @@
 ### Node (NODE)
 
 - [x] **NODE-01**: Оператор разворачивает remnanode (Xray) как rootless Quadlet-сервис с host network
-- [ ] **NODE-02**: Порт API ноды (2222) доступен только с IP Panel (firewalld rich rule)
+- [x] **NODE-02**: Порт API ноды (2222) доступен только с IP Panel (firewalld rich rule)
 - [x] **NODE-03**: Клиент подключается к ноде по VLESS Reality (xtls-rprx-vision) на 443 и выходит в интернет
 
 ### Self-steal (STEAL)
@@ -49,7 +49,7 @@
 - [x] **STEAL-02**: Неавторизованный посетитель (браузер, сканер) на 443 видит правдоподобный сайт-заглушку с валидным сертификатом домена ноды
 - [x] **STEAL-03**: Запрос с чужим SNI или без SNI не раскрывает дефолтный сертификат/404 Traefik (проверяется `openssl s_client` в verify)
 - [x] **STEAL-04**: Оператор выбирает сайт-заглушку из нескольких встроенных шаблонов или подставляет свой каталог
-- [ ] **STEAL-05**: Reality-инбаунд включается только после того, как сертификат ноды выпущен и проверен
+- [x] **STEAL-05**: Reality-инбаунд включается только после того, как сертификат ноды выпущен и проверен
 
 ### Panel API (API)
 
@@ -154,13 +154,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SUB-01 | Phase 2 | Complete |
 | SUB-02 | Phase 2 | Complete |
 | NODE-01 | Phase 3 | Complete |
-| NODE-02 | Phase 3 | Pending |
+| NODE-02 | Phase 3 | Complete |
 | NODE-03 | Phase 3 | Complete |
 | STEAL-01 | Phase 3 | Complete |
 | STEAL-02 | Phase 3 | Complete |
 | STEAL-03 | Phase 3 | Complete |
 | STEAL-04 | Phase 3 | Complete |
-| STEAL-05 | Phase 3 | Pending |
+| STEAL-05 | Phase 3 | Complete |
 | API-01 | Phase 3 | Complete |
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Pending |
