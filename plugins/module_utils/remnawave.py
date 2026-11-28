@@ -170,3 +170,92 @@ class RemnawaveClient(object):
 
     def delete(self, path, body=None):
         return self.request("DELETE", path, body)
+
+
+# Protocols whose inbound settings.clients the Panel owns (xray-config.validator.ts:28, MANAGED_CLIENT_PROTOCOLS).
+MANAGED_CLIENT_PROTOCOLS = ("hysteria", "shadowsocks", "trojan", "vless")
+
+
+def _mutation_clients_cleanup(config):
+    # Panel: updateConfigProfileTransactional -> cleanInboundClients(false) (config-profile.service.ts:274,
+    # xray-config.validator.ts:161-174) sets settings.clients = [] on every managed inbound and creates a missing
+    # settings object first (ensureSettings, xray-config.validator.ts:296-298).
+    for inbound in config.get("inbounds") or []:
+        if isinstance(inbound, dict) and inbound.get("protocol") in MANAGED_CLIENT_PROTOCOLS:
+            if not isinstance(inbound.get("settings"), dict):
+                inbound["settings"] = {}
+            inbound["settings"]["clients"] = []
+
+
+def _mutation_server_names(config):
+    # Panel: fixIncorrectServerNames() (config-profile.service.ts:275, xray-config.validator.ts:300-315): for vless
+    # inbounds the serverNames are split on commas, trimmed and de-duplicated (order of first appearance).
+    for inbound in config.get("inbounds") or []:
+        if not isinstance(inbound, dict) or inbound.get("protocol") != "vless":
+            continue
+        reality = (inbound.get("streamSettings") or {}).get("realitySettings")
+        names = reality.get("serverNames") if isinstance(reality, dict) else None
+        if not names:
+            continue
+        seen, out = set(), []
+        for name in names:
+            for part in str(name).split(","):
+                part = part.strip()
+                if part not in seen:
+                    seen.add(part)
+                    out.append(part)
+        reality["serverNames"] = out
+
+
+def _mutation_outbounds_required(config):
+    # Panel: validateOutbounds() (config-profile.service.ts:276, xray-config.validator.ts:335-339) rejects an update
+    # without outbounds; the module refuses before any write instead of failing on the PATCH.
+    if not config.get("outbounds"):
+        raise ValueError("Config doesn't have outbounds (the Panel rejects an update without them)")
+
+
+# One entry per recorded Panel mutation; sortXrayConfig (xray-config.validator.ts:83-85, config-profile.service.ts:44,
+# 66, 146, 278) only reorders top-level keys and is neutralised by normalize().
+PANEL_MUTATIONS = (
+    ("clients_cleanup", _mutation_clients_cleanup),
+    ("server_names", _mutation_server_names),
+    ("outbounds_required", _mutation_outbounds_required),
+)
+
+
+def apply_panel_mutations(config):
+    """Pre-apply, in place, every transformation the Panel makes to a stored profile config; returns config."""
+    for _name, mutation in PANEL_MUTATIONS:
+        mutation(config)
+    return config
+
+
+def find_by(items, key, value):
+    """First dict of items whose key equals value, else None."""
+    for item in items or []:
+        if isinstance(item, dict) and item.get(key) == value:
+            return item
+    return None
+
+
+def diff_paths(a, b, _prefix=""):
+    """JSON paths at which a and b differ (paths only, never values)."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        paths = []
+        for key in sorted(set(a) | set(b), key=str):
+            sub = "%s.%s" % (_prefix, key) if _prefix else str(key)
+            if key not in a or key not in b:
+                paths.append(sub)
+            else:
+                paths.extend(diff_paths(a[key], b[key], sub))
+        return paths
+    if isinstance(a, list) and isinstance(b, list):
+        paths = []
+        for idx in range(max(len(a), len(b))):
+            sub = "%s[%d]" % (_prefix, idx)
+            if idx >= len(a) or idx >= len(b):
+                paths.append(sub)
+            else:
+                paths.extend(diff_paths(a[idx], b[idx], sub))
+        return paths
+    return [] if a == b else [_prefix or "$"]
