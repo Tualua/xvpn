@@ -1,0 +1,36 @@
+{#
+  Declared Xray config of the node profile (D-01, D-03). It carries NO privateKey and NO shortIds: the module
+  remnawave_config_profile generates them once through the Panel x25519 tool and preserves them afterwards.
+  settings.clients stays empty: the Panel injects the users itself.
+#}
+{
+  "log": {"loglevel": "warning"},
+  "inbounds": [
+    {
+      "tag": {{ xvpn_node_inbound_tag | to_json }},
+      "port": 443,
+      "protocol": "vless",
+      "settings": {"clients": [], "decryption": "none"},
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "target": {{ xvpn_edge_https_address | to_json }},
+          "xver": {{ xvpn_node_reality_xver | int }},
+          "serverNames": [{{ xvpn_node_domain | to_json }}]
+        }
+      },
+      "sniffing": {"enabled": true, "destOverride": ["http", "tls", "quic"]}
+    }
+  ],
+  "outbounds": [
+    {"tag": "DIRECT", "protocol": "freedom", "settings": {}},
+    {"tag": "BLOCK", "protocol": "blackhole"}
+  ],
+  "routing": {
+    "rules": [
+      {"type": "field", "ip": {{ xvpn_node_blocked_cidrs | to_json }}, "outboundTag": "BLOCK"}
+    ]
+  }
+}

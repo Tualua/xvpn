@@ -8,6 +8,7 @@
   gather_facts: false
   vars_files:
     - ../../roles/edge/vars/main.yml
+    - ../../roles/node/vars/main.yml
   vars:
     xvpn_selfsteal_root: "{{ playbook_dir }}/../.."
     xvpn_edge_http_address: ":8080"
@@ -27,6 +28,7 @@
     xvpn_edge_user: "{{ lookup('ansible.builtin.env', 'USER') | default(lookup('ansible.builtin.pipe', 'id -un'), true) }}"
     xvpn_edge_role_dir: "{{ playbook_dir }}/../../roles/edge"
     xvpn_node_domain: node.test
+    xvpn_node_inbound_tag: vless-reality-gate
   tasks:
     - name: Self-steal gate | require the work directory
       ansible.builtin.assert:
@@ -72,3 +74,12 @@
 
     - name: Self-steal gate | install the decoy site with the production decoy tasks
       ansible.builtin.include_tasks: ../../roles/edge/tasks/decoy.yml
+
+    - name: Self-steal gate | render the production node profile with the shared test sink override
+      ansible.builtin.copy:
+        content: >-
+          {{ (lookup('ansible.builtin.template', xvpn_selfsteal_root ~ '/roles/node/templates/config-profile.json.j2') | from_json)
+          | combine(lookup('ansible.builtin.template', xvpn_selfsteal_root ~ '/extensions/molecule/shared/templates/test-sink-override.json.j2') | from_json,
+          recursive=True) | to_nice_json }}
+        dest: "{{ xvpn_selfsteal_work }}/profile.json"
+        mode: "0644"

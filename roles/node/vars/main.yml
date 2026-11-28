@@ -4,3 +4,26 @@
 xvpn_node_name_sanitized: "{{ xvpn_node_name | regex_replace('[^A-Za-z0-9_ -]', '-') }}"
 # The inbound tag validator admits no space either.
 xvpn_node_tag_sanitized: "{{ xvpn_node_name | regex_replace('[^A-Za-z0-9_-]', '-') }}"
+
+# Proxy-protocol version Xray sends to the Reality target (0 = off, Traefik has no proxyProtocol trust configured).
+xvpn_node_reality_xver: 0
+# Reality shortIds generated once per inbound by remnawave_config_profile (never taken from inventory, D-03).
+xvpn_node_short_ids: 2
+xvpn_node_short_id_length: 16
+# Private and reserved destinations that the node profile blocks explicitly (RESEARCH Open Question 2, decision in
+# plan 03-10: an explicit CIDR list instead of geoip:private, so the block does not depend on a geo database in the
+# node image). ::/128 and the IPv4-mapped ::ffff:0:0/96 close the IPv6 forms of unspecified, loopback and private
+# destinations. Phase 4 prepends its LAN allow rule before the BLOCK rule built from this list.
+xvpn_node_blocked_cidrs:
+  - 127.0.0.0/8
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 100.64.0.0/10
+  - 169.254.0.0/16
+  - 0.0.0.0/8
+  - "::1/128"
+  - "::/128"
+  - "::ffff:0:0/96"
+  - "fc00::/7"
+  - "fe80::/10"

@@ -1,0 +1,26 @@
+{#
+  TEST SINK ONLY. Shared by the selfsteal gate (scripts/selfsteal/render.yml) and the node-vm scenario so both
+  inject the sink in one shape. Merged over the production profile with combine(recursive=True): lists are
+  replaced, so outbounds and routing.rules are restated in full. Never part of a production inventory.
+  The DIRECT outbound may reach only the loopback sink 127.0.0.1:18090; the sink rule precedes the BLOCK rule.
+#}
+{
+  "outbounds": [
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom",
+      "settings": {
+        "finalRules": [
+          {"action": "allow", "network": "tcp", "ip": ["127.0.0.1"], "port": "18090"}
+        ]
+      }
+    },
+    {"tag": "BLOCK", "protocol": "blackhole"}
+  ],
+  "routing": {
+    "rules": [
+      {"type": "field", "ip": ["127.0.0.1/32"], "port": "18090", "outboundTag": "DIRECT"},
+      {"type": "field", "ip": {{ xvpn_node_blocked_cidrs | to_json }}, "outboundTag": "BLOCK"}
+    ]
+  }
+}

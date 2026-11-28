@@ -140,22 +140,18 @@ write_server() { # <xver>
   XVER="$1" python3 - <<'PY'
 import json, os
 
-cfg = {
-    "log": {"loglevel": "warning"},
-    "inbounds": [{
-        "listen": "127.0.0.1", "port": 4443, "protocol": "vless",
-        "settings": {"clients": [{"id": os.environ["UUID"], "flow": "xtls-rprx-vision"}], "decryption": "none"},
-        "streamSettings": {"network": "tcp", "security": "reality", "realitySettings": {
-            "target": "127.0.0.1:8443", "xver": int(os.environ["XVER"]), "serverNames": ["node.test"],
-            "privateKey": os.environ["PRIV"], "shortIds": [os.environ["SID"]]}},
-        "sniffing": {"enabled": True, "destOverride": ["http", "tls"]},
-    }],
-    "outbounds": [
-        {"tag": "DIRECT", "protocol": "freedom", "settings": {"finalRules": [
-            {"action": "allow", "network": "tcp", "ip": ["127.0.0.1"], "port": "18090"}]}},
-        {"tag": "BLOCK", "protocol": "blackhole"},
-    ],
-}
+# The declared production profile (roles/node/templates/config-profile.json.j2 plus the shared test sink override,
+# rendered to profile.json by render.yml) gets only what the Panel would add: the listen address and a test port,
+# the Reality keys, and the client with flow xtls-rprx-vision.
+cfg = json.load(open(os.environ["WORK"] + "/r/profile.json"))
+inbound = cfg["inbounds"][0]
+inbound["listen"] = "127.0.0.1"
+inbound["port"] = 4443
+inbound["settings"]["clients"] = [{"id": os.environ["UUID"], "flow": "xtls-rprx-vision"}]
+reality = inbound["streamSettings"]["realitySettings"]
+reality["xver"] = int(os.environ["XVER"])
+reality["privateKey"] = os.environ["PRIV"]
+reality["shortIds"] = [os.environ["SID"]]
 json.dump(cfg, open(os.environ["WORK"] + "/xs.json", "w"))
 PY
 }
