@@ -313,7 +313,8 @@ fi
 CASES=$((CASES + 1))
 got="$(via_client http://127.0.0.1:18091/marker)"
 sleep 1
-if ! grep -q 'xvpn-selfsteal-sink-forbidden' <<<"$got" && grep -qi 'finalrule' "$WORK/xs.log"; then
+# the production profile routes private destinations to BLOCK (blackhole) before the freedom finalRules apply
+if ! grep -q 'xvpn-selfsteal-sink-forbidden' <<<"$got" && grep -Eq 'tcp:127\.0\.0\.1:18091 \[[^]]*-> BLOCK\]' "$WORK/xs.log"; then
   echo "ok client-private-blocked"
 else
   fail client-private-blocked
