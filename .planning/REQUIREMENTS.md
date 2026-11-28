@@ -46,9 +46,9 @@
 ### Self-steal (STEAL)
 
 - [x] **STEAL-01**: Reality `dest` указывает на loopback-entrypoint Traefik ноды с настоящим LE-сертификатом на домен ноды
-- [ ] **STEAL-02**: Неавторизованный посетитель (браузер, сканер) на 443 видит правдоподобный сайт-заглушку с валидным сертификатом домена ноды
+- [x] **STEAL-02**: Неавторизованный посетитель (браузер, сканер) на 443 видит правдоподобный сайт-заглушку с валидным сертификатом домена ноды
 - [x] **STEAL-03**: Запрос с чужим SNI или без SNI не раскрывает дефолтный сертификат/404 Traefik (проверяется `openssl s_client` в verify)
-- [ ] **STEAL-04**: Оператор выбирает сайт-заглушку из нескольких встроенных шаблонов или подставляет свой каталог
+- [x] **STEAL-04**: Оператор выбирает сайт-заглушку из нескольких встроенных шаблонов или подставляет свой каталог
 - [ ] **STEAL-05**: Reality-инбаунд включается только после того, как сертификат ноды выпущен и проверен
 
 ### Panel API (API)
@@ -157,9 +157,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NODE-02 | Phase 3 | Pending |
 | NODE-03 | Phase 3 | Complete |
 | STEAL-01 | Phase 3 | Complete |
-| STEAL-02 | Phase 3 | Pending |
+| STEAL-02 | Phase 3 | Complete |
 | STEAL-03 | Phase 3 | Complete |
-| STEAL-04 | Phase 3 | Pending |
+| STEAL-04 | Phase 3 | Complete |
 | STEAL-05 | Phase 3 | Pending |
 | API-01 | Phase 3 | Pending |
 | API-02 | Phase 3 | Pending |

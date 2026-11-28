@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 03
 current_phase_name: Нода с Reality self-steal и авто-регистрацией
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-11-28T10:44:43.497Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-11-28T11:24:46.835Z"
 last_activity: 2026-11-28
 last_activity_desc: Phase 03 execution started
-state_head: 796482614c8c8627ee308604324fcb097509c3b6
+state_head: 1bf50b58b856535f3aaa5113d2e96eff752a6cfe
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-28)
 ## Current Position
 
 Phase: 03 (Нода с Reality self-steal и авто-регистрацией) — EXECUTING
-Plan: 3 of 16
+Plan: 4 of 16
 Status: Ready to execute
 Last activity: 2026-11-28 — Phase 03 execution started
 
@@ -83,6 +83,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P12 | ~3h (CI waits) | 3 tasks | 8 files |
 | Phase 03 P01 | 20min | 2 tasks | 14 files |
 | Phase 03 P02 | 25min | 2 tasks | 4 files |
+| Phase 03 P03 | 60 min | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-12: ACME store is one persistent 0600 file per CA (acme-production/staging/custom-<hash12>.json); legacy acme.json not migrated
 - [Phase 03]: Node reuses edge unchanged: loopback websecure via play vars plus one node-selfsteal drop-in route
 - [Phase 03]: Traefik stays the self-steal terminator: selfsteal gate passes 9 cases on v3.7.20
+- [Phase 03]: Decoy template chosen by rendezvous rule over node domain; Panel page and catch-all unchanged
 
 ### Pending Todos
 
@@ -163,6 +165,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T10:44:43.217Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-11-28T11:24:46.411Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
