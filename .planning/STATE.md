@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
 milestone: v3.7.20
-current_phase: 3
+current_phase: 03
 current_phase_name: Нода с Reality self-steal и авто-регистрацией
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-11-28T08:17:26.582Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-11-28T10:06:34.687Z"
 last_activity: 2026-11-28
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: 94570fb84d086b19d3ab42693d2da1a0cfb51730
+last_activity_desc: Phase 03 execution started
+state_head: 2d2c92bab6c4521a6785222311e9e0ff2bbed12c
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 # Project State
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-28)
 
 **Core value:** Из inventory одной командой получается рабочая, защищённая и идемпотентная инсталляция Remnawave на RHEL 10 с SELinux enforcing: Panel за прокси с защищённым входом, ноды авто-регистрируются через API, Reality self-steal.
-**Current focus:** Phase 3 — Нода с Reality self-steal и авто-регистрацией
+**Current focus:** Phase 03 — Нода с Reality self-steal и авто-регистрацией
 
 ## Current Position
 
-Phase: 3 (Нода с Reality self-steal и авто-регистрацией) — READY TO EXECUTE
-Plan: Not started
+Phase: 03 (Нода с Reality self-steal и авто-регистрацией) — EXECUTING
+Plan: 2 of 16
 Status: Ready to execute
-Last activity: 2026-11-28 — Phase 02 complete, transitioned to Phase 3
+Last activity: 2026-11-28 — Phase 03 execution started
 
 Progress: [████░░░░░░] 40%
 
@@ -81,6 +81,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P10 | 130min | 2 tasks | 10 files |
 | Phase 02 P11 | ~3h | 2 tasks | 5 files |
 | Phase 02 P12 | ~3h (CI waits) | 3 tasks | 8 files |
+| Phase 03 P01 | 20min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Sub-page 8.0.1 with backend 3.4.11 verified; rejected-token outcome is HTTP 502 without data-panel; healthcheck via curl /internal/health
 - [Phase 02]: 02-11: sub-page toggle removes the unit directly when xvpn_panel_activate is false (LSR cleanup needs the user manager bus)
 - [Phase 02]: 02-12: ACME store is one persistent 0600 file per CA (acme-production/staging/custom-<hash12>.json); legacy acme.json not migrated
+- [Phase 03]: Node reuses edge unchanged: loopback websecure via play vars plus one node-selfsteal drop-in route
 
 ### Pending Todos
 
@@ -159,6 +161,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T04:44:21.508Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-noda-s-reality-self-steal-i-avto-registratsiey/03-CONTEXT.md
+Last session: 2026-11-28T10:06:34.348Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None

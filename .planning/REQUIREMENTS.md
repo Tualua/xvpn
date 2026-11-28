@@ -45,7 +45,7 @@
 
 ### Self-steal (STEAL)
 
-- [ ] **STEAL-01**: Reality `dest` указывает на loopback-entrypoint Traefik ноды с настоящим LE-сертификатом на домен ноды
+- [x] **STEAL-01**: Reality `dest` указывает на loopback-entrypoint Traefik ноды с настоящим LE-сертификатом на домен ноды
 - [ ] **STEAL-02**: Неавторизованный посетитель (браузер, сканер) на 443 видит правдоподобный сайт-заглушку с валидным сертификатом домена ноды
 - [ ] **STEAL-03**: Запрос с чужим SNI или без SNI не раскрывает дефолтный сертификат/404 Traefik (проверяется `openssl s_client` в verify)
 - [ ] **STEAL-04**: Оператор выбирает сайт-заглушку из нескольких встроенных шаблонов или подставляет свой каталог
@@ -156,7 +156,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NODE-01 | Phase 3 | Pending |
 | NODE-02 | Phase 3 | Pending |
 | NODE-03 | Phase 3 | Pending |
-| STEAL-01 | Phase 3 | Pending |
+| STEAL-01 | Phase 3 | Complete |
 | STEAL-02 | Phase 3 | Pending |
 | STEAL-03 | Phase 3 | Pending |
 | STEAL-04 | Phase 3 | Pending |
