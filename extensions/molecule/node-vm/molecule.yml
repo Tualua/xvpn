@@ -12,8 +12,8 @@ platforms:
   - name: panel
     box: ${XVPN_NODE_VM_BOX:-almalinux/10}
     box_version: ${XVPN_NODE_VM_BOX_VERSION:-10.2.20260914}
-    box_url: ${XVPN_NODE_VM_BOX_URL:-}
-    box_download_checksum: ${XVPN_NODE_VM_BOX_SHA256:-}
+    box_url: ${XVPN_NODE_VM_BOX_URL}
+    box_download_checksum: ${XVPN_NODE_VM_BOX_SHA256}
     box_download_checksum_type: sha256
     box_architecture: amd64
     memory: ${XVPN_NODE_VM_PANEL_MEMORY:-4096}
@@ -25,8 +25,8 @@ platforms:
   - name: node
     box: ${XVPN_NODE_VM_BOX:-almalinux/10}
     box_version: ${XVPN_NODE_VM_BOX_VERSION:-10.2.20260914}
-    box_url: ${XVPN_NODE_VM_BOX_URL:-}
-    box_download_checksum: ${XVPN_NODE_VM_BOX_SHA256:-}
+    box_url: ${XVPN_NODE_VM_BOX_URL}
+    box_download_checksum: ${XVPN_NODE_VM_BOX_SHA256}
     box_download_checksum_type: sha256
     box_architecture: amd64
     memory: ${XVPN_NODE_VM_NODE_MEMORY:-2048}
