@@ -246,6 +246,43 @@ else
   echo "http: $code"; echo "$out" | tail -n 25
 fi
 
+# A handshake that leaks nothing: an alert or no certificate, never the Traefik default certificate or its 404.
+no_leak() { # <id> <output>
+  if { grep -q 'alert number 112' <<<"$2" || grep -q 'no peer certificate available' <<<"$2"; } \
+    && ! grep -q 'TRAEFIK DEFAULT CERT' <<<"$2" && ! grep -q '404 page not found' <<<"$2"; then
+    echo "ok $1"
+  else
+    fail "$1"
+    echo "$2" | tail -n 25
+  fi
+}
+e2e_ok() { [ "$(via_client http://127.0.0.1:18090/marker)" = "xvpn-selfsteal-sink-ok" ]; }
+# retry the client request until it succeeds (restarts need a moment)
+e2e_wait() {
+  local _
+  for _ in $(seq 1 15); do
+    e2e_ok && return 0
+    sleep 2
+  done
+  return 1
+}
+
+CASES=$((CASES + 1))
+out="$(sclient -connect 127.0.0.1:8443 -servername "$DOMAIN" -CAfile "$WORK/issuer-root.pem" -verify_hostname "$DOMAIN")"
+out2="$(sclient -connect 127.0.0.1:8443 -servername evil.invalid)"
+if grep -q 'Verify return code: 0 (ok)' <<<"$out" && ! grep -q 'TRAEFIK DEFAULT CERT' <<<"$out2" \
+  && { grep -q 'alert number 112' <<<"$out2" || grep -q 'no peer certificate available' <<<"$out2"; }; then
+  echo "ok direct-loopback"
+else
+  fail direct-loopback
+  echo "$out" | tail -n 15; echo "$out2" | tail -n 15
+fi
+
+CASES=$((CASES + 1))
+no_leak foreign-sni "$(sclient -connect 127.0.0.1:4443 -servername evil.invalid)"
+CASES=$((CASES + 1))
+no_leak no-sni "$(sclient -connect 127.0.0.1:4443 -noservername)"
+
 CASES=$((CASES + 1))
 got="$(via_client http://127.0.0.1:18090/marker)"
 if [ "$got" = "xvpn-selfsteal-sink-ok" ]; then
@@ -253,6 +290,68 @@ if [ "$got" = "xvpn-selfsteal-sink-ok" ]; then
 else
   fail client-e2e
   echo "got: $got"; tail -n 20 "$WORK/xs.log" "$WORK/xc.log"
+fi
+
+CASES=$((CASES + 1))
+got="$(via_client http://127.0.0.1:18091/marker)"
+sleep 1
+if ! grep -q 'xvpn-selfsteal-sink-forbidden' <<<"$got" && grep -qi 'finalrule' "$WORK/xs.log"; then
+  echo "ok client-private-blocked"
+else
+  fail client-private-blocked
+  echo "got: $got"; tail -n 20 "$WORK/xs.log"
+fi
+
+CASES=$((CASES + 1))
+podman stop -t 2 "$TRAEFIK_C" >/dev/null
+down_ok=0
+e2e_ok || down_ok=1
+start_traefik
+ready=0
+for _ in $(seq 1 30); do
+  if cert_probe; then ready=1; break; fi
+  sleep 2
+done
+if [ "$down_ok" -eq 1 ] && [ "$ready" -eq 1 ] && e2e_wait; then
+  echo "ok traefik-down"
+else
+  fail traefik-down
+  echo "failed while down: $down_ok (1 = ok), cert back: $ready"
+fi
+
+# xver pairing: only the rendered copy under $WORK changes, never a role template.
+CASES=$((CASES + 1))
+write_server 1
+start_server
+if e2e_ok; then
+  fail xver1-mismatch
+else
+  echo "ok xver1-mismatch"
+fi
+
+CASES=$((CASES + 1))
+python3 - "$R/static/traefik.yml" <<'PY'
+import sys
+
+path = sys.argv[1]
+text = open(path).read()
+old = '    address: "127.0.0.1:8443"\n'
+if old not in text:
+    sys.exit("websecure address line not found in the rendered copy")
+new = old + "    proxyProtocol:\n      trustedIPs:\n        - 127.0.0.1/32\n"
+open(path, "w").write(text.replace(old, new, 1))
+PY
+start_traefik
+code="000"
+if e2e_wait; then
+  code="$(curl -sS --max-time 20 --resolve "$DOMAIN:4443:127.0.0.1" --cacert "$WORK/issuer-root.pem" -o /dev/null \
+    -w '%{http_code}' "https://$DOMAIN:4443/" 2>&1 || true)"
+fi
+if [ "$code" = "200" ]; then
+  echo "ok xver1-proxyprotocol"
+else
+  fail xver1-proxyprotocol
+  echo "http: $code"; podman logs "$TRAEFIK_C" 2>&1 | tail -n 15; tail -n 15 "$WORK/xs.log"
 fi
 
 if [ "${#FAILED[@]}" -gt 0 ]; then
