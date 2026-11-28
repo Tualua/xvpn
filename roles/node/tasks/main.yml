@@ -106,7 +106,8 @@
     - name: Node | gather the network facts of the Panel host
       ansible.builtin.setup:
         gather_subset: [network]
-      delegate_to: "{{ xvpn_node_panel_host }}"
+      # An empty Panel host must not break the templating of a skipped task.
+      delegate_to: "{{ xvpn_node_panel_host | default(omit, true) }}"
       delegate_facts: true
       when:
         - xvpn_node_panel_sources | length == 0
