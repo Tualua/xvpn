@@ -344,6 +344,51 @@
       vars:
         xvpn_node_name: "node one"
 
+    # D-11: files that are not part of the selected source are removed by the next run.
+    - name: Create a stray file on the decoy site
+      ansible.builtin.copy:
+        content: "stray\n"
+        dest: /var/lib/xvpn/rw-edge/decoy/site/stray.txt
+        mode: "0644"
+
+    - name: Create the stray sub-directory with a file
+      ansible.builtin.file:
+        path: /var/lib/xvpn/rw-edge/decoy/site/old
+        state: directory
+        mode: "0755"
+
+    - name: Put a file into the stray sub-directory
+      ansible.builtin.copy:
+        content: "stray\n"
+        dest: /var/lib/xvpn/rw-edge/decoy/site/old/x.html
+        mode: "0644"
+
+    - name: Run the edge role again with the node decoy variables
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.edge
+      vars:
+        xvpn_edge_activate: false
+        xvpn_edge_https_address: "127.0.0.1:8443"
+        xvpn_edge_acme_ca: staging
+        xvpn_edge_decoy_select_key: "{{ xvpn_node_domain }}"
+        xvpn_edge_decoy_strict: true
+
+    - name: Stat the strays and a template file
+      ansible.builtin.stat:
+        path: "/var/lib/xvpn/rw-edge/decoy/site/{{ item }}"
+      loop: [stray.txt, old, old/x.html, 404.html]
+      register: xvpn_verify_decoy_prune
+
+    - name: Assert the strays are gone and the template files are still there
+      ansible.builtin.assert:
+        that:
+          - not xvpn_verify_decoy_prune.results[0].stat.exists
+          - not xvpn_verify_decoy_prune.results[1].stat.exists
+          - not xvpn_verify_decoy_prune.results[2].stat.exists
+          - xvpn_verify_decoy_prune.results[3].stat.exists
+        fail_msg: "a stray file survived the decoy prune or a template file was removed"
+        quiet: true
+
     - name: List the dynamic directory after the node cases
       ansible.builtin.find:
         paths: /var/lib/xvpn/rw-edge/traefik/dynamic

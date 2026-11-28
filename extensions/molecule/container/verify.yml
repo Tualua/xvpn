@@ -303,6 +303,36 @@
       loop_control:
         label: "{{ item.item }}"
 
+    # D-12: the Panel keeps its neutral page byte for byte and the catch-all.
+    - name: Find the files of the Panel decoy site
+      ansible.builtin.find:
+        paths: /var/lib/xvpn/rw-edge/decoy/site
+        recurse: true
+        file_type: any
+        hidden: true
+      register: xvpn_verify_panel_site
+
+    - name: Stat the Panel decoy page
+      ansible.builtin.stat:
+        path: /var/lib/xvpn/rw-edge/decoy/site/index.html
+        checksum_algorithm: sha256
+      register: xvpn_verify_panel_page
+
+    - name: Read the Panel decoy nginx configuration
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/decoy/conf.d/default.conf
+      register: xvpn_verify_panel_conf
+
+    - name: Assert the Panel decoy did not drift
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_panel_site.files | map(attribute='path') | list == ['/var/lib/xvpn/rw-edge/decoy/site/index.html']
+          - xvpn_verify_panel_page.stat.checksum == '23058096c8cfee85dc93123782ca96719293b09b55aad6e91d60b1b25a64c379'
+          - "'try_files $uri $uri/ /index.html;' in (xvpn_verify_panel_conf.content | b64decode)"
+          - "'error_page 404 /404.html' not in (xvpn_verify_panel_conf.content | b64decode)"
+        fail_msg: "the Panel decoy site or its catch-all changed (D-12)"
+        quiet: true
+
     - name: Stat the Panel route file
       ansible.builtin.stat:
         path: /var/lib/xvpn/rw-edge/traefik/dynamic/panel.yml
