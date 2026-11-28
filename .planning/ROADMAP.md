@@ -125,7 +125,34 @@ Plans:
   3. После прогона в Panel существуют config profile, node и hosts для ноды из inventory, нода в состоянии connected; повторный прогон не создаёт дубликатов и не меняет Reality-ключи/shortIds (`changed=0`)
   4. Модули `remnawave_config_profile`, `remnawave_node`, `remnawave_host`, `remnawave_internal_squad` работают в `--check` и `--diff` и честно сообщают `changed`
   5. Порт 2222 ноды доступен только с IP Panel; нода с `state: absent` и явным флагом удаляется из Panel вместе с hosts, а её юниты останавливаются
-**Plans**: 3 plans (спайк self-steal + Traefik loopback-entrypoint + заглушки; remnanode-роль + firewalld; API-модули + флоу регистрации/decommission + e2e)
+**Plans:** 9 plans
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Роль node (скелет, input-guards), self-steal маршрут на loopback-edge, playbooks/node.yml и site.yml, контейнерный сценарий node, QA-05 для node.yml (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — Регрессионный гейт self-steal на продакшн-шаблонах: Reality -> Traefik 127.0.0.1:8443, валидный/чужой/пустой SNI, Vision-клиент, private-блок, xver, break-proof (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-03-PLAN.md — Четыре шаблона сайта-заглушки, выбор по хешу домена, свой каталог с prune, строгий 404 на ноде, Panel без дрейфа (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-04-PLAN.md — API-клиент module_utils + remnawave_node_secret, SECRET_KEY один раз, remnanode rootless Quadlet, двух-VM стенд Panel+Node, unit-тесты на fake Panel (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-05-PLAN.md — Сертификатный гейт STEAL-05 (443 только после пробы), rich rule 2222 только для Panel, матрица alma/rocky/oracle (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 03-06-PLAN.md — remnawave_config_profile: свой профиль ноды, ключи из Panel без ротации, нормализованный diff с redaction, override, дрейф из UI (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 03-07-PLAN.md — remnawave_internal_squad (union) и remnawave_node (ожидание connected с диагностикой) (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 03-08-PLAN.md — remnawave_host, реальный клиент из подписки выходит в интернет, private-негативы, SNI/decoy-матрица против ноды (wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 03-09-PLAN.md — Decommission с флагом и повторная регистрация, честные --check/--diff на реальной Panel, README Node host (wave 9)
 **Research flag**: HIGH RISK: Reality -> Traefik TLS на loopback (`127.0.0.1:8443`, `xver: 0`, ALPN, default cert при неизвестном SNI) не подтверждён; начать с ручного спайка, при провале пересмотреть выбор Traefik. REST-контракт Remnawave читать из OpenAPI закреплённой версии backend 3.4.11 до написания модулей. Проверить необходимость `NET_ADMIN` и SELinux-разрешений для `container_t`
 
 ### Phase 4: Доступ в LAN для доверенного squad'а
