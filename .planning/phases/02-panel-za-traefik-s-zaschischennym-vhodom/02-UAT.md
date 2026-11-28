@@ -126,7 +126,9 @@ blocked: 0
 ## Gaps
 
 - truth: "Переключение xvpn_edge_acme_ca со staging на production и повторный прогон panel.yml дают production-сертификат Let's Encrypt"
-  status: failed
+  status: resolved
+  resolved_by: 02-12-PLAN.md
+  resolved_at: 2026-11-28
   reason: "User reported: PLAY RECAP panel1 : ok=574 changed=2 unreachable=0 failed=0 skipped=420. Сертификат остался staging. Подозреваю, что нужно перезапустить контейнер с traefik. Сделать я это не смог, у юзера /sbin/nologin"
   severity: major
   test: 2
