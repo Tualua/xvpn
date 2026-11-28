@@ -108,3 +108,34 @@
         mode: "0600"
         force: false
       no_log: true
+
+- name: Record the node uuid after the first converge
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the node registration
+      ansible.builtin.include_tasks: ../shared/node_registration_read.yml
+      vars:
+        xvpn_nr_name: "{{ groups['remnawave_nodes'][0] }}"
+        xvpn_nr_profile: node
+        xvpn_nr_tag: vless-reality-node
+
+    - name: Assert exactly one connected node exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_nr_count | int == 1
+          - xvpn_nr_node.isConnected | bool
+        fail_msg: "the Panel holds {{ xvpn_nr_count }} nodes named after the host or the node is not connected after the first converge"
+        quiet: true
+      no_log: true
+
+    - name: Record the node uuid
+      ansible.builtin.copy:
+        content: "{{ xvpn_nr_node.uuid }}\n"
+        dest: /var/lib/xvpn-molecule/node_uuid_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: false
+      no_log: true

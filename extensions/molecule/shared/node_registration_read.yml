@@ -1,0 +1,45 @@
+---
+# Reads the node, the squads and the node inbound uuid through the Panel API on loopback (run on the Panel host).
+# Inputs: xvpn_nr_name (node name), xvpn_nr_profile (profile name), xvpn_nr_tag (inbound tag).
+# Output facts (no secrets; every task here has no_log because it handles the API token):
+#   xvpn_nr_count          number of nodes with that name
+#   xvpn_nr_node           the first of them (dict, empty when none)
+#   xvpn_nr_inbound_uuid   uuid of the inbound tag in the profile
+#   xvpn_nr_squads         dict squad name -> list of inbound uuids
+- name: Node registration read | read the API token
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn/rw-panel/secrets/api-token
+  register: xvpn_nr_token
+  no_log: true
+
+- name: Node registration read | list nodes, profiles and squads
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:3000{{ item }}"
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_nr_token.content | b64decode | trim }}"
+    return_content: true
+  loop:
+    - /api/nodes
+    - /api/config-profiles
+    - /api/internal-squads
+  register: xvpn_nr_lists
+  changed_when: false
+  no_log: true
+
+- name: Node registration read | compute the facts
+  ansible.builtin.set_fact:
+    xvpn_nr_count: "{{ xvpn_nr_matches | length }}"
+    xvpn_nr_node: "{{ xvpn_nr_matches | first | default({}) }}"
+    xvpn_nr_inbound_uuid: >-
+      {{ ((xvpn_nr_profiles | selectattr('name', 'equalto', xvpn_nr_profile) | first | default({}))['inbounds'] | default([])
+          | selectattr('tag', 'equalto', xvpn_nr_tag) | map(attribute='uuid') | first) | default('') }}
+    xvpn_nr_squads: >-
+      {{ dict(xvpn_nr_lists.results[2].json.response.internalSquads
+              | map(attribute='name') | zip(xvpn_nr_lists.results[2].json.response.internalSquads
+              | map(attribute='inbounds') | map('map', attribute='uuid') | map('list'))) }}
+  vars:
+    xvpn_nr_matches: "{{ xvpn_nr_lists.results[0].json.response | selectattr('name', 'equalto', xvpn_nr_name) | list }}"
+    xvpn_nr_profiles: "{{ xvpn_nr_lists.results[1].json.response.configProfiles }}"
+  no_log: true

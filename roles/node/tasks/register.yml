@@ -24,3 +24,26 @@
             server_names: ["{{ xvpn_node_domain }}"]
         required_block_cidrs: "{{ xvpn_node_blocked_cidrs }}"
       register: xvpn_node_profile
+
+    # Union-only membership: inbounds of other profiles stay, a missing non-default squad is created.
+    - name: Node register | put the inbound into the squads
+      xvpn.remnawave.remnawave_internal_squad:
+        name: "{{ item }}"
+        config_profile: "{{ xvpn_node_profile_name }}"
+        inbound_tags: ["{{ xvpn_node_inbound_tag }}"]
+      loop: "{{ xvpn_node_squads }}"
+      register: xvpn_node_squad_results
+
+    # Fails with diagnostics when the Panel does not see the node connected within retries x delay.
+    - name: Node register | register the node and wait until it is connected
+      xvpn.remnawave.remnawave_node:
+        name: "{{ xvpn_node_name }}"
+        address: "{{ xvpn_node_address }}"
+        port: "{{ xvpn_node_api_port }}"
+        country_code: "{{ xvpn_node_country_code }}"
+        config_profile: "{{ xvpn_node_profile_name }}"
+        inbound_tags: ["{{ xvpn_node_inbound_tag }}"]
+        wait_connected: "{{ not ansible_check_mode }}"
+        wait_retries: "{{ xvpn_node_connect_retries }}"
+        wait_delay: "{{ xvpn_node_connect_delay }}"
+      register: xvpn_node_registration

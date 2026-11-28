@@ -46,3 +46,38 @@
       differs from the one recorded after the first converge
     quiet: true
   no_log: true
+
+# Node registration (API-02, API-03, API-04): one node with the declared fields, connected, inbound in Default-Squad,
+# uuid unchanged since the first converge. Extra inputs: xvpn_verify_node_name (default: first host of remnawave_nodes),
+# xvpn_verify_node_address (default: its default IPv4), xvpn_verify_node_squad (default Default-Squad).
+- name: Verify node panel | read the node registration
+  ansible.builtin.include_tasks: node_registration_read.yml
+  vars:
+    xvpn_nr_name: "{{ xvpn_verify_node_name | default(groups['remnawave_nodes'][0]) }}"
+    xvpn_nr_profile: "{{ xvpn_np_name }}"
+    xvpn_nr_tag: "{{ xvpn_vnp_tag }}"
+
+- name: Verify node panel | read the uuid recorded after the first converge
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn-molecule/node_uuid_after_first_converge
+  register: xvpn_vnp_node_uuid
+  no_log: true
+
+- name: Verify node panel | assert the registered node
+  ansible.builtin.assert:
+    that:
+      - xvpn_nr_count | int == 1
+      - xvpn_nr_node.port == 2222
+      - xvpn_nr_node.address == (xvpn_verify_node_address | default(hostvars[groups['remnawave_nodes'][0]]['ansible_facts']['default_ipv4']['address']))
+      - xvpn_nr_node.isConnected | bool
+      - xvpn_nr_node.configProfile.activeConfigProfileUuid == xvpn_np_uuid
+      - xvpn_nr_node.configProfile.activeInbounds | map(attribute='uuid') | list == [xvpn_nr_inbound_uuid]
+      - xvpn_nr_inbound_uuid | length > 0
+      - xvpn_nr_inbound_uuid in xvpn_nr_squads[xvpn_verify_node_squad | default('Default-Squad')]
+      - xvpn_nr_node.uuid == (xvpn_vnp_node_uuid.content | b64decode | trim)
+    fail_msg: >-
+      the node in the Panel is not as declared: exactly one node named after the host, port 2222, the declared address,
+      connected, profile {{ xvpn_np_name }} with only inbound {{ xvpn_vnp_tag }}, that inbound in the squad, and the uuid
+      recorded after the first converge
+    quiet: true
+  no_log: true

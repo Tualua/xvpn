@@ -91,6 +91,25 @@ argument_specs:
           managed Reality target and serverNames must survive, otherwise the run fails.
         type: dict
         default: {}
+      xvpn_node_squads:
+        description: >-
+          Internal squads that receive the node inbound (union only, other members stay, squads are never deleted).
+          Default-Squad is seeded by the Panel; another listed squad is created when missing. Empty list adds the inbound nowhere.
+        type: list
+        elements: str
+        default: [Default-Squad]
+      xvpn_node_country_code:
+        description: Two-letter country code of the node in the Panel.
+        type: str
+        default: XX
+      xvpn_node_connect_retries:
+        description: Number of status polls while waiting for the Panel to report the node connected; skipped in check mode.
+        type: int
+        default: 30
+      xvpn_node_connect_delay:
+        description: Seconds between those polls (the Panel health check runs every 10 s); skipped in check mode.
+        type: int
+        default: 5
       xvpn_node_state:
         description: present, or absent (decommission, not implemented yet).
         type: str

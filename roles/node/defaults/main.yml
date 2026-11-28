@@ -61,3 +61,14 @@ xvpn_node_cert_gate_delay: 5
 # CA file used to verify the gate certificate (private CA, Pebble in CI). Empty: system roots for the production
 # Let's Encrypt CA, and only the subject check for any other ACME CA.
 xvpn_node_cert_gate_ca_file: ""
+
+# Internal squads that receive the node inbound (union only: inbounds of other profiles stay members, squads are never
+# deleted). Default-Squad is seeded by the Panel; any other listed squad is created when missing. Empty list: no squad.
+xvpn_node_squads:
+  - Default-Squad
+# Country code of the node in the Panel (two letters; XX when unknown).
+xvpn_node_country_code: XX
+# Wait until the Panel reports the node connected (skipped in check mode): retries x delay seconds, then the run fails.
+# The Panel health check runs every 10 s.
+xvpn_node_connect_retries: 30
+xvpn_node_connect_delay: 5
