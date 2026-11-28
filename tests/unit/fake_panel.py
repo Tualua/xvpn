@@ -23,7 +23,13 @@ def _reorder(obj):
 
 class FakePanel(object):
     def __init__(self):
-        self.resources = {"nodes": [], "config_profiles": []}
+        self.resources = {"nodes": [], "config_profiles": [], "internal_squads": []}
+        # node status: isConnected turns true on the Nth GET /api/nodes/{uuid} (None: never)
+        self.connect_after = 1
+        self.node_status_message = "connection refused"
+        self.node_gets = {}
+        self.delete_polls = 1
+        self._delete_seen = {}
         # Server-side transformations of config profiles, switchable per test. Faithful to 3.4.11: create only
         # sorts (config-profile.service.ts:146), update additionally cleans clients, splits serverNames and
         # requires outbounds (config-profile.service.ts:274-276).
@@ -101,6 +107,99 @@ class FakePanel(object):
             return 200, {"response": True}
         return None
 
+    def seed_squad(self, name, inbound_uuids=(), squad_uuid=None):
+        squad = {"uuid": squad_uuid or str(uuid.uuid4()), "name": name, "inbounds": [{"uuid": u} for u in inbound_uuids]}
+        self.resources["internal_squads"].append(squad)
+        return squad
+
+    def seed_node(self, name, address, profile_uuid, inbound_uuids, port=2222, country="XX"):
+        node = {
+            "uuid": str(uuid.uuid4()), "name": name, "address": address, "port": port, "countryCode": country,
+            "isConnected": False, "isConnecting": False, "isDisabled": False, "lastStatusMessage": None,
+            "configProfile": {"activeConfigProfileUuid": profile_uuid, "activeInbounds": [{"uuid": u} for u in inbound_uuids]},
+        }
+        self.resources["nodes"].append(node)
+        return node
+
+    def inbound_uuid(self, profile_name, tag):
+        profile = next(p for p in self.resources["config_profiles"] if p["name"] == profile_name)
+        return uuid.uuid5(uuid.UUID(profile["uuid"]), tag).hex
+
+    def _squads_request(self, command, path, body):
+        squads = self.resources["internal_squads"]
+        if path != "/api/internal-squads":
+            return None
+        if command == "GET":
+            return 200, {"response": {"total": len(squads), "internalSquads": copy.deepcopy(squads)}}
+        if command == "POST":
+            if any(s["name"] == body["name"] for s in squads):
+                return 409, {"errorCode": "A100", "message": "Internal squad name already exists"}
+            squad = self.seed_squad(body["name"], body["inbounds"])
+            return 200, {"response": copy.deepcopy(squad)}
+        if command == "PATCH":
+            squad = next((s for s in squads if s["uuid"] == body["uuid"]), None)
+            if squad is None:
+                return 404, {"errorCode": "A099", "message": "Internal squad not found"}
+            if "inbounds" in body:  # cleanInbounds + createInbounds: full replace
+                squad["inbounds"] = [{"uuid": u} for u in body["inbounds"]]
+            return 200, {"response": copy.deepcopy(squad)}
+        return None
+
+    def _nodes_request(self, command, path, body):
+        nodes = self.resources["nodes"]
+        if path == "/api/nodes" and command == "GET":
+            out = []
+            for n in nodes:
+                if n.get("isNeedToBeDeleted"):
+                    seen = self._delete_seen.get(n["uuid"], 0) + 1
+                    self._delete_seen[n["uuid"]] = seen
+                    if seen > self.delete_polls:
+                        continue
+                out.append(copy.deepcopy(n))
+            self.resources["nodes"] = [n for n in nodes if not (n.get("isNeedToBeDeleted") and self._delete_seen.get(n["uuid"], 0) > self.delete_polls)]
+            return 200, {"response": out}
+        if path == "/api/nodes" and command == "POST" and "configProfile" not in (body or {}):
+            return 200, {"response": {}}  # client tests post arbitrary bodies
+        if path == "/api/nodes" and command == "POST":
+            if any(n["address"] == body["address"] for n in nodes):
+                return 409, {"errorCode": "A034", "message": "Node address already exists"}
+            node = self.seed_node(
+                body["name"], body["address"], body["configProfile"]["activeConfigProfileUuid"],
+                body["configProfile"]["activeInbounds"], body.get("port") or 2222, body.get("countryCode", "XX"),
+            )
+            return 200, {"response": copy.deepcopy(node)}
+        if path == "/api/nodes" and command == "PATCH":
+            node = next((n for n in nodes if n["uuid"] == body["uuid"]), None)
+            if node is None:
+                return 404, {"errorCode": "A011", "message": "Node not found"}
+            for key in ("address", "port", "countryCode"):
+                if key in body:
+                    node[key] = body[key]
+            if "configProfile" in body:
+                cp = body["configProfile"]
+                node["configProfile"] = {
+                    "activeConfigProfileUuid": cp["activeConfigProfileUuid"],
+                    "activeInbounds": [{"uuid": u} for u in cp["activeInbounds"]],
+                }
+            return 200, {"response": copy.deepcopy(node)}
+        if path.startswith("/api/nodes/"):
+            key = path.rsplit("/", 1)[1]
+            node = next((n for n in nodes if n["uuid"] == key), None)
+            if node is None:
+                return 404, {"errorCode": "A011", "message": "Node not found"}
+            if command == "DELETE":
+                node["isNeedToBeDeleted"] = True
+                return 200, {"response": True}
+            if command == "GET":
+                count = self.node_gets.get(key, 0) + 1
+                self.node_gets[key] = count
+                if self.connect_after is not None and count >= self.connect_after:
+                    node["isConnected"] = True
+                else:
+                    node["lastStatusMessage"] = self.node_status_message
+                return 200, {"response": copy.deepcopy(node)}
+        return None
+
     def fail_next(self, status, code, message):
         self._errors.append((status, code, message))
 
@@ -146,8 +245,10 @@ class FakePanel(object):
                 handled = panel._profiles_request(self.command, self.path, body)
                 if handled:
                     return self._send(*handled)
-                if self.command == "GET" and self.path == "/api/nodes":
-                    return self._send(200, {"response": list(panel.resources["nodes"])})
+                for extra in (panel._squads_request, panel._nodes_request):
+                    handled = extra(self.command, self.path, body)
+                    if handled:
+                        return self._send(*handled)
                 return self._send(200, {"response": {}})
 
             do_GET = do_POST = do_PATCH = do_DELETE = _handle

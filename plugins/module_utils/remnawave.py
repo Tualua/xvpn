@@ -259,3 +259,12 @@ def diff_paths(a, b, _prefix=""):
                 paths.extend(diff_paths(a[idx], b[idx], sub))
         return paths
     return [] if a == b else [_prefix or "$"]
+
+
+def resolve_profile(client, name):
+    """Return (profile uuid, {inbound tag: inbound uuid}) of the named config profile, or (None, {})."""
+    data = client.get("/api/config-profiles") or {}
+    profile = find_by(data.get("configProfiles") or [], "name", name)
+    if profile is None:
+        return None, {}
+    return profile["uuid"], dict((i.get("tag"), i.get("uuid")) for i in profile.get("inbounds") or [])
