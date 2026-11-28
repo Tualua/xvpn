@@ -2,6 +2,17 @@
 # Domains are operator input, not secrets, so they are echoed in the failure messages.
 - name: Node | validate the inputs
   block:
+    - name: Node | refuse registration without activation
+      ansible.builtin.assert:
+        that:
+          - not (xvpn_node_register | bool and not (xvpn_node_activate | bool))
+        fail_msg: >-
+          xvpn_node_register is true but xvpn_node_activate is false: the certificate gate needs the running edge, and the
+          Reality inbound and host are registered only after it passed (D-15). Set xvpn_node_activate: true, or
+          xvpn_node_register: false to render without registering
+        quiet: true
+      when: xvpn_node_state == 'present'
+
     - name: Node | validate the node domain
       ansible.builtin.assert:
         that:
@@ -81,6 +92,57 @@
       - ansible_facts['getent_passwd'][xvpn_node_user] is not none
     fail_msg: "service user {{ xvpn_node_user }} does not exist; run xvpn.remnawave.podman_rootless with {{ xvpn_node_user }} first"
     quiet: true
+
+- name: Node | resolve the Panel sources of the node API rule
+  when: xvpn_node_state == 'present'
+  block:
+    - name: Node | read the Panel address from the inventory
+      ansible.builtin.set_fact:
+        xvpn_node_panel_src_inv: >-
+          {{ (hostvars[xvpn_node_panel_host].xvpn_public_ip | default(''))
+             if (xvpn_node_panel_host | length > 0 and xvpn_node_panel_host in hostvars) else '' }}
+
+    # Facts of the Panel host are gathered once and reused by later node hosts of the same play.
+    - name: Node | gather the network facts of the Panel host
+      ansible.builtin.setup:
+        gather_subset: [network]
+      delegate_to: "{{ xvpn_node_panel_host }}"
+      delegate_facts: true
+      when:
+        - xvpn_node_panel_sources | length == 0
+        - xvpn_node_panel_src_inv | length == 0
+        - xvpn_node_register | bool
+        - xvpn_node_panel_host | length > 0
+        - (hostvars[xvpn_node_panel_host].ansible_facts | default({})).default_ipv4 is not defined
+
+    - name: Node | pick the Panel sources
+      ansible.builtin.set_fact:
+        xvpn_node_panel_sources_resolved: >-
+          {{ xvpn_node_panel_sources if xvpn_node_panel_sources | length > 0
+             else ([xvpn_node_panel_src_inv] if xvpn_node_panel_src_inv | length > 0
+             else ([((hostvars[xvpn_node_panel_host].ansible_facts | default({})).default_ipv4 | default({})).address | default('')]
+                   if (xvpn_node_panel_host | length > 0 and xvpn_node_panel_host in hostvars) else [''])) }}
+        xvpn_node_panel_sources_fallback: "{{ xvpn_node_panel_sources | length == 0 and xvpn_node_panel_src_inv | length == 0 }}"
+
+    - name: Node | validate the Panel sources
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_panel_sources_resolved | length > 0
+          - >-
+            xvpn_node_panel_sources_resolved | select('match', '^([0-9]{1,3}[.]){3}[0-9]{1,3}(/[0-9]{1,2})?$') | list | length
+            == xvpn_node_panel_sources_resolved | length
+        fail_msg: >-
+          xvpn_node_panel_sources must hold the Panel IPv4 address(es) the node API accepts; got {{ xvpn_node_panel_sources_resolved }}
+          (IPv4 only in v1; when the Panel is behind NAT its default IPv4 is a private address, so set
+          xvpn_node_panel_sources to the address the Panel connects from)
+        quiet: true
+
+    - name: Node | note the Panel address taken from the facts
+      ansible.builtin.debug:
+        msg: >-
+          NOTICE: xvpn_node_panel_sources is empty; the node API port is opened for {{ xvpn_node_panel_sources_resolved }}
+          (default IPv4 of the Panel host). When the Panel is behind NAT, set xvpn_node_panel_sources to the address the Panel connects from.
+      when: xvpn_node_panel_sources_fallback | bool
 
 - name: Node | deploy the node
   ansible.builtin.include_tasks: present.yml

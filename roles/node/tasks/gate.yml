@@ -1,0 +1,48 @@
+---
+# STEAL-05: 443/tcp opens only after the loopback TLS entrypoint presents a certificate of the node domain.
+- name: Node gate | install openssl
+  ansible.builtin.dnf:
+    name: openssl
+    state: present
+
+# The chain is verified against the system roots for the production CA and against xvpn_node_cert_gate_ca_file when
+# set. For any other ACME CA without a CA file only the presence of the domain in the certificate subject is checked.
+- name: Node gate | decide whether the chain is verified
+  ansible.builtin.set_fact:
+    xvpn_node_gate_verify_chain: "{{ (xvpn_node_cert_gate_ca_file | length > 0) or (xvpn_edge_acme_ca | default('production')) == 'production' }}"
+
+- name: Node gate | probe the certificate on the loopback entrypoint
+  ansible.builtin.command:
+    argv: >-
+      {{ ['openssl', 's_client', '-connect', xvpn_edge_https_address, '-servername', xvpn_node_domain,
+          '-verify_hostname', xvpn_node_domain]
+         + (['-verify_return_error'] if xvpn_node_gate_verify_chain | bool else [])
+         + (['-CAfile', xvpn_node_cert_gate_ca_file] if xvpn_node_cert_gate_ca_file | length > 0 else []) }}
+    stdin: ""
+  register: xvpn_node_gate_probe
+  until: >-
+    xvpn_node_gate_probe.rc == 0 and
+    (('Verification: OK' in xvpn_node_gate_probe.stdout) if xvpn_node_gate_verify_chain | bool
+     else (xvpn_node_domain in xvpn_node_gate_probe.stdout))
+  retries: "{{ xvpn_node_cert_gate_retries }}"
+  delay: "{{ xvpn_node_cert_gate_delay }}"
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Node gate | decide whether the probe passed
+  ansible.builtin.set_fact:
+    xvpn_node_gate_ok: >-
+      {{ xvpn_node_gate_probe.rc == 0 and
+         (('Verification: OK' in xvpn_node_gate_probe.stdout) if xvpn_node_gate_verify_chain | bool
+          else (xvpn_node_domain in xvpn_node_gate_probe.stdout)) }}
+
+- name: Node gate | fail when the certificate was not served
+  ansible.builtin.fail:
+    msg: >-
+      certificate for {{ xvpn_node_domain }} was not served on the loopback entrypoint {{ xvpn_edge_https_address }} after
+      {{ (xvpn_node_cert_gate_retries | int) * (xvpn_node_cert_gate_delay | int) }} s: check that the A record of the node
+      domain points at this host, that port 80 is reachable from the internet for HTTP-01, and the ACME CA
+      (staging, rate limits); the Reality inbound and port 443 stay closed (STEAL-05).
+      Last output: {{ (xvpn_node_gate_probe.stdout_lines | default([]))[-20:] + (xvpn_node_gate_probe.stderr_lines | default([]))[-20:] }}
+  when: not (xvpn_node_gate_ok | bool)

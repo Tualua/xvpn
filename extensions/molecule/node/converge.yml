@@ -14,5 +14,7 @@
     xvpn_node_activate: false
     xvpn_node_register: false
     xvpn_node_domain: node.xvpn.test
+    # the Panel the node API port is opened for (documentation address)
+    xvpn_node_panel_sources: ["192.0.2.10"]
     # CI never talks to production Let's Encrypt (QA-05)
     xvpn_edge_acme_ca: staging

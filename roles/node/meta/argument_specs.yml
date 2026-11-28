@@ -67,8 +67,44 @@ argument_specs:
         description: "Explicit opt-in: issue a new SECRET_KEY on this run; node.env is rewritten and remnanode restarts."
         type: bool
         default: false
+      xvpn_node_panel_sources:
+        description: IPv4 addresses or CIDRs of the Panel allowed to reach the node API port; empty takes the address of the Panel host (IPv4 only).
+        type: list
+        elements: str
+        default: []
+      xvpn_node_cert_gate_retries:
+        description: Number of probes of the loopback certificate gate.
+        type: int
+        default: 60
+      xvpn_node_cert_gate_delay:
+        description: Seconds between the probes of the certificate gate.
+        type: int
+        default: 5
+      xvpn_node_cert_gate_ca_file:
+        description: CA file that verifies the gate certificate; empty uses the system roots with the production ACME CA.
+        type: str
+        default: ""
       xvpn_node_state:
         description: present, or absent (decommission, not implemented yet).
         type: str
         default: present
         choices: [present, absent]
+  gate:
+    short_description: Certificate gate of the node domain on the loopback entrypoint (STEAL-05)
+    options:
+      xvpn_node_domain:
+        description: Public FQDN of the node; its certificate must be served on the loopback entrypoint.
+        type: str
+        required: true
+      xvpn_node_cert_gate_retries:
+        description: Number of probes of the loopback certificate gate.
+        type: int
+        default: 60
+      xvpn_node_cert_gate_delay:
+        description: Seconds between the probes of the certificate gate.
+        type: int
+        default: 5
+      xvpn_node_cert_gate_ca_file:
+        description: CA file that verifies the gate certificate; empty uses the system roots with the production ACME CA.
+        type: str
+        default: ""

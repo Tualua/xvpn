@@ -12,8 +12,21 @@
     xvpn_edge_route_name: node-selfsteal
     xvpn_edge_route_src: "{{ xvpn_node_route_src }}"
 
+# STEAL-05: 443 opens only after the certificate of the node domain is proven on loopback.
+- name: Node | prove the certificate on the loopback entrypoint
+  ansible.builtin.include_tasks: gate.yml
+  when: xvpn_node_activate | bool
+
+- name: Node | remember that the gate passed
+  ansible.builtin.set_fact:
+    xvpn_node_gate_passed: true
+  when: xvpn_node_activate | bool
+
 - name: Node | fetch the SECRET_KEY and write the env files
   ansible.builtin.include_tasks: secret.yml
 
 - name: Node | deploy remnanode
   ansible.builtin.include_tasks: service.yml
+
+- name: Node | open the node firewall
+  ansible.builtin.include_tasks: firewall.yml

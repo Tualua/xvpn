@@ -46,3 +46,14 @@ xvpn_node_api_port: 2222
 xvpn_node_env_dir: "{{ xvpn_node_home }}/env"
 # Explicit one-shot opt-in (usually -e xvpn_node_rekey=true): issue a new SECRET_KEY, rewrite node.env, restart remnanode.
 xvpn_node_rekey: false
+
+# IPv4 addresses or CIDRs of the Panel that may reach the node API port. Empty: taken from the Panel host
+# (inventory xvpn_public_ip, else its default IPv4 address). IPv4 only in v1.
+xvpn_node_panel_sources: []
+# Certificate gate (STEAL-05): the loopback TLS entrypoint must present a certificate of the node domain before
+# 443/tcp is opened. Total wait is retries x delay seconds.
+xvpn_node_cert_gate_retries: 60
+xvpn_node_cert_gate_delay: 5
+# CA file used to verify the gate certificate (private CA, Pebble in CI). Empty: system roots for the production
+# Let's Encrypt CA, and only the subject check for any other ACME CA.
+xvpn_node_cert_gate_ca_file: ""

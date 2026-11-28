@@ -1,7 +1,8 @@
 ---
 # Host baseline assertions shared by the container and VM tiers.
 # Inputs: xvpn_verify_firewall_cmd (default firewall-cmd), xvpn_verify_expected_ports (default ["80/tcp"]),
-#         xvpn_verify_allowed_services (default [ssh, dhcpv6-client, cockpit]).
+#         xvpn_verify_allowed_services (default [ssh, dhcpv6-client, cockpit]),
+#         xvpn_verify_expected_rich_rules (default []; exact set of the rich rules of the zone).
 #
 # xvpn_verify_expected_ports is the cross-phase contract of the exact-set firewall check: every later
 # phase that adds a port through xvpn_common_firewall_ports must add the same entry here (scenario vars),
@@ -101,6 +102,17 @@
       differ from the declared set {{ (xvpn_verify_expected_ports | default(['80/tcp'])) | unique | sort }}
     quiet: true
 
+- name: Assert the rich rules of the zone equal exactly the declared set
+  ansible.builtin.assert:
+    that:
+      - >-
+        (xvpn_verify_fw_rich.stdout_lines | map('trim') | reject('equalto', '') | unique | sort)
+        == ((xvpn_verify_expected_rich_rules | default([])) | unique | sort)
+    fail_msg: >-
+      zone {{ xvpn_verify_fw_zone }} rich rules {{ xvpn_verify_fw_rich.stdout_lines | unique | sort }}
+      differ from the declared set {{ (xvpn_verify_expected_rich_rules | default([])) | unique | sort }}
+    quiet: true
+
 - name: Assert the zone services stay within the declared allow-list
   ansible.builtin.assert:
     that:
@@ -108,12 +120,16 @@
     fail_msg: "zone {{ xvpn_verify_fw_zone }} has undeclared services: {{ xvpn_verify_fw_services.stdout }}"
     quiet: true
 
+- name: Keep the rich rules that are not declared
+  ansible.builtin.set_fact:
+    xvpn_verify_fw_rich_other: "{{ xvpn_verify_fw_rich.stdout_lines | map('trim') | difference(xvpn_verify_expected_rich_rules | default([])) | join(' ') }}"
+
 - name: Assert no internal port appears in ports, forward ports or rich rules
   ansible.builtin.assert:
     that:
       - not (xvpn_verify_fw_ports.stdout is regex('(^|\s)(3000|3010|8443|2222|18080)/(tcp|udp)(\s|$)'))
       - not (xvpn_verify_fw_forward.stdout is regex('(^|[^0-9])(3000|3010|8443|2222|18080)([^0-9]|$)'))
-      - not (xvpn_verify_fw_rich.stdout is regex('(^|[^0-9])(3000|3010|8443|2222|18080)([^0-9]|$)'))
+      - not (xvpn_verify_fw_rich_other is regex('(^|[^0-9])(3000|3010|8443|2222|18080)([^0-9]|$)'))
     fail_msg: "an internal port (3000, 3010, 8443, 2222, 18080) is exposed in zone {{ xvpn_verify_fw_zone }}"
     quiet: true
 

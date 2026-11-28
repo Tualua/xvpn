@@ -1,0 +1,23 @@
+---
+# 443/tcp only after the certificate gate passed (D-15); 8443 is never opened.
+- name: Node firewall | open 443/tcp after the gate
+  ansible.posix.firewalld:
+    zone: "{{ xvpn_common_fw_zone }}"
+    port: 443/tcp
+    permanent: true
+    immediate: "{{ not xvpn_common_firewalld_offline }}"
+    offline: "{{ xvpn_common_firewalld_offline }}"
+    state: enabled
+  when: xvpn_node_gate_passed | default(false) | bool
+
+# The node API port answers only the Panel (NODE-02).
+- name: Node firewall | allow the node API port from the Panel only
+  ansible.posix.firewalld:
+    zone: "{{ xvpn_common_fw_zone }}"
+    rich_rule: >-
+      rule family="ipv4" source address="{{ item }}" port port="{{ xvpn_node_api_port }}" protocol="tcp" accept
+    permanent: true
+    immediate: "{{ not xvpn_common_firewalld_offline }}"
+    offline: "{{ xvpn_common_firewalld_offline }}"
+    state: enabled
+  loop: "{{ xvpn_node_panel_sources_resolved }}"

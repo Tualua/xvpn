@@ -5,6 +5,7 @@
   vars:
     ansible_pipelining: true
     xvpn_node_domain: node.xvpn.test
+    xvpn_node_panel_sources: ["192.0.2.10"]
     # Every plan that adds a negative case appends its id here and updates the marker count in its verify command.
     xvpn_negative_expected:
       - node-domain-backtick
@@ -17,6 +18,9 @@
       - node-profile-reserved
       - node-state-absent
       - decoy-template-unknown
+      - node-activate-register-mismatch
+      - panel-source-injection
+      - panel-source-missing
     xvpn_verify_templates_all: >-
       {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../../roles/edge/vars/main.yml') | from_yaml).xvpn_edge_decoy_templates }}
     xvpn_verify_template_names: [blog, business, maintenance, studio]
@@ -26,6 +30,24 @@
       vars:
         xvpn_verify_firewall_cmd: firewall-offline-cmd
         xvpn_verify_expected_ports: ["80/tcp"]
+        xvpn_verify_expected_rich_rules:
+          - 'rule family="ipv4" source address="192.0.2.10" port port="2222" protocol="tcp" accept'
+
+    - name: List the permanent ports of the zone
+      ansible.builtin.command:
+        argv:
+          - firewall-offline-cmd
+          - "--zone={{ xvpn_verify_fw_zone }}"
+          - --list-ports
+      register: xvpn_verify_node_offline_ports
+      changed_when: false
+
+    - name: Assert 443/tcp stays closed without the certificate gate
+      ansible.builtin.assert:
+        that:
+          - "'443/tcp' not in xvpn_verify_node_offline_ports.stdout.split()"
+        fail_msg: "443/tcp is open although the gate did not run: {{ xvpn_verify_node_offline_ports.stdout }}"
+        quiet: true
 
     - name: Read the rendered static Traefik configuration
       ansible.builtin.slurp:
@@ -327,6 +349,76 @@
             - not (ansible_failed_result.msg | string).startswith('negative case')
             - "'xvpn_node_state' in (ansible_failed_result.msg | string)"
 
+    # xvpn_negative_case: node-activate-register-mismatch
+    - name: Negative case node-activate-register-mismatch
+      block:
+        - name: Run the node role with the invalid input
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_activate: false
+            xvpn_node_register: true
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-activate-register-mismatch was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-activate-register-mismatch'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_activate' in (ansible_failed_result.msg | string) and 'xvpn_node_register' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: panel-source-injection
+    - name: Negative case panel-source-injection
+      block:
+        - name: Run the node role with the invalid input
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_panel_sources: ['10.0.0.1; drop']
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case panel-source-injection was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['panel-source-injection'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_panel_sources' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: panel-source-missing
+    - name: Negative case panel-source-missing
+      block:
+        - name: Run the node role with the invalid input
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_panel_sources: []
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case panel-source-missing was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['panel-source-missing'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_panel_sources' in (ansible_failed_result.msg | string)"
+
+    # The verify run starts without the facts of the converge: the zone fact comes from the common firewall tasks.
+    - name: Load the firewall zone of the converge
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.common
+        tasks_from: firewalld
+      vars:
+        xvpn_common_firewalld_offline: true
+
     # xvpn_positive_case: node-name-space
     - name: Positive case node-name-space, the role accepts a node name with a space
       ansible.builtin.include_role:
@@ -336,6 +428,7 @@
         xvpn_node_name: "node one"
         xvpn_node_activate: false
         xvpn_node_register: false
+        xvpn_common_firewalld_offline: true
 
     - name: Assert the computed defaults for a node name with a space
       ansible.builtin.assert:

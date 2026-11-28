@@ -137,3 +137,54 @@
       - (xvpn_verify_node_env_read.results[1].content | b64decode) is search('(?m)^NODE_PORT=2222$')
     fail_msg: "node.env changed since the first converge or the env files have the wrong mode/owner"
     quiet: true
+
+# NODE-02 / STEAL-05: 443 only after the gate, 2222 only for the Panel.
+- name: Verify node | gather the network facts of the Panel VM
+  ansible.builtin.setup:
+    gather_subset: [network]
+  delegate_to: "{{ groups['remnawave_panel'][0] }}"
+  delegate_facts: true
+
+- name: Verify node | set the Panel address
+  ansible.builtin.set_fact:
+    xvpn_verify_panel_ip: "{{ hostvars[groups['remnawave_panel'][0]]['ansible_facts']['default_ipv4']['address'] }}"
+
+- name: Verify node | the firewall holds 443/tcp and exactly one rich rule for the Panel
+  ansible.builtin.include_tasks: verify_common.yml
+  vars:
+    xvpn_verify_expected_ports: ["80/tcp", "443/tcp"]
+    xvpn_verify_expected_rich_rules:
+      - 'rule family="ipv4" source address="{{ xvpn_verify_panel_ip }}" port port="2222" protocol="tcp" accept'
+
+- name: Verify node | the node API port answers the Panel VM
+  ansible.builtin.wait_for:
+    host: "{{ ansible_facts['default_ipv4']['address'] }}"
+    port: 2222
+    timeout: 20
+  delegate_to: "{{ groups['remnawave_panel'][0] }}"
+
+# xvpn_negative_case: api-port-from-controller
+- name: Verify node | the node API port does not answer the controller
+  block:
+    - name: Connect to the node API port from the controller
+      ansible.builtin.wait_for:
+        host: "{{ ansible_facts['default_ipv4']['address'] }}"
+        port: 2222
+        timeout: 5
+      delegate_to: localhost
+      become: false
+
+    - name: Record that the controller reached the node API port (must not happen)
+      ansible.builtin.set_fact:
+        xvpn_verify_api_from_controller: true
+  rescue:
+    - name: Record that the node API port is unreachable from the controller
+      ansible.builtin.set_fact:
+        xvpn_verify_api_from_controller: false
+
+- name: Verify node | assert the controller cannot reach the node API port
+  ansible.builtin.assert:
+    that:
+      - not (xvpn_verify_api_from_controller | bool)
+    fail_msg: "{{ ansible_facts['default_ipv4']['address'] }}:2222 answered from the controller"
+    quiet: true

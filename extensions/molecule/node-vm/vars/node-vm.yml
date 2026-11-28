@@ -13,3 +13,5 @@ xvpn_node_address: "{{ hostvars[groups['remnawave_nodes'][0]]['ansible_facts']['
 xvpn_edge_acme_ca: custom
 xvpn_edge_acme_ca_server: https://127.0.0.1:14000/dir
 xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem
+# The Pebble issuer root verifies the certificate in the gate (stored by prepare.yml).
+xvpn_node_cert_gate_ca_file: /var/lib/xvpn-molecule/pebble-issuer-root.pem
