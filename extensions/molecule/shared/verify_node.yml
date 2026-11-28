@@ -22,3 +22,21 @@
       - "xvpn_verify_node_tls.stdout is search('Verification: OK')"
     fail_msg: "no verified certificate for {{ xvpn_verify_node_domain }} on 127.0.0.1:8443: {{ xvpn_verify_node_tls.stdout }}"
     quiet: true
+
+- name: Verify node | list the listeners on 8443
+  ansible.builtin.command:
+    argv:
+      - ss
+      - -H
+      - -ltn
+      - sport = :8443
+  register: xvpn_verify_node_ss
+  changed_when: false
+
+- name: Verify node | assert 8443 is bound to 127.0.0.1 only
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_node_ss.stdout_lines | length > 0
+      - xvpn_verify_node_ss.stdout_lines | map('split') | map(attribute=3) | unique | list == ['127.0.0.1:8443']
+    fail_msg: "8443 is not bound to loopback only: {{ xvpn_verify_node_ss.stdout }}"
+    quiet: true

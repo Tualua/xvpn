@@ -25,3 +25,21 @@
         owner: root
         group: root
         mode: "0644"
+
+# Both VMs gather facts in this one play before the first lineinfile, so each sees the facts of the other.
+# The Panel VM resolves the node name and the node VM resolves the Panel names to the other VM's address;
+# each VM's own names were written by vm/tasks/pebble.yml above.
+- name: Resolve the names of the other VM
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    xvpn_prepare_other_group: "{{ 'remnawave_panel' if 'remnawave_nodes' in group_names else 'remnawave_nodes' }}"
+    xvpn_prepare_other_host: "{{ groups[xvpn_prepare_other_group][0] }}"
+    xvpn_prepare_other_names: "{{ 'panel.xvpn.test sub.xvpn.test' if 'remnawave_nodes' in group_names else 'node.xvpn.test' }}"
+  tasks:
+    - name: Map the names of the other VM to its address
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "\\s{{ xvpn_prepare_other_names.split() | first | regex_escape }}(\\s|$)"
+        line: "{{ hostvars[xvpn_prepare_other_host]['ansible_facts']['default_ipv4']['address'] }} {{ xvpn_prepare_other_names }}"

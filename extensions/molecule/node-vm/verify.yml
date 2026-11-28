@@ -25,3 +25,58 @@
         xvpn_verify_unit: traefik.service
         xvpn_verify_port: 80
         xvpn_verify_http_status: 404
+
+- name: Verify the node from the Panel VM
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  vars:
+    xvpn_verify_node_ip: "{{ hostvars[groups['remnawave_nodes'][0]]['ansible_facts']['default_ipv4']['address'] }}"
+  tasks:
+    - name: Probe the plain HTTP answer of the node domain
+      ansible.builtin.command:
+        argv:
+          - curl
+          - -sS
+          - -o
+          - /dev/null
+          - --max-time
+          - "10"
+          - -w
+          - "%{http_code} %{redirect_url}"
+          - http://node.xvpn.test/
+      register: xvpn_verify_node_redirect
+      changed_when: false
+
+    - name: Assert :80 answers only the redirect to HTTPS
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_node_redirect.stdout.split()[0] in ['301', '308']
+          - xvpn_verify_node_redirect.stdout.split()[1] is match('https://node\.xvpn\.test/')
+        fail_msg: "node.xvpn.test:80 did not answer the HTTPS redirect: {{ xvpn_verify_node_redirect.stdout }}"
+        quiet: true
+
+    # xvpn_negative_case: loopback-entrypoint-from-panel
+    # The TLS entrypoint is loopback-only (D-13): a connect to <node>:8443 from another host must time out or be refused.
+    - name: Try to reach the loopback entrypoint of the node from the Panel VM
+      block:
+        - name: Connect to the node on 8443
+          ansible.builtin.wait_for:
+            host: "{{ xvpn_verify_node_ip }}"
+            port: 8443
+            timeout: 5
+
+        - name: Record that the loopback entrypoint answered (must not happen)
+          ansible.builtin.set_fact:
+            xvpn_verify_node_8443_reachable: true
+      rescue:
+        - name: Record that the loopback entrypoint is unreachable from outside
+          ansible.builtin.set_fact:
+            xvpn_verify_node_8443_reachable: false
+
+    - name: Assert the loopback entrypoint is unreachable from the Panel VM
+      ansible.builtin.assert:
+        that:
+          - not (xvpn_verify_node_8443_reachable | bool)
+        fail_msg: "{{ xvpn_verify_node_ip }}:8443 answered from the Panel VM; the TLS entrypoint is not loopback-only"
+        quiet: true
