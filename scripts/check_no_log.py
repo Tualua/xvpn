@@ -27,6 +27,11 @@ SENSITIVE = [
     r"\bgate_cookie_value\b",
     r"\baccessToken\b",
     r"\bREMNAWAVE_API_TOKEN\b",
+    r"\bxvpn_node_secret\b",
+    r"\bsecret_key\b",
+    r"\bSECRET_KEY\b",
+    r"\bprivateKey\b",
+    r"\bxvpn_node_reality\w*\b",
 ]
 PATTERN = re.compile("|".join(SENSITIVE))
 BLOCK_KEYS = ("block", "rescue", "always")
@@ -109,6 +114,7 @@ def self_test():
         {"name": "decoy fetch free-form", "ansible.builtin.fetch": "src={{ xvpn_panel_api_token_file }} dest=/tmp/x"},
         {"name": "decoy replace", "ansible.builtin.replace": {"path": "{{ home }}/a.env", "regexp": "a", "replace": "b"}},
         {"name": "decoy token", "ansible.builtin.set_fact": {"x": "{{ xvpn_panel_sp_token }}"}},
+        {"name": "decoy node secret", "ansible.builtin.set_fact": {"x": "{{ xvpn_node_secret.secret_key }}"}},
     ]
     for task in decoys:
         problems = []
