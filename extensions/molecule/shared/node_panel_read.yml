@@ -1,0 +1,39 @@
+---
+# Reads the node config profile through the Panel API on loopback (run on the Panel host; the token is slurped there).
+# Input: xvpn_np_name (profile name). Output facts (never echoed, every task here has no_log):
+#   xvpn_np_count      number of profiles with that name
+#   xvpn_np_config     the stored Xray config of the first one (dict)
+#   xvpn_np_uuid       its uuid
+#   xvpn_np_checksum   sha256 of privateKey + shortIds of the first inbound with realitySettings
+- name: Node panel read | read the API token
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn/rw-panel/secrets/api-token
+  register: xvpn_np_token
+  no_log: true
+
+- name: Node panel read | list the config profiles
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/config-profiles
+    headers:
+      X-Forwarded-For: 127.0.0.1
+      X-Forwarded-Proto: https
+      Authorization: "Bearer {{ xvpn_np_token.content | b64decode | trim }}"
+    return_content: true
+  register: xvpn_np_list
+  changed_when: false
+  no_log: true
+
+- name: Node panel read | pick the profile and compute the key checksum
+  ansible.builtin.set_fact:
+    xvpn_np_count: "{{ xvpn_np_matches | length }}"
+    xvpn_np_config: "{{ (xvpn_np_matches | first | default({}))['config'] | default({}) }}"
+    xvpn_np_uuid: "{{ (xvpn_np_matches | first | default({}))['uuid'] | default('') }}"
+    xvpn_np_checksum: >-
+      {{ ((xvpn_np_reality | default({}))['privateKey'] | default('')
+          ~ ((xvpn_np_reality | default({}))['shortIds'] | default([]) | join(','))) | hash('sha256') }}
+  vars:
+    xvpn_np_matches: "{{ xvpn_np_list.json.response.configProfiles | selectattr('name', 'equalto', xvpn_np_name) | list }}"
+    xvpn_np_reality: >-
+      {{ ((((xvpn_np_matches | first | default({}))['config'] | default({}))['inbounds'] | default([{}]) | first)['streamSettings']
+         | default({}) )['realitySettings'] | default({}) }}
+  no_log: true

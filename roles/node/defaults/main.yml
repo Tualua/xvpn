@@ -25,6 +25,10 @@ xvpn_node_home: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}
 # Node image with an exact tag (never latest).
 xvpn_node_image: docker.io/remnawave/node:3.4.6
 
+# Operator override merged recursively into the rendered Xray config of the node profile (lists are replaced).
+# Keys are never taken from it; the BLOCK rule and the managed Reality target/serverNames must stay intact.
+xvpn_node_profile_override: {}
+
 # Start units and open the public port; false only renders and validates.
 xvpn_node_activate: true
 # Register the node in the Panel through the API.

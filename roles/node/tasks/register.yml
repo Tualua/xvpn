@@ -1,0 +1,26 @@
+---
+# Registration of the node in the Panel (API-02, D-01..D-04). Every task runs on the Panel host, which reads the API
+# token there; the token and the Reality keys never reach the controller. Included only after the certificate gate.
+- name: Node register | create or reconcile the Panel objects of the node
+  delegate_to: "{{ xvpn_node_panel_host }}"
+  module_defaults:
+    group/xvpn.remnawave.remnawave:
+      api_url: "{{ xvpn_node_panel_api_url }}"
+      api_token_file: "{{ xvpn_node_panel_api_token_file }}"
+  block:
+    # The recursive combine replaces lists: an override of routing.rules must carry the BLOCK rule, which the module
+    # enforces through required_block_cidrs; the managed Reality target and serverNames are enforced the same way.
+    - name: Node register | reconcile the config profile
+      xvpn.remnawave.remnawave_config_profile:
+        name: "{{ xvpn_node_profile_name }}"
+        config: >-
+          {{ lookup('ansible.builtin.template', 'config-profile.json.j2') | from_json
+             | combine(xvpn_node_profile_override, recursive=True) }}
+        reality_inbounds:
+          - tag: "{{ xvpn_node_inbound_tag }}"
+            short_ids: "{{ xvpn_node_short_ids }}"
+            short_id_length: "{{ xvpn_node_short_id_length }}"
+            target: "{{ xvpn_edge_https_address }}"
+            server_names: ["{{ xvpn_node_domain }}"]
+        required_block_cidrs: "{{ xvpn_node_blocked_cidrs }}"
+      register: xvpn_node_profile

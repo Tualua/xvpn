@@ -222,7 +222,10 @@ def inject_keys(module, desired, stored_config, managed, keys, name):
     """D-03: drop any declared key material, then fill stored keys or generate new ones once."""
     for entry in managed:
         tag = entry["tag"]
-        reality = _reality(_find_inbound(desired, tag))
+        inbound = _find_inbound(desired, tag)
+        if inbound is None:
+            module.fail_json(msg="reality_inbounds tag %s is not an inbound of config" % tag)
+        reality = _reality(inbound)
         for key in ("privateKey", "publicKey", "shortIds"):
             reality.pop(key, None)
         stored = _find_inbound(stored_config, tag)
@@ -325,8 +328,7 @@ def main():
         "before": json.dumps(before, indent=2, sort_keys=True) if stored else "",
         "after": json.dumps(redact(desired), indent=2, sort_keys=True),
     }
-    differs = stored is None or normalize(stored_config) != normalize(desired)
-    if not differs:
+    if stored is not None and normalize(stored_config) == normalize(desired):
         module.exit_json(changed=False, uuid=stored["uuid"], inbounds=inbound_map(stored), diff=diff)
     if module.check_mode:
         module.exit_json(

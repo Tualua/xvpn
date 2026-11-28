@@ -79,3 +79,32 @@
         group: root
         mode: "0600"
         force: false
+
+- name: Record the key checksum of the node profile after the first converge
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the node profile
+      ansible.builtin.include_tasks: ../shared/node_panel_read.yml
+      vars:
+        xvpn_np_name: node
+
+    - name: Assert exactly one profile with keys exists
+      ansible.builtin.assert:
+        that:
+          - xvpn_np_count | int == 1
+        fail_msg: "the Panel holds {{ xvpn_np_count }} profiles named node after the first converge"
+        quiet: true
+      no_log: true
+
+    # Only the sha256 of privateKey + shortIds is stored, never the keys.
+    - name: Record the checksum of the Reality keys
+      ansible.builtin.copy:
+        content: "{{ xvpn_np_checksum }}\n"
+        dest: /var/lib/xvpn-molecule/reality_checksum_after_first_converge
+        owner: root
+        group: root
+        mode: "0600"
+        force: false
+      no_log: true

@@ -1,0 +1,48 @@
+---
+# Panel-side assertions of the node registration, run on the Panel host (API-02, API-03, D-01..D-03).
+# Inputs: xvpn_verify_node_profile_name (default node), xvpn_verify_node_inbound_tag (default vless-reality-node),
+#         xvpn_verify_node_domain (default node.xvpn.test), xvpn_verify_node_target (default 127.0.0.1:8443).
+# Every task that reads keys has no_log; only booleans and counts appear in failure messages.
+- name: Verify node panel | resolve the inputs
+  ansible.builtin.set_fact:
+    xvpn_np_name: "{{ xvpn_verify_node_profile_name | default('node') }}"
+    xvpn_vnp_tag: "{{ xvpn_verify_node_inbound_tag | default('vless-reality-node') }}"
+    xvpn_vnp_domain: "{{ xvpn_verify_node_domain | default('node.xvpn.test') }}"
+    xvpn_vnp_target: "{{ xvpn_verify_node_target | default('127.0.0.1:8443') }}"
+
+- name: Verify node panel | read the profile
+  ansible.builtin.include_tasks: node_panel_read.yml
+
+- name: Verify node panel | read the checksum recorded after the first converge
+  ansible.builtin.slurp:
+    src: /var/lib/xvpn-molecule/reality_checksum_after_first_converge
+  register: xvpn_vnp_recorded
+  no_log: true
+
+- name: Verify node panel | compute the facts of the stored inbound
+  ansible.builtin.set_fact:
+    xvpn_vnp_inbounds: "{{ xvpn_np_config.inbounds | default([]) | selectattr('tag', 'equalto', xvpn_vnp_tag) | list }}"
+  no_log: true
+
+- name: Verify node panel | assert the stored profile
+  ansible.builtin.assert:
+    that:
+      - xvpn_np_count | int == 1
+      - xvpn_vnp_inbounds | length == 1
+      - xvpn_vnp_inbounds[0].port == 443
+      - xvpn_vnp_inbounds[0].protocol == 'vless'
+      - xvpn_vnp_inbounds[0].streamSettings.security == 'reality'
+      - xvpn_vnp_inbounds[0].streamSettings.realitySettings.target == xvpn_vnp_target
+      - xvpn_vnp_inbounds[0].streamSettings.realitySettings.xver | int == 0
+      - xvpn_vnp_inbounds[0].streamSettings.realitySettings.serverNames == [xvpn_vnp_domain]
+      - xvpn_vnp_inbounds[0].streamSettings.realitySettings.privateKey | default('') | length > 0
+      - xvpn_vnp_inbounds[0].streamSettings.realitySettings.shortIds | length == 2
+      - xvpn_vnp_inbounds[0].streamSettings.realitySettings.shortIds | select('match', '^[0-9a-f]{16}$') | list | length == 2
+      - (xvpn_np_config.routing.rules | last).outboundTag == 'BLOCK'
+      - xvpn_np_checksum == (xvpn_vnp_recorded.content | b64decode | trim)
+    fail_msg: >-
+      the node profile in the Panel is not as declared (one profile named {{ xvpn_np_name }}, inbound {{ xvpn_vnp_tag }}
+      on 443 with reality, target, xver 0, serverNames, key and 2 shortIds, last routing rule BLOCK) or its key checksum
+      differs from the one recorded after the first converge
+    quiet: true
+  no_log: true

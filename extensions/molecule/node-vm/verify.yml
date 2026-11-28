@@ -250,3 +250,11 @@
           - not (xvpn_verify_node_8443_reachable | bool)
         fail_msg: "{{ xvpn_verify_node_ip }}:8443 answered from the Panel VM; the TLS entrypoint is not loopback-only"
         quiet: true
+
+- name: Verify the node registration in the Panel
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Verify the node profile, its keys and the recorded checksum
+      ansible.builtin.include_tasks: ../shared/verify_node_panel.yml

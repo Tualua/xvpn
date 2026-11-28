@@ -30,3 +30,10 @@
 
 - name: Node | open the node firewall
   ansible.builtin.include_tasks: firewall.yml
+
+# D-15, STEAL-05: no Panel object of the node (profile, squads, node, host) exists before the loopback certificate passed.
+- name: Node | register the node in the Panel
+  ansible.builtin.include_tasks: register.yml
+  when:
+    - xvpn_node_register | bool
+    - xvpn_node_gate_passed | default(false) | bool

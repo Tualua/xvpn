@@ -84,6 +84,13 @@ argument_specs:
         description: CA file that verifies the gate certificate; empty uses the system roots with the production ACME CA.
         type: str
         default: ""
+      xvpn_node_profile_override:
+        description: >-
+          Dict merged recursively into the rendered Xray config of the node profile before it is compared with the Panel
+          (lists are replaced, not merged). Reality keys cannot be set here, the private-destination BLOCK rule and the
+          managed Reality target and serverNames must survive, otherwise the run fails.
+        type: dict
+        default: {}
       xvpn_node_state:
         description: present, or absent (decommission, not implemented yet).
         type: str
