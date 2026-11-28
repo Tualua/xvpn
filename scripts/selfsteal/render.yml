@@ -17,8 +17,15 @@
     xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem
     xvpn_edge_acme_email: ""
     xvpn_edge_decoy_port: 18080
-    # the gate keeps the catch-all page; Plan 03-04 adds the strict-404 cases
-    xvpn_edge_decoy_strict: false
+    # the node case: strict 404 and the domain-selected template, installed by the production decoy.yml
+    xvpn_edge_decoy_strict: true
+    xvpn_edge_decoy_template: ""
+    xvpn_edge_decoy_src: ""
+    xvpn_edge_decoy_brand: ""
+    xvpn_edge_decoy_select_key: node.test
+    xvpn_edge_home: "{{ xvpn_selfsteal_work }}/edge-home"
+    xvpn_edge_user: "{{ lookup('ansible.builtin.env', 'USER') | default(lookup('ansible.builtin.pipe', 'id -un'), true) }}"
+    xvpn_edge_role_dir: "{{ playbook_dir }}/../../roles/edge"
     xvpn_node_domain: node.test
   tasks:
     - name: Self-steal gate | require the work directory
@@ -37,6 +44,7 @@
         - static
         - dynamic
         - decoy/conf.d
+        - edge-home/decoy/site
 
     - name: Self-steal gate | render the Traefik static configuration
       ansible.builtin.template:
@@ -62,9 +70,5 @@
         dest: "{{ xvpn_selfsteal_work }}/decoy/conf.d/default.conf"
         mode: "0644"
 
-    - name: Self-steal gate | copy the decoy site
-      ansible.builtin.copy:
-        src: "{{ xvpn_selfsteal_root }}/roles/edge/files/decoy/"
-        dest: "{{ xvpn_selfsteal_work }}/decoy/site/"
-        mode: "0644"
-        directory_mode: "0755"
+    - name: Self-steal gate | install the decoy site with the production decoy tasks
+      ansible.builtin.include_tasks: ../../roles/edge/tasks/decoy.yml

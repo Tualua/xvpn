@@ -114,7 +114,7 @@ fi
 
 # 4. Decoy and Traefik.
 podman run -d --name "$DECOY_C" -p 127.0.0.1:18080:8080 --log-driver k8s-file \
-  -v "$R/decoy/site:/usr/share/nginx/html:ro" -v "$R/decoy/conf.d:/etc/nginx/conf.d:ro" \
+  -v "$R/edge-home/decoy/site:/usr/share/nginx/html:ro" -v "$R/decoy/conf.d:/etc/nginx/conf.d:ro" \
   "$DECOY_IMAGE" >/dev/null
 start_traefik() {
   podman rm -f "$TRAEFIK_C" >/dev/null 2>&1 || true
@@ -244,6 +244,28 @@ if [ "$code" = "200 2" ] && grep -q 'TLSv1.3' <<<"$out" && grep -q 'ALPN protoco
 else
   fail valid-sni
   echo "http: $code"; echo "$out" | tail -n 25
+fi
+
+# The decoy through Reality: the rendered site of the production decoy tasks and its own strict 404.
+CASES=$((CASES + 1))
+code="$(curl -sS --max-time 20 --resolve "$DOMAIN:4443:127.0.0.1" --cacert "$WORK/issuer-root.pem" \
+  -o "$WORK/decoy-body" -w '%{http_code}' "https://$DOMAIN:4443/" 2>&1 || true)"
+if [ "$code" = "200" ] && cmp -s "$WORK/decoy-body" "$R/edge-home/decoy/site/index.html"; then
+  echo "ok decoy-template"
+else
+  fail decoy-template
+  echo "http: $code"; head -c 600 "$WORK/decoy-body" || true
+fi
+
+CASES=$((CASES + 1))
+code="$(curl -sS --max-time 20 --resolve "$DOMAIN:4443:127.0.0.1" --cacert "$WORK/issuer-root.pem" \
+  -o "$WORK/decoy-404" -w '%{http_code}' "https://$DOMAIN:4443/no-such-page" 2>&1 || true)"
+if [ "$code" = "404" ] && cmp -s "$WORK/decoy-404" "$R/edge-home/decoy/site/404.html" \
+  && ! grep -q '404 page not found' "$WORK/decoy-404" && ! grep -qi 'nginx' "$WORK/decoy-404"; then
+  echo "ok decoy-404"
+else
+  fail decoy-404
+  echo "http: $code"; head -c 600 "$WORK/decoy-404" || true
 fi
 
 # A handshake that leaks nothing: an alert or no certificate, never the Traefik default certificate or its 404.
