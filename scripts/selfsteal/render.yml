@@ -1,0 +1,68 @@
+---
+# Renders the PRODUCTION edge and node self-steal templates for the self-steal gate (scripts/selfsteal/run.sh).
+# Nothing is copied or re-typed: the templates are read from the roles.
+# Input: xvpn_selfsteal_work (work directory, extra var).
+- name: Self-steal gate | render the production templates
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../roles/edge/vars/main.yml
+  vars:
+    xvpn_selfsteal_root: "{{ playbook_dir }}/../.."
+    xvpn_edge_http_address: ":8080"
+    xvpn_edge_https_address: "127.0.0.1:8443"
+    xvpn_edge_acme_ca: custom
+    xvpn_edge_acme_ca_server: https://127.0.0.1:14000/dir
+    xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem
+    xvpn_edge_acme_email: ""
+    xvpn_edge_decoy_port: 18080
+    xvpn_node_domain: node.test
+  tasks:
+    - name: Self-steal gate | require the work directory
+      ansible.builtin.assert:
+        that:
+          - xvpn_selfsteal_work is defined
+          - xvpn_selfsteal_work | length > 0
+        quiet: true
+
+    - name: Self-steal gate | create the work directories
+      ansible.builtin.file:
+        path: "{{ xvpn_selfsteal_work }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - static
+        - dynamic
+        - decoy/conf.d
+
+    - name: Self-steal gate | render the Traefik static configuration
+      ansible.builtin.template:
+        src: "{{ xvpn_selfsteal_root }}/roles/edge/templates/traefik.yml.j2"
+        dest: "{{ xvpn_selfsteal_work }}/static/traefik.yml"
+        mode: "0644"
+
+    - name: Self-steal gate | render the shared edge dynamic configuration
+      ansible.builtin.template:
+        src: "{{ xvpn_selfsteal_root }}/roles/edge/templates/00-edge.yml.j2"
+        dest: "{{ xvpn_selfsteal_work }}/dynamic/00-edge.yml"
+        mode: "0644"
+
+    - name: Self-steal gate | render the node self-steal route
+      ansible.builtin.template:
+        src: "{{ xvpn_selfsteal_root }}/roles/node/templates/node-selfsteal.yml.j2"
+        dest: "{{ xvpn_selfsteal_work }}/dynamic/node-selfsteal.yml"
+        mode: "0644"
+
+    - name: Self-steal gate | render the decoy nginx configuration
+      ansible.builtin.template:
+        src: "{{ xvpn_selfsteal_root }}/roles/edge/templates/decoy-nginx.conf.j2"
+        dest: "{{ xvpn_selfsteal_work }}/decoy/conf.d/default.conf"
+        mode: "0644"
+
+    - name: Self-steal gate | copy the decoy site
+      ansible.builtin.copy:
+        src: "{{ xvpn_selfsteal_root }}/roles/edge/files/decoy/"
+        dest: "{{ xvpn_selfsteal_work }}/decoy/site/"
+        mode: "0644"
+        directory_mode: "0755"

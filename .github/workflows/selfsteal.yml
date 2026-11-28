@@ -1,0 +1,49 @@
+---
+name: selfsteal
+
+"on":
+  # No paths-ignore: the gate runs on every push.
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      break:
+        description: "Deliberate-break proof: sni-strict removes sniStrict from the rendered copy and the run must fail"
+        type: choice
+        options: [none, sni-strict]
+        default: none
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selfsteal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install tooling
+        run: python -m pip install -r requirements-dev.txt
+      - name: Cache gate binaries
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/xvpn-selfsteal
+          key: selfsteal-bin-${{ hashFiles('scripts/selfsteal/run.sh') }}
+      - name: Podman info
+        run: podman info
+      - name: Self-steal gate
+        env:
+          XVPN_SELFSTEAL_BREAK: ${{ inputs.break != 'none' && inputs.break || '' }}
+        run: |
+          export XVPN_SELFSTEAL_CACHE_DIR="$HOME/.cache/xvpn-selfsteal"
+          bash scripts/selfsteal/run.sh
