@@ -1,0 +1,13 @@
+---
+# role_path is resolved here, before the include: inside an include_role vars block it would be the edge role's.
+- name: Node | resolve the route template path
+  ansible.builtin.set_fact:
+    xvpn_node_route_src: "{{ role_path }}/templates/node-selfsteal.yml.j2"
+
+- name: Node | write the self-steal route of the node domain
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.edge
+    tasks_from: route
+  vars:
+    xvpn_edge_route_name: node-selfsteal
+    xvpn_edge_route_src: "{{ xvpn_node_route_src }}"

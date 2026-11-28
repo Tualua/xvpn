@@ -71,7 +71,7 @@ check_acme_ca() {
   shopt -s nullglob
   # Molecule converge files and the non-Molecule renderers of the edge templates (scripts/gate/*.yml).
   for converge in extensions/molecule/*/converge.yml scripts/gate/*.yml; do
-    grep -Eq 'playbooks/(panel|site)\.yml|xvpn\.remnawave\.edge|traefik\.yml\.j2' "$converge" || continue
+    grep -Eq 'playbooks/(panel|node|site)\.yml|xvpn\.remnawave\.edge|traefik\.yml\.j2' "$converge" || continue
     dir="$(dirname "$converge")"
     # the converge file plus the scenario vars files, comment lines removed; a scenario without vars/ reads converge alone
     text="$(cat "$converge" "$dir"/vars/*.yml 2>/dev/null | grep -Ev '^[[:space:]]*#' || true)"

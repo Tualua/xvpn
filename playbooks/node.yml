@@ -1,0 +1,36 @@
+---
+- name: Node preflight (read-only)
+  hosts: "{{ xvpn_node_hosts_group | default('remnawave_nodes') }}"
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  tags: [preflight]
+  vars:
+    xvpn_preflight_domains: "{{ [xvpn_node_domain] }}"
+  pre_tasks:
+    - name: Require the node domain before any check
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_domain | default('') | length > 0
+        fail_msg: "xvpn_node_domain is required: set the node FQDN in host_vars"
+        quiet: true
+  roles:
+    - xvpn.remnawave.preflight
+
+- name: Node host
+  hosts: "{{ xvpn_node_hosts_group | default('remnawave_nodes') }}"
+  become: true
+  gather_facts: true
+  vars:
+    # 443 is opened by the node role only after the certificate gate (STEAL-05); 8443 is never opened.
+    xvpn_common_firewall_ports: ["80/tcp"]
+    xvpn_podman_rootless_users:
+      - name: rw-edge
+      - name: rw-node
+    # D-13: TLS only on loopback; Xray owns the public 443 (Network=host).
+    xvpn_edge_https_address: "127.0.0.1:8443"
+  roles:
+    - xvpn.remnawave.common
+    - xvpn.remnawave.podman_rootless
+    - xvpn.remnawave.edge
+    - xvpn.remnawave.node

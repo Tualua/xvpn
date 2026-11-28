@@ -1,0 +1,6 @@
+---
+# Internal derivations. vars/main.yml outranks inventory variables.
+# Panel profile names allow no dots (Jinja regex without backslashes).
+xvpn_node_name_sanitized: "{{ xvpn_node_name | regex_replace('[^A-Za-z0-9_ -]', '-') }}"
+# The inbound tag validator admits no space either.
+xvpn_node_tag_sanitized: "{{ xvpn_node_name | regex_replace('[^A-Za-z0-9_-]', '-') }}"

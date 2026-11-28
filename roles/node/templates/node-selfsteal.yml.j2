@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Self-steal route of the node domain (STEAL-01): the Reality target points at the loopback websecure
+# entrypoint, which serves the decoy with a real Let's Encrypt certificate. sniStrict lives in 00-edge.yml.
+http:
+  routers:
+    xvpn-node-https:
+      entryPoints: [websecure]
+      rule: "Host(`{{ xvpn_node_domain }}`)"
+      service: xvpn-decoy
+      tls:
+        certResolver: le
+    xvpn-node-http:
+      entryPoints: [web]
+      rule: "Host(`{{ xvpn_node_domain }}`)"
+      middlewares: [xvpn-to-https]
+      service: noop@internal

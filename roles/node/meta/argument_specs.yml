@@ -1,0 +1,50 @@
+---
+argument_specs:
+  main:
+    short_description: Remnawave Node with the self-steal route (skeleton; registration and Xray arrive in later plans)
+    options:
+      xvpn_node_domain:
+        description: Public FQDN of the node, lowercase, not an example.* placeholder. One node domain per host.
+        type: str
+        required: true
+      xvpn_node_name:
+        description: Name of the node in the Panel, 3..30 characters. Defaults to inventory_hostname.
+        type: str
+        default: "{{ inventory_hostname }}"
+      xvpn_node_address:
+        description: Address the Panel uses to reach the node API. Defaults to xvpn_node_domain.
+        type: str
+        default: "{{ xvpn_node_domain }}"
+      xvpn_node_profile_name:
+        description: Config profile name, 2..30 characters of [A-Za-z0-9_ -]. Defaults to the sanitized node name.
+        type: str
+        default: "{{ xvpn_node_name_sanitized }}"
+      xvpn_node_inbound_tag:
+        description: Inbound tag, [A-Za-z0-9_.-]{1,64}. Defaults to vless-reality-<sanitized node name>.
+        type: str
+        default: "vless-reality-{{ xvpn_node_tag_sanitized }}"
+      xvpn_node_user:
+        description: Service user that owns the node container.
+        type: str
+        default: rw-node
+      xvpn_node_home:
+        description: Home directory of the node service user.
+        type: str
+        default: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}/{{ xvpn_node_user }}"
+      xvpn_node_image:
+        description: Node image with an exact tag, never latest.
+        type: str
+        default: docker.io/remnawave/node:3.4.6
+      xvpn_node_activate:
+        description: Start the units; false only renders and validates.
+        type: bool
+        default: true
+      xvpn_node_register:
+        description: Register the node in the Panel through the API.
+        type: bool
+        default: true
+      xvpn_node_state:
+        description: present, or absent (decommission, not implemented yet).
+        type: str
+        default: present
+        choices: [present, absent]

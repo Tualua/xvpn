@@ -1,0 +1,36 @@
+---
+# Public inventory interface of the node role (D-05): only xvpn_node_domain is required.
+
+# FQDN of the node: Reality serverNames, the Let's Encrypt certificate and the decoy site live on it.
+# One node domain per inventory host: the loopback websecure entrypoint serves a single node (v1).
+xvpn_node_domain: ""
+
+# Name of the node in the Panel (3..30 characters, Panel rule).
+xvpn_node_name: "{{ inventory_hostname }}"
+
+# Address the Panel connects to for the node API; defaults to the node domain.
+xvpn_node_address: "{{ xvpn_node_domain }}"
+
+# The two defaults below reference xvpn_node_name_sanitized / xvpn_node_tag_sanitized from vars/main.yml.
+# They are templated lazily at task time, so they follow an overridden xvpn_node_name.
+# Config profile name (2..30 characters, no dots); default is the sanitized node name.
+xvpn_node_profile_name: "{{ xvpn_node_name_sanitized }}"
+# Inbound tag; default is vless-reality-<node name with characters outside [A-Za-z0-9_-] replaced by '-'>.
+xvpn_node_inbound_tag: "vless-reality-{{ xvpn_node_tag_sanitized }}"
+
+# Service user of the node container (created by xvpn.remnawave.podman_rootless).
+xvpn_node_user: rw-node
+xvpn_node_home: "{{ xvpn_podman_rootless_home_root | default('/var/lib/xvpn') }}/{{ xvpn_node_user }}"
+
+# Node image with an exact tag (never latest).
+xvpn_node_image: docker.io/remnawave/node:3.4.6
+
+# Start units and open the public port; false only renders and validates.
+xvpn_node_activate: true
+# Register the node in the Panel through the API.
+xvpn_node_register: true
+# present or absent.
+xvpn_node_state: present
+
+# The loopback websecure address (xvpn_edge_https_address: 127.0.0.1:8443) is pinned in the play vars of
+# playbooks/node.yml, which beat inventory variables; changing the port means editing the playbook.

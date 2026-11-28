@@ -1,0 +1,65 @@
+---
+- name: Prepare container platforms
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Bootstrap python3, sudo, iproute and procps-ng
+      ansible.builtin.raw: >-
+        /bin/sh -c 'test -x /usr/bin/python3 && command -v sudo && command -v ss ||
+        dnf -y install python3 sudo iproute procps-ng'
+      register: xvpn_bootstrap
+      changed_when: "'Installed' in xvpn_bootstrap.stdout or 'Complete!' in xvpn_bootstrap.stdout"
+
+    - name: Gather facts after the bootstrap
+      ansible.builtin.setup:
+
+    # Container images ship systemd-logind masked or not running; linger needs
+    # login1 on the bus (fallback (a), 01-09). Test environment only.
+    - name: Unmask and start systemd-logind
+      ansible.builtin.systemd_service:
+        name: systemd-logind.service
+        masked: false
+        state: started
+
+    # The container shares the runner kernel where SELinux is off (D-15); real
+    # SELinux is asserted only in the VM tier. This double exists only here.
+    - name: Record the simulated SELinux mode
+      ansible.builtin.copy:
+        content: "Enforcing\n"
+        dest: /etc/xvpn-test-selinux-mode
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Install the getenforce test double
+      ansible.builtin.copy:
+        content: |
+          #!/bin/sh
+          cat /etc/xvpn-test-selinux-mode
+        dest: /usr/local/sbin/getenforce
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Install the test-only sudoers drop-in so the double wins under become
+      ansible.builtin.copy:
+        content: |
+          Defaults secure_path = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        dest: /etc/sudoers.d/xvpn-test-path
+        mode: "0440"
+        owner: root
+        group: root
+        validate: visudo -cf %s
+
+    - name: Resolve getenforce under become
+      ansible.builtin.command: getenforce
+      become: true
+      register: xvpn_getenforce
+      changed_when: false
+
+    - name: Assert the double is reached under become
+      ansible.builtin.assert:
+        that:
+          - xvpn_getenforce.stdout | trim == 'Enforcing'
+        fail_msg: "getenforce under become does not reach the test double; check sudo secure_path"
+        quiet: true

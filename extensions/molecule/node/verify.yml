@@ -1,0 +1,62 @@
+---
+- name: Verify the node host (container tier)
+  hosts: all
+  become: true
+  vars:
+    ansible_pipelining: true
+    xvpn_node_domain: node.xvpn.test
+  tasks:
+    - name: Verify the host baseline (SELinux, firewalld ports)
+      ansible.builtin.include_tasks: ../shared/verify_common.yml
+      vars:
+        xvpn_verify_firewall_cmd: firewall-offline-cmd
+        xvpn_verify_expected_ports: ["80/tcp"]
+
+    - name: Read the rendered static Traefik configuration
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/traefik/static/traefik.yml
+      register: xvpn_verify_node_static
+
+    - name: Assert TLS is on loopback only and HTTP on :80
+      ansible.builtin.assert:
+        that:
+          - '(xvpn_verify_node_static.content | b64decode) is search(''address: "127.0.0.1:8443"'')'
+          - '(xvpn_verify_node_static.content | b64decode) is search(''address: ":80"'')'
+        fail_msg: "traefik.yml lacks the loopback websecure or the :80 web address"
+        quiet: true
+
+    - name: Read the rendered node route
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn/rw-edge/traefik/dynamic/node-selfsteal.yml
+      register: xvpn_verify_node_route
+
+    - name: Assert the self-steal routers
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_route.http.routers['xvpn-node-https'].rule == 'Host(`node.xvpn.test`)'
+          - xvpn_node_route.http.routers['xvpn-node-https'].service == 'xvpn-decoy'
+          - xvpn_node_route.http.routers['xvpn-node-https'].entryPoints == ['websecure']
+          - xvpn_node_route.http.routers['xvpn-node-https'].tls.certResolver == 'le'
+          - xvpn_node_route.http.routers['xvpn-node-http'].rule == 'Host(`node.xvpn.test`)'
+          - xvpn_node_route.http.routers['xvpn-node-http'].middlewares == ['xvpn-to-https']
+        fail_msg: "node-selfsteal.yml does not route the node domain to the decoy: {{ xvpn_node_route }}"
+        quiet: true
+      vars:
+        xvpn_node_route: "{{ xvpn_verify_node_route.content | b64decode | from_yaml }}"
+
+    - name: Stat the node service user linger file
+      ansible.builtin.stat:
+        path: /var/lib/systemd/linger/rw-node
+      register: xvpn_verify_node_linger
+
+    - name: Look up the node service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-node
+
+    - name: Assert the node service user exists with linger
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_node_linger.stat.exists
+        fail_msg: "rw-node has no linger file"
+        quiet: true

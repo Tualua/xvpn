@@ -1,0 +1,18 @@
+---
+- name: Node host
+  ansible.builtin.import_playbook: ../../../playbooks/node.yml
+  vars:
+    ansible_pipelining: true
+    # user-manager start/wait is intentionally off in the container tier; proven only by the VM tier
+    xvpn_podman_rootless_manage_user_manager: false
+    # no running firewalld in the container tier
+    xvpn_common_firewalld_offline: true
+    # no DNS in the container tier
+    xvpn_preflight_dns_check: false
+    # render + generator dry-run only
+    xvpn_edge_activate: false
+    xvpn_node_activate: false
+    xvpn_node_register: false
+    xvpn_node_domain: node.xvpn.test
+    # CI never talks to production Let's Encrypt (QA-05)
+    xvpn_edge_acme_ca: staging

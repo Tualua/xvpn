@@ -1,0 +1,75 @@
+---
+# Domains are operator input, not secrets, so they are echoed in the failure messages.
+- name: Node | validate the inputs
+  block:
+    - name: Node | validate the node domain
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_domain is regex('^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?[.])+([a-z]{2,63}|xn--[a-z0-9]([a-z0-9-]{0,57}[a-z0-9])?)$')
+          - not (xvpn_node_domain is regex('(^|[.])example[.](com|org|net)$'))
+        fail_msg: "xvpn_node_domain must be a real lowercase FQDN, got '{{ xvpn_node_domain }}'"
+        quiet: true
+
+    - name: Node | validate the node image
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_image is regex('^[a-z0-9./_-]+(:[0-9]+)?/[a-z0-9._/-]+:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')
+          - not (xvpn_node_image is regex(':latest$'))
+        fail_msg: "xvpn_node_image must carry an exact tag and not be latest, got '{{ xvpn_node_image }}'"
+        quiet: true
+
+    - name: Node | validate the node name
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_name | length >= 3
+          - xvpn_node_name | length <= 30
+        fail_msg: "xvpn_node_name must be 3..30 characters, got '{{ xvpn_node_name }}'; set xvpn_node_name or xvpn_node_profile_name to a shorter value"
+        quiet: true
+
+    - name: Node | validate the profile name
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_profile_name is regex('^[A-Za-z0-9_ -]{2,30}$')
+          - xvpn_node_profile_name != 'Default-Profile'
+        fail_msg: >-
+          xvpn_node_profile_name must be 2..30 characters of [A-Za-z0-9_ -] and not Default-Profile,
+          got '{{ xvpn_node_profile_name }}'; set xvpn_node_name or xvpn_node_profile_name to a shorter value
+        quiet: true
+
+    - name: Node | validate the inbound tag
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_inbound_tag is regex('^[A-Za-z0-9_.-]{1,64}$')
+        fail_msg: "xvpn_node_inbound_tag must match ^[A-Za-z0-9_.-]{1,64}$, got '{{ xvpn_node_inbound_tag }}'"
+        quiet: true
+
+    - name: Node | validate the state
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_state in ['present', 'absent']
+        fail_msg: "xvpn_node_state must be present or absent, got '{{ xvpn_node_state }}'"
+        quiet: true
+
+    - name: Node | refuse the decommission until it is implemented
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_state != 'absent'
+        fail_msg: "xvpn_node_state is absent: decommission is not implemented yet"
+        quiet: true
+
+- name: Node | look up the service user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ xvpn_node_user }}"
+    fail_key: false
+
+- name: Node | require the service user
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][xvpn_node_user] is not none
+    fail_msg: "service user {{ xvpn_node_user }} does not exist; run xvpn.remnawave.podman_rootless with {{ xvpn_node_user }} first"
+    quiet: true
+
+- name: Node | deploy the node
+  ansible.builtin.include_tasks: present.yml
+  when: xvpn_node_state == 'present'
