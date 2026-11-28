@@ -125,7 +125,7 @@ Plans:
   3. После прогона в Panel существуют config profile, node и hosts для ноды из inventory, нода в состоянии connected; повторный прогон не создаёт дубликатов и не меняет Reality-ключи/shortIds (`changed=0`)
   4. Модули `remnawave_config_profile`, `remnawave_node`, `remnawave_host`, `remnawave_internal_squad` работают в `--check` и `--diff` и честно сообщают `changed`
   5. Порт 2222 ноды доступен только с IP Panel; нода с `state: absent` и явным флагом удаляется из Panel вместе с hosts, а её юниты останавливаются
-**Plans:** 14 plans
+**Plans:** 16 plans
 Plans:
 **Wave 1**
 - [ ] 03-01-PLAN.md — Роль node (скелет, input-guards), self-steal маршрут на loopback-edge, playbooks/node.yml, контейнерный сценарий node, QA-05 для node.yml; D-14 по доказательствам исполненного спайка (wave 1)
@@ -161,13 +161,19 @@ Plans:
 - [ ] 03-11-PLAN.md — Шаг регистрации профиля в роли: профиль в реальной Panel, ключи стабильны, дрейф из UI исправляется, override переживает прогоны (wave 11)
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 03-12-PLAN.md — remnawave_internal_squad (union) и remnawave_node (ожидание connected с диагностикой) (wave 12)
+- [ ] 03-12-PLAN.md — Модули remnawave_internal_squad (union) и remnawave_node (ожидание connected, закреплённая диагностика, уникальность address) с unit-тестами (wave 12)
 
 **Wave 13** *(blocked on Wave 12 completion)*
-- [ ] 03-13-PLAN.md — remnawave_host, реальный клиент из подписки выходит в интернет, private-негативы, SNI/decoy-матрица против ноды (wave 13)
+- [ ] 03-13-PLAN.md — Шаги squad/node в роли: нода connected в реальной Panel, чужие инбаунды сохраняются, отказ not-connected, отказ при потерянном node.env (wave 13)
 
 **Wave 14** *(blocked on Wave 13 completion)*
-- [ ] 03-14-PLAN.md — Decommission с флагом и повторная регистрация, честные --check/--diff на реальной Panel, README Node host, site.yml импортирует node.yml (wave 14)
+- [ ] 03-14-PLAN.md — Модуль remnawave_host с unit-тестами и шаг роли: ровно один host на ноду, переименование remark без дубликата (wave 14)
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [ ] 03-15-PLAN.md — Реальный клиент из подписки выходит в интернет, private-негативы, SNI/decoy-матрица против ноды, кеш Xray в CI (wave 15)
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [ ] 03-16-PLAN.md — Decommission с флагом без xvpn_node_panel_sources, повторная регистрация, честные --check/--diff на реальной Panel, README Node host, site.yml импортирует node.yml (wave 16)
 **Research flag**: HIGH RISK: Reality -> Traefik TLS на loopback (`127.0.0.1:8443`, `xver: 0`, ALPN, default cert при неизвестном SNI) не подтверждён; начать с ручного спайка, при провале пересмотреть выбор Traefik. REST-контракт Remnawave читать из OpenAPI закреплённой версии backend 3.4.11 до написания модулей. Проверить необходимость `NET_ADMIN` и SELinux-разрешений для `container_t`
 
 ### Phase 4: Доступ в LAN для доверенного squad'а

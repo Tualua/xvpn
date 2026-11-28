@@ -17,7 +17,7 @@ Let's Encrypt / Pebble ACME is spoken by Traefik, not by the collection.
 | internal-squads.list (GET /api/internal-squads) | INTEGRATE | |
 | internal-squads.create (POST /api/internal-squads) | INTEGRATE | |
 | internal-squads.update (PATCH /api/internal-squads, union of inbounds) | INTEGRATE | |
-| internal-squads.delete (DELETE /api/internal-squads/{uuid}) | OPT-OUT | not needed: D-06 only adds the node inbound to named squads and never deletes squads; inbound membership disappears by cascade when the profile is deleted (RESEARCH Pitfall 5) |
+| internal-squads.delete (DELETE /api/internal-squads/{uuid}) | OPT-OUT | not needed by roles or modules: D-06 only adds the node inbound to named squads and never deletes squads; inbound membership disappears by cascade when the profile is deleted (RESEARCH Pitfall 5); the two-VM side_effect deletes only its own test squad `xvpn-molecule-decom` as test cleanup (Plan 03-16) |
 | nodes.list (GET /api/nodes) | INTEGRATE | |
 | nodes.get (GET /api/nodes/{uuid}) | INTEGRATE | |
 | nodes.create (POST /api/nodes) | INTEGRATE | |
@@ -31,9 +31,9 @@ Let's Encrypt / Pebble ACME is spoken by Traefik, not by the collection.
 | hosts bulk actions / reorder | OPT-OUT | not needed: one host per node in v1 (D-07); several hosts per node are deferred |
 | keygen (GET /api/keygen, SECRET_KEY, generate-once) | INTEGRATE | |
 | system.tools.x25519.generate (GET /api/system/tools/x25519/generate) | INTEGRATE | |
-| system.metadata (GET /api/system/metadata, version pin check) | INTEGRATE | |
-| users.create + users.get-by-username (probe user `xvpn-molecule-client`) | INTEGRATE | test fixture only: called by the two-VM verify to obtain a real client subscription (Plan 03-13); the roles never create users (REQUIREMENTS Out of Scope) |
-| subscription /api/sub/{shortUuid} (raw links) | INTEGRATE | test fixture only: the two-VM verify reads the issued vless:// link to configure the Xray client (Plan 03-13) |
+| system.metadata (GET /api/system/metadata, version pin check) | INTEGRATE | Plan 03-05, Task 2: the shared client reads it once before the first write and refuses a Panel outside 3.4.x (`panel_version_check` opt-out) |
+| users.create + users.get-by-username (probe user `xvpn-molecule-client`) | INTEGRATE | test fixture only: called by the two-VM verify to obtain a real client subscription (Plan 03-15); the roles never create users (REQUIREMENTS Out of Scope) |
+| subscription /api/sub/{shortUuid} (raw links) | INTEGRATE | test fixture only: the two-VM verify reads the issued vless:// link to configure the Xray client (Plan 03-15) |
 | users / subscriptions management in roles | OPT-OUT | explicitly out of scope for v1: VPN users are managed by the operator in the Panel UI |
 | config-profiles computed config / inbounds-by-profile endpoints | OPT-OUT | not needed: the list response already carries `config` and `inbounds[]` with uuids and tags |
 | Reality key rotation (any endpoint) | OPT-OUT | explicitly out of scope: D-03, API-V2-01 (v2) |
