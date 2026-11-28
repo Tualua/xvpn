@@ -1,0 +1,19 @@
+---
+# Real playbooks/panel.yml and playbooks/node.yml on two enforcing VMs.
+# include_vars persists for the host across the imported plays.
+- name: Load the two-VM stand values
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+- name: Panel host
+  ansible.builtin.import_playbook: ../../../playbooks/panel.yml
+  vars:
+    ansible_pipelining: true
+
+- name: Node host
+  ansible.builtin.import_playbook: ../../../playbooks/node.yml
+  vars:
+    ansible_pipelining: true

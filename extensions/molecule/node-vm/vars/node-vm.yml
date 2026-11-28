@@ -1,0 +1,15 @@
+---
+# Two-VM stand values (Plan 03-06). Loaded for all hosts by converge.yml via include_vars.
+# The test domains resolve through /etc/hosts written by vm/tasks/pebble.yml (each VM resolves its own names).
+xvpn_panel_domain: panel.xvpn.test
+xvpn_subscription_domain: sub.xvpn.test
+# Runtime budget: the subscription page is not part of this stand.
+xvpn_panel_subscription_enabled: false
+xvpn_node_domain: node.xvpn.test
+# Address of the node as the Panel sees it (Pitfall 10). The group lookup survives a platform rename and is
+# evaluated lazily, only inside plays that gathered facts.
+xvpn_node_address: "{{ hostvars[groups['remnawave_nodes'][0]]['ansible_facts']['default_ipv4']['address'] }}"
+# CI never talks to production Let's Encrypt (QA-05): Pebble runs on each VM itself.
+xvpn_edge_acme_ca: custom
+xvpn_edge_acme_ca_server: https://127.0.0.1:14000/dir
+xvpn_edge_acme_trusted_ca_file: /etc/pebble/certs/pebble.minica.pem

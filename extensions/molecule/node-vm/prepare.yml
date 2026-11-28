@@ -1,0 +1,27 @@
+---
+# Each VM runs its own Pebble and challtestsrv (extensions/molecule/vm/tasks/pebble.yml), so every VM stores its
+# own issuer root; a verifier on another VM must copy the root from the VM that issued the certificate.
+- name: Prepare both VMs (auditd, AVC marker, Pebble, own test names)
+  ansible.builtin.import_playbook: ../vm/prepare.yml
+  vars:
+    xvpn_prepare_hosts_names: "{{ 'node.xvpn.test' if 'remnawave_nodes' in group_names else 'panel.xvpn.test sub.xvpn.test' }}"
+
+- name: Store the Pebble issuer root on every VM
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Fetch the Pebble issuing root
+      ansible.builtin.uri:
+        url: https://127.0.0.1:15000/roots/0
+        ca_path: /etc/pebble/certs/pebble.minica.pem
+        return_content: true
+      register: xvpn_prepare_issuer_root
+
+    - name: Write the Pebble issuer root
+      ansible.builtin.copy:
+        content: "{{ xvpn_prepare_issuer_root.content }}"
+        dest: /var/lib/xvpn-molecule/pebble-issuer-root.pem
+        owner: root
+        group: root
+        mode: "0644"

@@ -191,5 +191,5 @@
 - name: Pebble | resolve the test domains to the VM address
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: '\spanel\.xvpn\.test(\s|$)'
-    line: "{{ ansible_facts['default_ipv4']['address'] }} panel.xvpn.test sub.xvpn.test"
+    regexp: "\\s{{ (xvpn_prepare_hosts_names | default('panel.xvpn.test sub.xvpn.test')).split() | first | regex_escape }}(\\s|$)"
+    line: "{{ ansible_facts['default_ipv4']['address'] }} {{ xvpn_prepare_hosts_names | default('panel.xvpn.test sub.xvpn.test') }}"

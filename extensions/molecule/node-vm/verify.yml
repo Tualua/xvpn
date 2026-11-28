@@ -1,0 +1,27 @@
+---
+- name: Verify the node host
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Verify the node edge on loopback
+      ansible.builtin.include_tasks: ../shared/verify_node.yml
+      vars:
+        xvpn_verify_node_user: rw-edge
+        xvpn_verify_node_domain: node.xvpn.test
+
+- name: Verify the runtime and zero AVC on both VMs
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Verify the edge runtime and the audit log since the marker
+      ansible.builtin.include_tasks: ../shared/verify_runtime.yml
+      vars:
+        xvpn_verify_unit: traefik.service
+        xvpn_verify_port: 80
+        xvpn_verify_http_status: 404

@@ -1,0 +1,24 @@
+---
+# Node host assertions of the VM tier: the loopback TLS entrypoint holds a certificate of the node domain that
+# verifies against the Pebble issuer root stored by node-vm/prepare.yml.
+# Inputs: xvpn_verify_node_user (service user of the edge), xvpn_verify_node_domain (required).
+- name: Verify node | present the certificate on the loopback entrypoint
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: >-
+      openssl s_client -connect 127.0.0.1:8443 -servername {{ xvpn_verify_node_domain }}
+      -verify_hostname {{ xvpn_verify_node_domain }} -verify_return_error
+      -CAfile /var/lib/xvpn-molecule/pebble-issuer-root.pem </dev/null 2>&1
+  register: xvpn_verify_node_tls
+  until: >-
+    xvpn_verify_node_tls.rc == 0 and xvpn_verify_node_tls.stdout is search('Verification: OK')
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: Verify node | assert the certificate verified for the node domain
+  ansible.builtin.assert:
+    that:
+      - xvpn_verify_node_tls.stdout is search('Verification: OK')
+    fail_msg: "no verified certificate for {{ xvpn_verify_node_domain }} on 127.0.0.1:8443: {{ xvpn_verify_node_tls.stdout }}"
+    quiet: true

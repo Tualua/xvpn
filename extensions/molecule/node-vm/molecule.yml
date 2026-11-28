@@ -1,0 +1,42 @@
+---
+# Two-VM stand (Phase 3): a Panel VM and a node VM, SELinux enforcing, Pebble as the ACME CA on each VM.
+# Box pin as in extensions/molecule/vm/molecule.yml (T-01-19); the Rocky and Oracle legs come with Plan 03-09.
+# The VM sizes come from XVPN_NODE_VM_PANEL_MEMORY / XVPN_NODE_VM_NODE_MEMORY (MiB), so the workflow
+# memory budget step and Molecule read the same numbers. Floors: Panel 3072, node 1536.
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+platforms:
+  - name: panel
+    box: almalinux/10
+    box_version: 10.2.20260914
+    box_architecture: amd64
+    memory: ${XVPN_NODE_VM_PANEL_MEMORY:-4096}
+    cpus: 2
+    groups: [remnawave_panel]
+    # Rocky/Alma 10 need x86-64-v3 (RESEARCH Pitfall 10)
+    provider_options:
+      cpu_mode: host-passthrough
+  - name: node
+    box: almalinux/10
+    box_version: 10.2.20260914
+    box_architecture: amd64
+    memory: ${XVPN_NODE_VM_NODE_MEMORY:-2048}
+    cpus: 2
+    groups: [remnawave_nodes]
+    provider_options:
+      cpu_mode: host-passthrough
+ansible:
+  executor:
+    backend: ansible-playbook
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
