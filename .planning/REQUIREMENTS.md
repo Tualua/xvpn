@@ -56,7 +56,7 @@
 - [x] **API-01**: Коллекция предоставляет Ansible-модули (`remnawave_config_profile`, `remnawave_node`, `remnawave_host`, `remnawave_internal_squad`) с поддержкой `check_mode`, `--diff` и честным `changed`
 - [x] **API-02**: Нода из inventory автоматически регистрируется в Panel: config profile, node, SECRET_KEY, hosts — без ручных действий в UI
 - [x] **API-03**: Повторный прогон не создаёт дубликатов и не меняет Reality-ключи/shortIds (`changed=0`)
-- [ ] **API-04**: Playbook ждёт, пока зарегистрированная нода перейдёт в состояние connected, с ограниченным числом попыток
+- [x] **API-04**: Playbook ждёт, пока зарегистрированная нода перейдёт в состояние connected, с ограниченным числом попыток
 - [ ] **API-05**: Оператор выводит ноду из эксплуатации (`state: absent` + явный флаг): нода и её hosts удаляются из Panel, юниты на хосте останавливаются
 
 ### LAN access (LAN)
@@ -164,7 +164,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-01 | Phase 3 | Complete |
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |
-| API-04 | Phase 3 | Pending |
+| API-04 | Phase 3 | Complete |
 | API-05 | Phase 3 | Pending |
 | LAN-01 | Phase 4 | Pending |
 | LAN-02 | Phase 4 | Pending |

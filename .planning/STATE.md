@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 03
 current_phase_name: Нода с Reality self-steal и авто-регистрацией
 status: executing
-stopped_at: Completed 03-11-PLAN.md
-last_updated: "2026-11-28T16:56:31.527Z"
+stopped_at: Completed 03-12-PLAN.md
+last_updated: "2026-11-28T17:10:58.363Z"
 last_activity: 2026-11-28
 last_activity_desc: Phase 03 execution started
-state_head: 75a27abfa2580f39bd3ddf6ae8e3cfaa8ca462b9
+state_head: 145b8315463b52a5c774833b587e80c957e92582
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 35
+  completed_plans: 36
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-28)
 ## Current Position
 
 Phase: 03 (Нода с Reality self-steal и авто-регистрацией) — EXECUTING
-Plan: 12 of 16
+Plan: 13 of 16
 Status: Ready to execute
 Last activity: 2026-11-28 — Phase 03 execution started
 
@@ -92,6 +92,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P09 | ~1h40m | 2 tasks | 3 files |
 | Phase 03 P10 | 25min | 2 tasks | 9 files |
 | Phase 03 P11 | 60min | 2 tasks | 11 files |
+| Phase 03 P12 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-08: 443 opens only after the loopback cert gate; node API 2222 only via Panel-source IPv4 rich rules
 - [Phase 03]: 03-10: IPv4-mapped ::ffff:0:0/96 dropped from xvpn_node_blocked_cidrs (Xray 26.11.9 rejects it in routing ip)
 - [Phase 03]: 03-10: config profile keys never from declaration; module.params config redacted so invocation carries no key
+- [Phase 03]: Panel 3.4.11 seeds the reserved squad Default-Squad; node address guard compares the Panel address string, no DNS
 
 ### Pending Todos
 
@@ -179,6 +181,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T16:56:30.965Z
-Stopped at: Completed 03-11-PLAN.md
+Last session: 2026-11-28T17:10:57.857Z
+Stopped at: Completed 03-12-PLAN.md
 Resume file: None
