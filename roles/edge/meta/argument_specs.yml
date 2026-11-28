@@ -52,7 +52,7 @@ argument_specs:
         description: Bundled decoy template; empty selects by C(xvpn_edge_decoy_src), then C(xvpn_edge_decoy_select_key), then the neutral page.
         type: str
         default: ""
-        choices: ["", studio]
+        choices: ["", blog, business, maintenance, studio]
       xvpn_edge_decoy_select_key:
         description: Key of the deterministic template choice (rendezvous rule); empty keeps the neutral Panel page.
         type: str

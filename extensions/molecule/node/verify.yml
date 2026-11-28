@@ -16,6 +16,10 @@
       - node-profile-dot
       - node-profile-reserved
       - node-state-absent
+      - decoy-template-unknown
+    xvpn_verify_templates_all: >-
+      {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../../roles/edge/vars/main.yml') | from_yaml).xvpn_edge_decoy_templates }}
+    xvpn_verify_template_names: [blog, business, maintenance, studio]
   tasks:
     - name: Verify the host baseline (SELinux, firewalld ports)
       ansible.builtin.include_tasks: ../shared/verify_common.yml
@@ -83,7 +87,7 @@
       ansible.builtin.stat:
         path: "/var/lib/xvpn/rw-edge/decoy/site/{{ item }}"
         checksum_algorithm: sha256
-      loop: [assets/style.css, 404.html, work.html, contact.html, index.html, favicon.ico, robots.txt]
+      loop: [assets/style.css, 404.html, index.html, favicon.ico, robots.txt]
       register: xvpn_verify_decoy_site
 
     - name: Read the decoy nginx configuration and the rendered pages
@@ -387,6 +391,161 @@
           - not xvpn_verify_decoy_prune.results[2].stat.exists
           - xvpn_verify_decoy_prune.results[3].stat.exists
         fail_msg: "a stray file survived the decoy prune or a template file was removed"
+        quiet: true
+
+    # D-10 order independence: the same list reversed (role params beat role vars) selects the same template.
+    - name: Apply the edge role with the template list reversed
+      ansible.builtin.include_tasks: ../shared/node_decoy_variant.yml
+      vars:
+        xvpn_verify_variant:
+          templates: "{{ xvpn_verify_templates_all | reverse | list }}"
+
+    - name: Assert the reversed list selected the same template
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_last.css == xvpn_verify_decoy_role_css.stat.checksum
+        fail_msg: "the template choice depends on the list order"
+        quiet: true
+
+    # Review round 1: every bundled template is proven, not only the hash-selected one.
+    - name: Apply the edge role with each bundled template chosen explicitly
+      ansible.builtin.include_tasks: ../shared/node_decoy_each.yml
+      loop: "{{ xvpn_verify_template_names }}"
+      loop_control:
+        loop_var: xvpn_verify_name
+
+    - name: Stat the role style sheet of every bundled template on the controller
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../../../roles/edge/files/decoy-templates/{{ item }}/assets/style.css"
+        checksum_algorithm: sha256
+      loop: "{{ xvpn_verify_template_names }}"
+      delegate_to: localhost
+      become: false
+      register: xvpn_verify_each_role_css
+
+    - name: Assert every template rendered its own site with the strict 404
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_each | map(attribute='css') | list == xvpn_verify_each_role_css.results | map(attribute='stat') | map(attribute='checksum') | list
+          - xvpn_verify_each | map(attribute='css') | unique | length == 4
+          - xvpn_verify_each | map(attribute='ok') | min
+        fail_msg: "a bundled template did not render: {{ xvpn_verify_each }}"
+        quiet: true
+
+    - name: Apply the edge role with an explicit template that the hash would not pick
+      ansible.builtin.include_tasks: ../shared/node_decoy_variant.yml
+      vars:
+        xvpn_verify_variant:
+          template: blog
+
+    - name: Assert the explicit choice won over the hash
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_decoy_expected.stdout != 'blog'
+          - xvpn_verify_last.css == (xvpn_verify_each | selectattr('name', 'equalto', 'blog') | first).css
+        fail_msg: "the explicit xvpn_edge_decoy_template did not win over the hash"
+        quiet: true
+
+    # D-11: an operator directory replaces the template, switching back restores it.
+    - name: Create the operator directory on the controller
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: xvpn-decoy-src-
+      delegate_to: localhost
+      become: false
+      register: xvpn_verify_operator_dir
+
+    - name: Fill the operator directory
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ xvpn_verify_operator_dir.path }}/{{ item.name }}"
+        mode: "0644"
+      loop:
+        - {name: index.html, content: "<html><body>operator home</body></html>\n"}
+        - {name: 404.html, content: "<html><body>operator missing</body></html>\n"}
+      delegate_to: localhost
+      become: false
+
+    - name: Apply the edge role with the operator directory
+      ansible.builtin.include_tasks: ../shared/node_decoy_variant.yml
+      vars:
+        xvpn_verify_variant:
+          src: "{{ xvpn_verify_operator_dir.path }}"
+
+    - name: Assert the site holds exactly the operator files
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_last.files == ['404.html', 'index.html']
+          - "'operator home' in xvpn_verify_last.index"
+        fail_msg: "the operator directory did not replace the template: {{ xvpn_verify_last.files }}"
+        quiet: true
+
+    - name: Apply the edge role without the operator directory again
+      ansible.builtin.include_tasks: ../shared/node_decoy_variant.yml
+      vars:
+        xvpn_verify_variant: {}
+
+    - name: Assert the template is back
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_last.css == xvpn_verify_decoy_role_css.stat.checksum
+          - "'assets/style.css' in xvpn_verify_last.files"
+        fail_msg: "the template was not restored: {{ xvpn_verify_last.files }}"
+        quiet: true
+
+    - name: Remove the operator directory
+      ansible.builtin.file:
+        path: "{{ xvpn_verify_operator_dir.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+
+    # T-03-09: the brand is HTML-escaped.
+    - name: Apply the edge role with an HTML brand
+      ansible.builtin.include_tasks: ../shared/node_decoy_variant.yml
+      vars:
+        xvpn_verify_variant:
+          brand: "<b>Acme</b>"
+
+    - name: Assert the brand is escaped
+      ansible.builtin.assert:
+        that:
+          - "'&lt;b&gt;Acme&lt;/b&gt;' in xvpn_verify_last.index"
+          - "'<b>Acme</b>' not in xvpn_verify_last.index"
+        fail_msg: "the brand is not escaped in index.html"
+        quiet: true
+
+    # xvpn_negative_case: decoy-template-unknown
+    - name: Negative case decoy-template-unknown
+      block:
+        - name: Run the edge role with an unknown decoy template
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.edge
+          vars:
+            xvpn_edge_decoy_template: unknown
+            xvpn_edge_activate: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case decoy-template-unknown was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['decoy-template-unknown'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_edge_decoy_template' in (ansible_failed_result.msg | string)"
+
+    # Restore the default selection so the scenario state matches the converge.
+    - name: Apply the edge role with the default node selection
+      ansible.builtin.include_tasks: ../shared/node_decoy_variant.yml
+      vars:
+        xvpn_verify_variant: {}
+
+    - name: Assert the default selection is back
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_last.css == xvpn_verify_decoy_role_css.stat.checksum
+        fail_msg: "the default decoy selection was not restored"
         quiet: true
 
     - name: List the dynamic directory after the node cases

@@ -1,0 +1,15 @@
+---
+# One bundled template chosen explicitly: apply the edge role and append the observed state to xvpn_verify_each.
+# Input: xvpn_verify_name (loop variable of verify.yml).
+- name: Apply the edge role with one explicit template
+  ansible.builtin.include_tasks: node_decoy_variant.yml
+  vars:
+    xvpn_verify_variant:
+      template: "{{ xvpn_verify_name }}"
+
+- name: Record the state of that template
+  ansible.builtin.set_fact:
+    xvpn_verify_each: >-
+      {{ (xvpn_verify_each | default([])) + [{'name': xvpn_verify_name, 'css': xvpn_verify_last.css,
+      'ok': ('index.html' in xvpn_verify_last.files and '404.html' in xvpn_verify_last.files
+      and 'error_page 404 /404.html' in xvpn_verify_last.conf)}] }}

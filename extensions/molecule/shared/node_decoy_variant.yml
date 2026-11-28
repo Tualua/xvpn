@@ -1,0 +1,49 @@
+---
+# Applies the edge role (render only) with one decoy variant and records what ended up on the site.
+# Input: xvpn_verify_variant (dict with optional template, src, brand, templates).
+# Output: xvpn_verify_last (files: relative paths of regular files, css: sha256 of assets/style.css, index, conf).
+- name: Apply the edge role with the decoy variant
+  ansible.builtin.include_role:
+    name: xvpn.remnawave.edge
+  vars:
+    xvpn_edge_activate: false
+    xvpn_edge_https_address: "127.0.0.1:8443"
+    xvpn_edge_acme_ca: staging
+    xvpn_edge_decoy_select_key: "{{ xvpn_node_domain }}"
+    xvpn_edge_decoy_strict: true
+    xvpn_edge_decoy_template: "{{ xvpn_verify_variant.template | default('') }}"
+    xvpn_edge_decoy_src: "{{ xvpn_verify_variant.src | default('') }}"
+    xvpn_edge_decoy_brand: "{{ xvpn_verify_variant.brand | default('') }}"
+    xvpn_edge_decoy_templates: "{{ xvpn_verify_variant.templates | default(xvpn_verify_templates_all) }}"
+
+- name: List the regular files on the decoy site
+  ansible.builtin.find:
+    paths: /var/lib/xvpn/rw-edge/decoy/site
+    recurse: true
+    file_type: file
+    hidden: true
+  register: xvpn_verify_variant_found
+
+- name: Stat the style sheet of the site
+  ansible.builtin.stat:
+    path: /var/lib/xvpn/rw-edge/decoy/site/assets/style.css
+    checksum_algorithm: sha256
+  register: xvpn_verify_variant_css
+
+- name: Read the index page and the nginx configuration
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop:
+    - /var/lib/xvpn/rw-edge/decoy/site/index.html
+    - /var/lib/xvpn/rw-edge/decoy/conf.d/default.conf
+  register: xvpn_verify_variant_text
+
+- name: Record the state of the site
+  ansible.builtin.set_fact:
+    xvpn_verify_last:
+      files: >-
+        {{ xvpn_verify_variant_found.files | map(attribute='path')
+        | map('regex_replace', '^/var/lib/xvpn/rw-edge/decoy/site/', '') | sort | list }}
+      css: "{{ xvpn_verify_variant_css.stat.checksum | default('') }}"
+      index: "{{ xvpn_verify_variant_text.results[0].content | b64decode }}"
+      conf: "{{ xvpn_verify_variant_text.results[1].content | b64decode }}"

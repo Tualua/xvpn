@@ -1,0 +1,20 @@
+html { font-family: Arial, Helvetica, sans-serif; color: #222; }
+body { margin: 0; background: #ffffff; line-height: 1.5; }
+.inner { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem; }
+.topbar { background: #0b3c5d; }
+.topbar .inner { display: flex; justify-content: space-between; align-items: center; }
+.logo { color: #ffffff; font-weight: 700; font-size: 1.2rem; text-decoration: none; padding: 1rem 0; }
+.menu { list-style: none; display: flex; margin: 0; padding: 0; }
+.menu a { display: block; padding: 1rem 1.1rem; color: #cfe3f1; text-decoration: none; text-transform: uppercase; font-size: 0.8rem; }
+.menu a:hover { background: #145a86; color: #ffffff; }
+.hero { background: linear-gradient(#e8f1f8, #d3e4f1); padding: 4rem 0; }
+.hero h1 { font-size: 2.4rem; margin: 0 0 1rem; color: #0b3c5d; }
+.btn { display: inline-block; background: #d9822b; color: #ffffff; padding: 0.7rem 1.6rem; border-radius: 3px; text-decoration: none; font-weight: 700; }
+.cols { display: flex; gap: 1.5rem; padding-top: 2.5rem; padding-bottom: 2.5rem; }
+.card { flex: 1; border: 1px solid #c9d6df; border-top: 4px solid #d9822b; padding: 1rem 1.25rem; }
+.plain { padding-top: 2.5rem; padding-bottom: 3rem; min-height: 16rem; }
+.rates { border-collapse: collapse; width: 100%; }
+.rates th, .rates td { border: 1px solid #c9d6df; padding: 0.6rem 0.8rem; text-align: left; }
+.rates th { background: #eef4f8; }
+.bottom { background: #f1f1f1; color: #666; font-size: 0.8rem; padding: 1.2rem 0; border-top: 1px solid #ddd; }
+@media (max-width: 40rem) { .cols { display: block; } .topbar .inner { display: block; } }

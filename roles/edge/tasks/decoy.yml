@@ -21,7 +21,8 @@
 - name: Edge decoy | resolve the source and the brand
   ansible.builtin.set_fact:
     xvpn_edge_decoy_source_kind: >-
-      {{ 'template' if (xvpn_edge_decoy_template | length > 0 or xvpn_edge_decoy_selected_template | default('') | length > 0)
+      {{ 'template' if (xvpn_edge_decoy_template | length > 0
+      or (xvpn_edge_decoy_src | length == 0 and xvpn_edge_decoy_selected_template | default('') | length > 0))
       else ('operator directory' if xvpn_edge_decoy_src | length > 0 else 'Panel default') }}
     xvpn_edge_decoy_source: >-
       {%- if xvpn_edge_decoy_template | length > 0 -%}
