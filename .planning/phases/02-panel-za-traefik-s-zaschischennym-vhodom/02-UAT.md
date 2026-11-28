@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 02-panel-za-traefik-s-zaschischennym-vhodom
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md]
 started: 2026-11-27T03:29:21Z
-updated: 2026-11-27T13:56:58.183Z
+updated: 2026-11-28T04:18:45.850Z
 ---
 
 ## Current Test
@@ -18,7 +18,8 @@ result: pass
 
 ### 2. Production Let's Encrypt на реальном домене
 expected: Прогон playbooks/panel.yml на реальном публичном домене с xvpn_edge_acme_ca: production выпускает сертификат production Let's Encrypt; Panel и subscription page открываются по HTTPS без предупреждений браузера.
-result: issue
+result: pass
+retest: "pass — re-checked 2026-11-28 on the production host after gap closure 02-12 (per-CA ACME store acme-production.json)"
 reported: "PLAY RECAP panel1 : ok=574 changed=2 unreachable=0 failed=0 skipped=420. Сертификат остался staging. Подозреваю, что нужно перезапустить контейнер с traefik. Сделать я это не смог, у юзера /sbin/nologin"
 severity: major
 
@@ -117,8 +118,8 @@ coverage_id: 02-03-D4
 ## Summary
 
 total: 19
-passed: 16
-issues: 1
+passed: 17
+issues: 0
 pending: 0
 skipped: 2
 blocked: 0
