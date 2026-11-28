@@ -11,3 +11,10 @@ xvpn_edge_acme_storage_file: >-
   else 'acme-' ~ xvpn_edge_acme_ca ~ '.json' }}
 # The single store of earlier collection versions; no longer read, only kept private.
 xvpn_edge_acme_legacy_file: acme.json
+
+# Bundled decoy templates (roles/edge/files/decoy-templates/<name>/). The order does not matter: the template of a node
+# is picked by the rendezvous rule (the name with the highest sha256(key ~ ':' ~ name) wins), so adding a template moves
+# only the nodes for which the new one scores highest, and nothing depends on the list order (D-10). Plan 03-04 sets
+# the final list before any release; after a release the rule must not change (it would re-map deployed nodes).
+xvpn_edge_decoy_templates:
+  - studio

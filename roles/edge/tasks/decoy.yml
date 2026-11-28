@@ -1,0 +1,112 @@
+---
+# Decoy site: select one source, install it file by file, prune everything else (D-09, D-10, D-11, D-12).
+# Selection order: xvpn_edge_decoy_template > xvpn_edge_decoy_src > rendezvous over xvpn_edge_decoy_select_key >
+# the neutral Panel page (unchanged, D-12).
+- name: Edge decoy | select the template by the rendezvous rule
+  ansible.builtin.set_fact:
+    xvpn_edge_decoy_selected_template: >-
+      {%- set ns = namespace(best='', best_digest='') -%}
+      {%- for name in xvpn_edge_decoy_templates -%}
+      {%- set digest = (xvpn_edge_decoy_select_key ~ ':' ~ name) | hash('sha256') -%}
+      {%- if digest > ns.best_digest -%}
+      {%- set ns.best = name -%}{%- set ns.best_digest = digest -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ ns.best }}
+  when:
+    - xvpn_edge_decoy_template | length == 0
+    - xvpn_edge_decoy_src | length == 0
+    - xvpn_edge_decoy_select_key | length > 0
+
+- name: Edge decoy | resolve the source and the brand
+  ansible.builtin.set_fact:
+    xvpn_edge_decoy_source_kind: >-
+      {{ 'template' if (xvpn_edge_decoy_template | length > 0 or xvpn_edge_decoy_selected_template | default('') | length > 0)
+      else ('operator directory' if xvpn_edge_decoy_src | length > 0 else 'Panel default') }}
+    xvpn_edge_decoy_source: >-
+      {%- if xvpn_edge_decoy_template | length > 0 -%}
+      {{ xvpn_edge_role_dir }}/files/decoy-templates/{{ xvpn_edge_decoy_template }}
+      {%- elif xvpn_edge_decoy_src | length > 0 -%}
+      {{ xvpn_edge_decoy_src }}
+      {%- elif xvpn_edge_decoy_selected_template | default('') | length > 0 -%}
+      {{ xvpn_edge_role_dir }}/files/decoy-templates/{{ xvpn_edge_decoy_selected_template }}
+      {%- else -%}
+      {{ xvpn_edge_role_dir }}/files/decoy
+      {%- endif -%}
+    xvpn_edge_decoy_brand_resolved: >-
+      {%- if xvpn_edge_decoy_brand | length > 0 -%}
+      {{ xvpn_edge_decoy_brand }}
+      {%- elif xvpn_edge_decoy_select_key | length > 0 -%}
+      {{ xvpn_edge_decoy_select_key.split('.')[0] | title }}
+      {%- else -%}
+      Studio
+      {%- endif -%}
+
+- name: Edge decoy | name the selected source
+  ansible.builtin.debug:
+    msg: "decoy source: {{ xvpn_edge_decoy_source_kind }} ({{ xvpn_edge_decoy_source | basename }})"
+    verbosity: 1
+
+# One desired set drives both the install loop and the prune, so the two cannot diverge.
+- name: Edge decoy | list the source tree
+  ansible.builtin.set_fact:
+    xvpn_edge_decoy_tree: "{{ lookup('community.general.filetree', xvpn_edge_decoy_source, wantlist=True) }}"
+
+- name: Edge decoy | compute the files and the desired site paths
+  ansible.builtin.set_fact:
+    xvpn_edge_decoy_files: "{{ xvpn_edge_decoy_tree | selectattr('state', 'equalto', 'file') | list }}"
+    xvpn_edge_decoy_dirs: "{{ xvpn_edge_decoy_tree | selectattr('state', 'equalto', 'directory') | map(attribute='path') | list }}"
+
+- name: Edge decoy | compute the desired site paths
+  ansible.builtin.set_fact:
+    xvpn_edge_decoy_desired: >-
+      {{ (xvpn_edge_decoy_files | map(attribute='path') | map('regex_replace', '[.]j2$', '') | list
+      + xvpn_edge_decoy_dirs) | sort }}
+
+- name: Edge decoy | create the site sub-directories
+  ansible.builtin.file:
+    path: "{{ xvpn_edge_home }}/decoy/site/{{ item }}"
+    state: directory
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0755"
+  loop: "{{ xvpn_edge_decoy_dirs }}"
+
+- name: Edge decoy | render the template files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ xvpn_edge_home }}/decoy/site/{{ item.path | regex_replace('[.]j2$', '') }}"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0644"
+  loop: "{{ xvpn_edge_decoy_files | selectattr('path', 'search', '[.]j2$') | list }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Edge decoy | copy the plain files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ xvpn_edge_home }}/decoy/site/{{ item.path }}"
+    owner: "{{ xvpn_edge_user }}"
+    group: "{{ xvpn_edge_user }}"
+    mode: "0644"
+  loop: "{{ xvpn_edge_decoy_files | rejectattr('path', 'search', '[.]j2$') | list }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Edge decoy | find what is on the site
+  ansible.builtin.find:
+    paths: "{{ xvpn_edge_home }}/decoy/site"
+    recurse: true
+    file_type: any
+    hidden: true
+  register: xvpn_edge_decoy_present
+
+- name: Edge decoy | prune what is not part of the selected source
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ xvpn_edge_decoy_present.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: (item.path | regex_replace('^' ~ (xvpn_edge_home ~ '/decoy/site/') | regex_escape, '')) not in xvpn_edge_decoy_desired

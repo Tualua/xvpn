@@ -55,6 +55,62 @@
       vars:
         xvpn_node_route: "{{ xvpn_verify_node_route.content | b64decode | from_yaml }}"
 
+    # Selection rule, computed independently of the role (python3 on the controller): a divergence from the Jinja
+    # rendezvous rule in roles/edge/tasks/decoy.yml fails here.
+    - name: Compute the expected decoy template for the node domain
+      ansible.builtin.command:
+        argv: "{{ ['python3', '-c', xvpn_verify_decoy_py, xvpn_node_domain] + xvpn_verify_decoy_names }}"
+      vars:
+        xvpn_verify_decoy_py: >-
+          import hashlib,sys;key=sys.argv[1];print(max(sys.argv[2:],
+          key=lambda n: hashlib.sha256(f"{key}:{n}".encode()).hexdigest()))
+        xvpn_verify_decoy_names: >-
+          {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../../roles/edge/vars/main.yml') | from_yaml).xvpn_edge_decoy_templates }}
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      register: xvpn_verify_decoy_expected
+
+    - name: Stat the role style sheet of that template on the controller
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../../../roles/edge/files/decoy-templates/{{ xvpn_verify_decoy_expected.stdout }}/assets/style.css"
+        checksum_algorithm: sha256
+      delegate_to: localhost
+      become: false
+      register: xvpn_verify_decoy_role_css
+
+    - name: Stat the installed decoy site
+      ansible.builtin.stat:
+        path: "/var/lib/xvpn/rw-edge/decoy/site/{{ item }}"
+        checksum_algorithm: sha256
+      loop: [assets/style.css, 404.html, work.html, contact.html, index.html, favicon.ico, robots.txt]
+      register: xvpn_verify_decoy_site
+
+    - name: Read the decoy nginx configuration and the rendered pages
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /var/lib/xvpn/rw-edge/decoy/conf.d/default.conf
+        - /var/lib/xvpn/rw-edge/decoy/site/index.html
+        - /var/lib/xvpn/rw-edge/decoy/site/404.html
+      register: xvpn_verify_decoy_text
+
+    - name: Assert the node serves the selected template with a real 404
+      ansible.builtin.assert:
+        that:
+          - xvpn_verify_decoy_site.results | map(attribute='stat') | map(attribute='exists') | min
+          - (xvpn_verify_decoy_site.results | first).stat.checksum == xvpn_verify_decoy_role_css.stat.checksum
+          - "'error_page 404 /404.html' in (xvpn_verify_decoy_text.results[0].content | b64decode)"
+          - "'try_files $uri $uri/ =404;' in (xvpn_verify_decoy_text.results[0].content | b64decode)"
+          - "'/index.html;' not in (xvpn_verify_decoy_text.results[0].content | b64decode)"
+          - "'xvpn' not in (xvpn_verify_decoy_text.results[1].content | b64decode | lower)"
+          - "'xvpn' not in (xvpn_verify_decoy_text.results[2].content | b64decode | lower)"
+          - "'Node' in (xvpn_verify_decoy_text.results[1].content | b64decode)"
+          - "'http://' not in (xvpn_verify_decoy_text.results[1].content | b64decode)"
+          - "'https://' not in (xvpn_verify_decoy_text.results[1].content | b64decode)"
+        fail_msg: "the node decoy is not the selected template with a strict 404"
+        quiet: true
+
     - name: Stat the node service user linger file
       ansible.builtin.stat:
         path: /var/lib/systemd/linger/rw-node

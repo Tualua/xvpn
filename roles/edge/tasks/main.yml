@@ -16,6 +16,7 @@
       - (xvpn_edge_https_address.split(':')[-1] | int) <= 65535
       - xvpn_edge_decoy_port | int >= 1024
       - xvpn_edge_decoy_port | int <= 65535
+      - xvpn_edge_decoy_template == '' or xvpn_edge_decoy_template in xvpn_edge_decoy_templates
     fail_msg: >-
       Invalid edge inputs: check xvpn_edge_user, the image tags (exact, not latest), xvpn_edge_acme_ca
       (custom needs an https xvpn_edge_acme_ca_server), xvpn_edge_acme_email, the entrypoint addresses
@@ -107,14 +108,12 @@
     - decoy/site
     - decoy/conf.d
 
+- name: Edge | remember the role directory for the decoy sources
+  ansible.builtin.set_fact:
+    xvpn_edge_role_dir: "{{ role_path }}"
+
 - name: Edge | install the decoy site
-  ansible.builtin.copy:
-    src: "{{ ((xvpn_edge_decoy_src | length) > 0) | ternary(xvpn_edge_decoy_src ~ '/', role_path ~ '/files/decoy/') }}"
-    dest: "{{ xvpn_edge_home }}/decoy/site/"
-    owner: "{{ xvpn_edge_user }}"
-    group: "{{ xvpn_edge_user }}"
-    mode: "0644"
-    directory_mode: "0755"
+  ansible.builtin.include_tasks: decoy.yml
 
 - name: Edge | render the decoy nginx configuration
   ansible.builtin.template:

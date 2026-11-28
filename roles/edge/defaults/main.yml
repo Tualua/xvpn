@@ -28,3 +28,11 @@ xvpn_edge_route_name: ""
 xvpn_edge_route_src: ""
 xvpn_edge_route_state: present
 xvpn_edge_route_sensitive: false
+# Name of a bundled decoy template (roles/edge/files/decoy-templates); empty selects by the rules of tasks/decoy.yml (D-10).
+xvpn_edge_decoy_template: ""
+# Key of the deterministic template choice (rendezvous rule); empty keeps the neutral Panel page (D-12).
+xvpn_edge_decoy_select_key: ""
+# Strict mode: unknown paths answer 404 with the template's own 404.html (nodes, STEAL-02); false keeps the Panel catch-all.
+xvpn_edge_decoy_strict: false
+# Brand shown by the bundled templates; empty derives it from the select key.
+xvpn_edge_decoy_brand: ""

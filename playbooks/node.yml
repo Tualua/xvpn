@@ -29,6 +29,9 @@
       - name: rw-node
     # D-13: TLS only on loopback; Xray owns the public 443 (Network=host).
     xvpn_edge_https_address: "127.0.0.1:8443"
+    # D-10: the site of a node is picked from the node domain; STEAL-02: a real 404 page.
+    xvpn_edge_decoy_select_key: "{{ xvpn_node_domain }}"
+    xvpn_edge_decoy_strict: true
   roles:
     - xvpn.remnawave.common
     - xvpn.remnawave.podman_rootless

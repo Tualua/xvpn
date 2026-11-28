@@ -48,6 +48,23 @@ argument_specs:
         description: Controller directory with the decoy site; empty uses the bundled neutral page.
         type: str
         default: ""
+      xvpn_edge_decoy_template:
+        description: Bundled decoy template; empty selects by C(xvpn_edge_decoy_src), then C(xvpn_edge_decoy_select_key), then the neutral page.
+        type: str
+        default: ""
+        choices: ["", studio]
+      xvpn_edge_decoy_select_key:
+        description: Key of the deterministic template choice (rendezvous rule); empty keeps the neutral Panel page.
+        type: str
+        default: ""
+      xvpn_edge_decoy_strict:
+        description: Answer unknown paths with 404 and the template's own C(404.html) instead of the catch-all page.
+        type: bool
+        default: false
+      xvpn_edge_decoy_brand:
+        description: Brand shown by the bundled templates; empty derives it from the select key.
+        type: str
+        default: ""
       xvpn_edge_activate:
         description: Restart changed units; false renders and validates only.
         type: bool

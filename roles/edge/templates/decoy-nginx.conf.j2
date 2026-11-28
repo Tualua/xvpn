@@ -6,8 +6,20 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+{% if xvpn_edge_decoy_strict | bool %}
+    # D-02 catch-all for the Panel gate; strict real 404 on nodes, STEAL-02.
+    error_page 404 /404.html;
+    location = /404.html {
+        internal;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+{% else %}
     # Every path answers 200 with the neutral page (D-02).
     location / {
         try_files $uri $uri/ /index.html;
     }
+{% endif %}
 }
