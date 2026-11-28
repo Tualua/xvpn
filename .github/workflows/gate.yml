@@ -2,15 +2,10 @@
 name: gate
 
 "on":
+  # No paths-ignore: the gitleaks secret scan must see every push (review WR-01).
   push:
-    paths-ignore:
-      - ".planning/**"
-      - "**.md"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - ".planning/**"
-      - "**.md"
   workflow_dispatch:
     inputs:
       break:

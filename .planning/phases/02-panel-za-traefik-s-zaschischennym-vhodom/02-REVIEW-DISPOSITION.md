@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`paths-ignore` skips the secret scan and the gate on planning-only and Markdown-only changes"
   - id: WR-02
     severity: warning
@@ -35,7 +35,7 @@ Previous ledger (full phase review) is in git history before this commit; all it
 
 | id | severity | disposition | source |
 |----|----------|-------------|--------|
-| WR-01 | warning | open | trade-off of the user-requested CI skip for non-code pushes; decision pending |
+| WR-01 | warning | fixed | gate (gitleaks) runs on every push and PR; lint and Molecule keep the skip (user decision) |
 | WR-02 | warning | fixed | a7d502a |
 | IN-01 | info | open | |
 | IN-02 | info | open | |
