@@ -12,8 +12,10 @@ xvpn_node_short_ids: 2
 xvpn_node_short_id_length: 16
 # Private and reserved destinations that the node profile blocks explicitly (RESEARCH Open Question 2, decision in
 # plan 03-10: an explicit CIDR list instead of geoip:private, so the block does not depend on a geo database in the
-# node image). ::/128 and the IPv4-mapped ::ffff:0:0/96 close the IPv6 forms of unspecified, loopback and private
-# destinations. Phase 4 prepends its LAN allow rule before the BLOCK rule built from this list.
+# node image). ::/128 closes the IPv6 unspecified address. The IPv4-mapped range ::ffff:0:0/96 is deliberately NOT
+# listed: Xray 26.11.9 rejects it in routing ip ("CIDR prefix length 96 exceeds max 32", it parses mapped addresses as
+# IPv4) and folds a mapped destination to its IPv4 form, which the IPv4 entries below already cover.
+# Phase 4 prepends its LAN allow rule before the BLOCK rule built from this list.
 xvpn_node_blocked_cidrs:
   - 127.0.0.0/8
   - 10.0.0.0/8
@@ -24,6 +26,5 @@ xvpn_node_blocked_cidrs:
   - 0.0.0.0/8
   - "::1/128"
   - "::/128"
-  - "::ffff:0:0/96"
   - "fc00::/7"
   - "fe80::/10"
