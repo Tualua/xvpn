@@ -242,3 +242,410 @@
         fail_msg: "the profile did not return to the template loglevel"
         quiet: true
       no_log: true
+
+# Foreign squad member (D-06, T-03-22): an inbound of another profile sits in Default-Squad; the node run keeps it.
+- name: Foreign squad member, create the foreign profile on the Panel host
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  module_defaults:
+    group/xvpn.remnawave.remnawave:
+      api_url: http://127.0.0.1:3000
+      api_token_file: /var/lib/xvpn/rw-panel/secrets/api-token
+  tasks:
+    - name: Foreign squad member | create a profile with one plain inbound
+      xvpn.remnawave.remnawave_config_profile:
+        name: xvpn-foreign
+        config:
+          log: {loglevel: warning}
+          inbounds:
+            - tag: foreign-in
+              port: 4443
+              protocol: vless
+              settings: {clients: [], decryption: none}
+              streamSettings: {network: tcp, security: none}
+          outbounds:
+            - {tag: DIRECT, protocol: freedom, settings: {}}
+          routing: {rules: []}
+
+    - name: Foreign squad member | add the foreign inbound to Default-Squad
+      xvpn.remnawave.remnawave_internal_squad:
+        name: Default-Squad
+        config_profile: xvpn-foreign
+        inbound_tags: [foreign-in]
+
+    - name: Foreign squad member | read the foreign inbound uuid
+      ansible.builtin.include_tasks: ../shared/node_registration_read.yml
+      vars:
+        xvpn_nr_name: "{{ groups['remnawave_nodes'][0] }}"
+        xvpn_nr_profile: xvpn-foreign
+        xvpn_nr_tag: foreign-in
+
+    - name: Foreign squad member | keep the foreign uuid
+      ansible.builtin.set_fact:
+        xvpn_se_foreign_uuid: "{{ xvpn_nr_inbound_uuid }}"
+
+    - name: Foreign squad member | assert the foreign inbound is a member
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_foreign_uuid | length > 0
+          - xvpn_se_foreign_uuid in xvpn_nr_squads['Default-Squad']
+        fail_msg: "the foreign inbound did not enter Default-Squad"
+        quiet: true
+      no_log: true
+
+- name: Foreign squad member, run the node role
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Foreign squad member | run the registration
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+
+    - name: Foreign squad member | assert the run changed nothing
+      ansible.builtin.assert:
+        that:
+          - not xvpn_node_registration.changed
+          - xvpn_node_squad_results.results | map(attribute='changed') | list == [false]
+        fail_msg: "a registration run next to a foreign squad member reported a change"
+        quiet: true
+
+- name: Foreign squad member, assert and clean up on the Panel host
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  module_defaults:
+    group/xvpn.remnawave.remnawave:
+      api_url: http://127.0.0.1:3000
+      api_token_file: /var/lib/xvpn/rw-panel/secrets/api-token
+  tasks:
+    - name: Foreign squad member | read our inbound uuid and the squads
+      ansible.builtin.include_tasks: ../shared/node_registration_read.yml
+      vars:
+        xvpn_nr_name: "{{ groups['remnawave_nodes'][0] }}"
+        xvpn_nr_profile: node
+        xvpn_nr_tag: vless-reality-node
+
+    - name: Foreign squad member | assert both inbounds are members
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_foreign_uuid in xvpn_nr_squads['Default-Squad']
+          - xvpn_nr_inbound_uuid in xvpn_nr_squads['Default-Squad']
+        fail_msg: "the node run removed a foreign inbound from Default-Squad or did not add ours"
+        quiet: true
+      no_log: true
+
+    - name: Foreign squad member | remove the foreign inbound from the squad
+      xvpn.remnawave.remnawave_internal_squad:
+        name: Default-Squad
+        config_profile: xvpn-foreign
+        inbound_tags: [foreign-in]
+        state: absent
+
+    - name: Foreign squad member | delete the foreign profile
+      xvpn.remnawave.remnawave_config_profile:
+        name: xvpn-foreign
+        state: absent
+
+    - name: Foreign squad member | read the squads again
+      ansible.builtin.include_tasks: ../shared/node_registration_read.yml
+      vars:
+        xvpn_nr_name: "{{ groups['remnawave_nodes'][0] }}"
+        xvpn_nr_profile: node
+        xvpn_nr_tag: vless-reality-node
+
+    - name: Foreign squad member | assert only ours remains
+      ansible.builtin.assert:
+        that:
+          - xvpn_se_foreign_uuid not in xvpn_nr_squads['Default-Squad']
+          - xvpn_nr_inbound_uuid in xvpn_nr_squads['Default-Squad']
+        fail_msg: "the cleanup of the foreign profile affected our inbound or left the foreign one"
+        quiet: true
+      no_log: true
+
+# Node not connected (API-04, T-03-23): remnanode stopped, a short budget fails with diagnostics, the next run recovers.
+- name: Node not connected, stop remnanode
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Node not connected | read the uid of the node service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-node
+
+    - name: Node not connected | stop remnanode
+      ansible.builtin.command:
+        argv: [systemctl, --user, stop, remnanode.service]
+      become: true
+      become_user: rw-node
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-node'][1] }}"
+      changed_when: true
+
+- name: Node not connected, wait until the Panel sees the node disconnected
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Node not connected | read the node
+      ansible.builtin.include_tasks: ../shared/node_registration_read.yml
+      vars:
+        xvpn_nr_name: "{{ groups['remnawave_nodes'][0] }}"
+        xvpn_nr_profile: node
+        xvpn_nr_tag: vless-reality-node
+
+    # The Panel health check runs every 10 s: wait for the state change so the next step is not racing it.
+    - name: Node not connected | poll the node until it is disconnected
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/nodes
+        headers:
+          X-Forwarded-For: 127.0.0.1
+          X-Forwarded-Proto: https
+          Authorization: "Bearer {{ xvpn_nr_token.content | b64decode | trim }}"
+        return_content: true
+      register: xvpn_se_poll
+      until: >-
+        not ((xvpn_se_poll.json.response | selectattr('name', 'equalto', groups['remnawave_nodes'][0]) | first).isConnected | bool)
+      retries: 24
+      delay: 5
+      changed_when: false
+      no_log: true
+
+- name: Node not connected, the run with a short budget
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    # xvpn_negative_case: node-not-connected
+    - name: Node not connected | run the registration with 3 x 2 s
+      block:
+        - name: Node not connected | include the registration
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+            tasks_from: register
+          vars:
+            xvpn_edge_https_address: "127.0.0.1:8443"
+            xvpn_node_connect_retries: 3
+            xvpn_node_connect_delay: 2
+
+        - name: Node not connected | record that the run passed (must not happen)
+          ansible.builtin.set_fact:
+            xvpn_se_nc_msg: ""
+      rescue:
+        - name: Node not connected | keep the failure message
+          ansible.builtin.set_fact:
+            xvpn_se_nc_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Node not connected | assert the diagnostics
+      ansible.builtin.assert:
+        that:
+          - "'not connected' in xvpn_se_nc_msg"
+          - "'lastStatusMessage' in xvpn_se_nc_msg"
+          - "'xvpn_node_panel_sources' in xvpn_se_nc_msg"
+          - "'remnanode.service' in xvpn_se_nc_msg"
+          - "'xvpn_node_rekey' in xvpn_se_nc_msg"
+        fail_msg: "node-not-connected: message '{{ xvpn_se_nc_msg }}'"
+        quiet: true
+
+    - name: Node not connected | read the uid of the node service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-node
+
+    - name: Node not connected | start remnanode again
+      ansible.builtin.command:
+        argv: [systemctl, --user, start, remnanode.service]
+      become: true
+      become_user: rw-node
+      become_method: ansible.builtin.sudo
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['getent_passwd']['rw-node'][1] }}"
+      changed_when: true
+
+    - name: Node not connected | run the registration with the default budget
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+
+    - name: Node not connected | assert the node is connected again
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_registration.is_connected | bool
+          - not xvpn_node_registration.changed
+        fail_msg: "the run after starting remnanode did not connect the node"
+        quiet: true
+
+# Missing node.env (T-03-38): the Panel knows the node, the key file is gone, an ordinary run refuses without keygen.
+- name: Missing node.env, move the file away and run
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Missing node.env | read the uid of the node service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-node
+
+    - name: Missing node.env | read the state before
+      ansible.builtin.include_tasks: ../shared/node_state.yml
+
+    - name: Missing node.env | keep the state before
+      ansible.builtin.set_fact:
+        xvpn_se_env_sha_before: "{{ xvpn_node_state_sha }}"
+        xvpn_se_env_invocation_before: "{{ xvpn_node_state_invocation }}"
+
+    - name: Missing node.env | move node.env to a backup path
+      ansible.builtin.copy:
+        src: /var/lib/xvpn/rw-node/env/node.env
+        dest: /var/lib/xvpn-molecule/node.env.backup
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Missing node.env | remove node.env
+      ansible.builtin.file:
+        path: /var/lib/xvpn/rw-node/env/node.env
+        state: absent
+      no_log: true
+
+    # xvpn_negative_case: node-env-missing-registered
+    - name: Missing node.env | run the secret and service steps without the flag
+      block:
+        - name: Missing node.env | include the steps
+          ansible.builtin.include_tasks: ../shared/node_rekey_run.yml
+          vars:
+            xvpn_rekey_flag: false
+
+        - name: Missing node.env | record that the run passed (must not happen)
+          ansible.builtin.set_fact:
+            xvpn_se_env_msg: ""
+      rescue:
+        - name: Missing node.env | keep the failure message
+          ansible.builtin.set_fact:
+            xvpn_se_env_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Missing node.env | read the state after
+      ansible.builtin.include_tasks: ../shared/node_state.yml
+
+    - name: Missing node.env | assert the refusal and the untouched node
+      ansible.builtin.assert:
+        that:
+          - "'xvpn_node_rekey' in xvpn_se_env_msg"
+          - "'already exists in the Panel' in xvpn_se_env_msg"
+          - not xvpn_node_state_exists
+          - xvpn_node_state_invocation == xvpn_se_env_invocation_before
+          - xvpn_node_state_active == 'active'
+        fail_msg: "node-env-missing-registered: message '{{ xvpn_se_env_msg }}', node.env exists {{ xvpn_node_state_exists }}"
+        quiet: true
+
+- name: Missing node.env, the Panel node is untouched
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Missing node.env | read the node
+      ansible.builtin.include_tasks: ../shared/node_registration_read.yml
+      vars:
+        xvpn_nr_name: "{{ groups['remnawave_nodes'][0] }}"
+        xvpn_nr_profile: node
+        xvpn_nr_tag: vless-reality-node
+
+    - name: Missing node.env | read the recorded uuid
+      ansible.builtin.slurp:
+        src: /var/lib/xvpn-molecule/node_uuid_after_first_converge
+      register: xvpn_se_uuid_recorded
+      no_log: true
+
+    - name: Missing node.env | assert one node, same uuid
+      ansible.builtin.assert:
+        that:
+          - xvpn_nr_count | int == 1
+          - xvpn_nr_node.uuid == (xvpn_se_uuid_recorded.content | b64decode | trim)
+        fail_msg: "the refused run changed the Panel node"
+        quiet: true
+      no_log: true
+
+- name: Missing node.env, put the file back
+  hosts: remnawave_nodes
+  become: true
+  gather_facts: true
+  vars:
+    ansible_pipelining: true
+  tasks:
+    - name: Load vars/node-vm.yml
+      ansible.builtin.include_vars: vars/node-vm.yml
+
+    - name: Missing node.env | read the uid of the node service user
+      ansible.builtin.getent:
+        database: passwd
+        key: rw-node
+
+    - name: Missing node.env | restore node.env from the backup
+      ansible.builtin.copy:
+        src: /var/lib/xvpn-molecule/node.env.backup
+        dest: /var/lib/xvpn/rw-node/env/node.env
+        remote_src: true
+        owner: rw-node
+        group: rw-node
+        mode: "0600"
+      no_log: true
+
+    - name: Missing node.env | run the secret and service steps without the flag
+      ansible.builtin.include_tasks: ../shared/node_rekey_run.yml
+      vars:
+        xvpn_rekey_flag: false
+
+    - name: Missing node.env | run the registration
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        tasks_from: register
+      vars:
+        xvpn_edge_https_address: "127.0.0.1:8443"
+
+    - name: Missing node.env | read the state after the restore
+      ansible.builtin.include_tasks: ../shared/node_state.yml
+
+    - name: Missing node.env | assert nothing changed after the restore
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_state_sha == xvpn_se_env_sha_before
+          - xvpn_node_state_invocation == xvpn_se_env_invocation_before
+          - not xvpn_node_registration.changed
+          - xvpn_node_registration.is_connected | bool
+        fail_msg: "the run after restoring node.env changed node.env, restarted remnanode or the node registration"
+        quiet: true
+
+    - name: Missing node.env | remove the backup
+      ansible.builtin.file:
+        path: /var/lib/xvpn-molecule/node.env.backup
+        state: absent

@@ -76,45 +76,6 @@
         fail_msg: "a run without xvpn_node_rekey changed node.env or restarted remnanode"
         quiet: true
 
-    # Interrupted first run: valid only while the node is not registered in the Panel; Plan 03-13 (which registers
-    # the node) removes this block and replaces it with the refusal case node-env-missing-registered.
-    - name: Interrupted first run | remove node.env
-      ansible.builtin.file:
-        path: /var/lib/xvpn/rw-node/env/node.env
-        state: absent
-
-    - name: Interrupted first run | run the steps without the flag
-      ansible.builtin.include_tasks: ../shared/node_rekey_run.yml
-      vars:
-        xvpn_rekey_flag: false
-
-    - name: Interrupted first run | stat node.env and read the InvocationID
-      ansible.builtin.include_tasks: ../shared/node_state.yml
-
-    - name: Interrupted first run | assert node.env is back and remnanode is active
-      ansible.builtin.assert:
-        that:
-          - xvpn_node_state_exists
-          - xvpn_node_state_mode == '0600'
-          - xvpn_node_state_owner == 'rw-node'
-          - xvpn_node_state_active == 'active'
-        fail_msg: "the run after an interrupted first run did not converge"
-        quiet: true
-
-    - name: Interrupted first run | record the checksum and InvocationID
-      ansible.builtin.copy:
-        content: "{{ item.value }}\n"
-        dest: "{{ item.key }}"
-        owner: root
-        group: root
-        mode: "0600"
-        force: true
-      loop:
-        - { key: /var/lib/xvpn-molecule/node_env_sha256, value: "{{ xvpn_node_state_sha }}" }
-        - { key: /var/lib/xvpn-molecule/remnanode_invocation, value: "{{ xvpn_node_state_invocation }}" }
-      loop_control:
-        label: "{{ item.key }}"
-
 - name: Verify the node host
   hosts: remnawave_nodes
   become: true
