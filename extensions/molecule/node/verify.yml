@@ -5,6 +5,17 @@
   vars:
     ansible_pipelining: true
     xvpn_node_domain: node.xvpn.test
+    # Every plan that adds a negative case appends its id here and updates the marker count in its verify command.
+    xvpn_negative_expected:
+      - node-domain-backtick
+      - node-domain-case
+      - node-domain-example
+      - node-image-latest
+      - node-image-untagged
+      - node-name-short
+      - node-profile-dot
+      - node-profile-reserved
+      - node-state-absent
   tasks:
     - name: Verify the host baseline (SELinux, firewalld ports)
       ansible.builtin.include_tasks: ../shared/verify_common.yml
@@ -59,4 +70,241 @@
         that:
           - xvpn_verify_node_linger.stat.exists
         fail_msg: "rw-node has no linger file"
+        quiet: true
+
+    - name: List the dynamic directory before the node cases
+      ansible.builtin.find:
+        paths: /var/lib/xvpn/rw-edge/traefik/dynamic
+        get_checksum: true
+      register: xvpn_verify_dyn_before
+
+    # xvpn_negative_case: node-domain-backtick
+    - name: Negative case node-domain-backtick
+      block:
+        - name: Run the node role with an invalid xvpn_node_domain
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_domain: 'node.xvpn.test`) || Host(`x'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-domain-backtick was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-domain-backtick'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_domain' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-domain-case
+    - name: Negative case node-domain-case
+      block:
+        - name: Run the node role with an invalid xvpn_node_domain
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_domain: 'Node.Example.com'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-domain-case was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-domain-case'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_domain' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-domain-example
+    - name: Negative case node-domain-example
+      block:
+        - name: Run the node role with an invalid xvpn_node_domain
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_domain: 'node.example.com'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-domain-example was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-domain-example'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_domain' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-image-latest
+    - name: Negative case node-image-latest
+      block:
+        - name: Run the node role with an invalid xvpn_node_image
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_image: 'docker.io/remnawave/node:latest'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-image-latest was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-image-latest'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_image' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-image-untagged
+    - name: Negative case node-image-untagged
+      block:
+        - name: Run the node role with an invalid xvpn_node_image
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_image: 'docker.io/remnawave/node'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-image-untagged was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-image-untagged'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_image' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-name-short
+    - name: Negative case node-name-short
+      block:
+        - name: Run the node role with an invalid xvpn_node_name
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_name: 'n1'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-name-short was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-name-short'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_name' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-profile-dot
+    - name: Negative case node-profile-dot
+      block:
+        - name: Run the node role with an invalid xvpn_node_profile_name
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_profile_name: 'a.b'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-profile-dot was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-profile-dot'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_profile_name' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-profile-reserved
+    - name: Negative case node-profile-reserved
+      block:
+        - name: Run the node role with an invalid xvpn_node_profile_name
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_profile_name: 'Default-Profile'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-profile-reserved was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-profile-reserved'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_profile_name' in (ansible_failed_result.msg | string)"
+
+    # xvpn_negative_case: node-state-absent
+    - name: Negative case node-state-absent
+      block:
+        - name: Run the node role with an invalid xvpn_node_state
+          ansible.builtin.include_role:
+            name: xvpn.remnawave.node
+          vars:
+            xvpn_node_state: 'absent'
+            xvpn_node_activate: false
+            xvpn_node_register: false
+        - name: Fail when the invalid input was accepted
+          ansible.builtin.fail:
+            msg: "negative case node-state-absent was accepted"
+      rescue:
+        - name: Record that the invalid input was rejected
+          ansible.builtin.set_fact:
+            xvpn_negative_rejected: "{{ (xvpn_negative_rejected | default([])) + ['node-state-absent'] }}"
+          when:
+            - not (ansible_failed_result.msg | string).startswith('negative case')
+            - "'xvpn_node_state' in (ansible_failed_result.msg | string)"
+
+    # xvpn_positive_case: node-name-space
+    - name: Positive case node-name-space, the role accepts a node name with a space
+      ansible.builtin.include_role:
+        name: xvpn.remnawave.node
+        public: true
+      vars:
+        xvpn_node_name: "node one"
+        xvpn_node_activate: false
+        xvpn_node_register: false
+
+    - name: Assert the computed defaults for a node name with a space
+      ansible.builtin.assert:
+        that:
+          - xvpn_node_inbound_tag == 'vless-reality-node-one'
+          - xvpn_node_inbound_tag is match('^[A-Za-z0-9_.-]{1,64}$')
+          - xvpn_node_profile_name == 'node one'
+        fail_msg: "default inbound tag is '{{ xvpn_node_inbound_tag }}'"
+        quiet: true
+      vars:
+        xvpn_node_name: "node one"
+
+    - name: List the dynamic directory after the node cases
+      ansible.builtin.find:
+        paths: /var/lib/xvpn/rw-edge/traefik/dynamic
+        get_checksum: true
+      register: xvpn_verify_dyn_after
+
+    - name: Assert no route file changed or appeared
+      ansible.builtin.assert:
+        that:
+          - (xvpn_verify_dyn_before.files | map(attribute='path') | zip(xvpn_verify_dyn_before.files | map(attribute='checksum')) | list | sort)
+            == (xvpn_verify_dyn_after.files | map(attribute='path') | zip(xvpn_verify_dyn_after.files | map(attribute='checksum')) | list | sort)
+        fail_msg: "the dynamic directory changed during the negative cases"
+        quiet: true
+
+    - name: Assert every node negative case was rejected with the variable name
+      ansible.builtin.assert:
+        that:
+          - xvpn_negative_rejected | sort == xvpn_negative_expected | sort
+        fail_msg: "rejected {{ xvpn_negative_rejected | default([]) | sort }}, expected {{ xvpn_negative_expected | sort }}"
         quiet: true
