@@ -4,16 +4,16 @@ milestone: v3.7.20
 current_phase: 03
 current_phase_name: Нода с Reality self-steal и авто-регистрацией
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-11-28T11:52:24.850Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-11-28T12:06:39.001Z"
 last_activity: 2026-11-28
 last_activity_desc: Phase 03 execution started
-state_head: ae4a85727d530d799c31e2cd3d545ff0731aa7d1
+state_head: eaae190e2f29767a4ab7020c576693dd0454350a
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 28
+  completed_plans: 29
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-28)
 ## Current Position
 
 Phase: 03 (Нода с Reality self-steal и авто-регистрацией) — EXECUTING
-Plan: 5 of 16
+Plan: 6 of 16
 Status: Ready to execute
 Last activity: 2026-11-28 — Phase 03 execution started
 
@@ -85,6 +85,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P02 | 25min | 2 tasks | 4 files |
 | Phase 03 P03 | 60 min | 2 tasks | 22 files |
 | Phase 03 P04 | 45min | 2 tasks | 40 files |
+| Phase 03 P05 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Traefik stays the self-steal terminator: selfsteal gate passes 9 cases on v3.7.20
 - [Phase 03]: Decoy template chosen by rendezvous rule over node domain; Panel page and catch-all unchanged
 - [Phase 03]: 03-04: selfsteal gate installs the decoy through the production decoy.yml; node verify helpers live in extensions/molecule/shared
+- [Phase 03]: Own remnawave_* modules with stdlib unittest and a fake Panel; client pins Panel 3.4.x before first write
 
 ### Pending Todos
 
@@ -167,6 +169,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T11:52:24.450Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-11-28T12:06:38.550Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
