@@ -13,7 +13,7 @@
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Rootless-фундамент и тестовый стенд** - Preflight, rootless-пользователи, Quadlet, firewalld/SELinux и Molecule (контейнер + VM) с проверкой перезагрузки и нуля AVC (completed 2026-11-25)
-- [ ] **Phase 2: Panel за Traefik с защищённым входом** - Traefik + LE, Panel (backend/Postgres/Valkey), первый админ, API-токен, cookie/secret-path гейт, subscription page
+- [x] **Phase 2: Panel за Traefik с защищённым входом** - Traefik + LE, Panel (backend/Postgres/Valkey), первый админ, API-токен, cookie/secret-path гейт, subscription page (completed 2026-11-28)
 - [ ] **Phase 3: Нода с Reality self-steal и авто-регистрацией** - remnanode + Traefik-заглушка на loopback, Ansible-модули Panel API, клиент подключается через зарегистрированную ноду
 - [ ] **Phase 4: Доступ в LAN для доверенного squad'а** - Отдельный LAN-инбаунд и internal squad, маршрутизация в объявленные подсети, негативные e2e-тесты на утечки
 - [ ] **Phase 5: Эксплуатация, hardening и готовность к публикации** - Бэкапы/restore, обновления с откатом, алерты по сертификатам, hardening хоста, CI-матрица, документация
@@ -74,7 +74,7 @@ Plans:
   3. После первого прогона существует администратор и долгоживущий API-токен (файл 0600 на Panel-хосте); повторный прогон логинится, а не регистрирует, секреты не меняются, `changed=0`
   4. Клиент открывает subscription page на отдельном домене по HTTPS, и она получает данные от Panel по API-токену без ручных шагов
   5. Токены, пароли и ключи не появляются в выводе Ansible (`no_log`), а placeholder-значения секретов отвергаются assert'ом
-**Plans:** 12/12 plans executed
+**Plans:** 12/12 plans complete
 Plans:
 **Wave 1**
 - [x] 02-01-PLAN.md — Роль edge (Traefik v3.7.20 + decoy, ACME HTTP-01, route-интерфейс): рендер и dry-run в контейнерном тире, input-guards, CI-хелпер scripts/ci_watch.sh (wave 1)
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Rootless-фундамент и тестовый стенд | 12/12 | Complete    | 2026-11-25 |
-| 2. Panel за Traefik с защищённым входом | 12/12 | In Progress | - |
+| 2. Panel за Traefik с защищённым входом | 12/12 | Complete    | 2026-11-28 |
 | 3. Нода с Reality self-steal и авто-регистрацией | 0/3 | Not started | - |
 | 4. Доступ в LAN для доверенного squad'а | 0/2 | Not started | - |
 | 5. Эксплуатация, hardening и готовность к публикации | 0/3 | Not started | - |

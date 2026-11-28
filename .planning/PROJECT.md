@@ -14,13 +14,13 @@
 
 - ✓ Rootless-фундамент: preflight (ОС, SELinux enforcing, Podman >= 5.4, порты, DNS), выделенный пользователь с linger/subuid, порты 80/443 через sysctl, Quadlet переживает перезагрузку без AVC — Phase 1
 - ✓ Каркас коллекции `xvpn.remnawave` (galaxy.yml, argument_specs) и тестовый стенд: ansible-lint/yamllint, Molecule container-тир и VM-тир (Alma/Rocky 10, SELinux enforcing) в CI — Phase 1
+- ✓ Роль Panel: Remnawave backend 3.4.11 + Postgres 18.4 + Valkey 9 в rootless Podman (Quadlet), первый админ и API-токен через API — Phase 2
+- ✓ Panel за Traefik v3.7.20 с TLS Let's Encrypt (HTTP-01), отдельное хранилище ACME на каждый CA; проверено на production-хосте — Phase 2
+- ✓ Защита входа в админку: cookie/secret-path гейт на Traefik — Phase 2
+- ✓ Subscription page 8.0.1 на отдельном домене за Traefik, включается и выключается переменной — Phase 2
 
 ### Active
 
-- [ ] Роль Panel: Remnawave backend + Postgres + Redis в rootless Podman (Quadlet-юниты systemd)
-- [ ] Panel опубликована через Traefik с TLS (Let's Encrypt, HTTP-01) на собственном домене
-- [ ] Защита входа в админку: скрытый путь, cookie-auth или IP allowlist
-- [ ] Subscription page на отдельном домене за Traefik
 - [ ] Бэкапы Postgres панели по расписанию с ротацией
 - [ ] Роль Node: remnanode (Xray) в rootless Podman + Quadlet
 - [ ] Автоматическая регистрация ноды в Panel через API: создание ноды, получение секрета, inbound'ов и конфиг-профиля
@@ -68,17 +68,19 @@
 | Только EL10 (Rocky/Alma/Oracle) | Фокус на одной современной платформе | — Pending |
 | Rootless Podman + Quadlet вместо Docker | Нативно для RHEL, systemd-интеграция, меньше привилегий | ✓ Good — Phase 1: тестовый Quadlet на порту 80 переживает reboot на VM-тире |
 | SELinux enforcing | Не ослаблять безопасность хоста | ✓ Good — Phase 1: ноль AVC на VM-тире, гейт Enforcing до изменений хоста |
-| Traefik как reverse proxy | Привычен пользователю | — Pending (проверить для self-steal) |
-| HTTP-01 для сертификатов | Не нужны ключи DNS-провайдера | — Pending |
+| Traefik как reverse proxy | Привычен пользователю | ✓ Good для Panel — Phase 2 (гейт, LE, sub-page); для self-steal проверяется в Phase 3 |
+| HTTP-01 для сертификатов | Не нужны ключи DNS-провайдера | ✓ Good — Phase 2: production LE на реальном хосте, Pebble в CI |
 | Авто-регистрация нод через Panel API | Минимум ручных шагов | — Pending |
 | Доступ в LAN через отдельный inbound/squad | Изоляция: в LAN попадают только доверенные пользователи | — Pending |
-| Panel на отдельном хосте | Типичная топология пользователя | — Pending |
+| Panel на отдельном хосте | Типичная топология пользователя | ✓ Good — Phase 2: playbooks/panel.yml разворачивает Panel-хост одной командой |
 | Имя коллекции `xvpn.remnawave` (временное) | Сменить перед публикацией | — Pending |
+| Отдельный файл ACME-хранилища на каждый CA (acme-production/staging/custom-<hash>.json) | Traefik не перевыпускает сертификат при смене caServer, пока старый не близок к истечению (UAT G1); legacy acme.json не мигрируется | ✓ Good — Phase 2, план 02-12 |
+| Gate (gitleaks) запускается на каждый пуш; lint и Molecule пропускают пуши только с .planning/Markdown | Экономия CI без потери проверки секретов (review WR-01, решение пользователя 2026-11-28) | ✓ Принято |
 | Общение GSD/Claude с пользователем на русском (`response_language: ru`) | Предпочтение пользователя; код и технические термины на английском | ✓ Good |
 | Rocky 10 в VM-тире Molecule — официальный libvirt Vagrant box с dl.rockylinux.org (версионированный, sha256 из CHECKSUM), а не nightly cloud-image job из CLAUDE.md | D-18 требует Alma и Rocky в самом VM-тире; box `rockylinux/10` в Vagrant Cloud устарел. Принято пользователем 2026-11-23 (Phase 1, планы 01-11/01-12) | ✓ Принято |
 | CI Phase 1 только на ansible-core 2.21; нога 2.22 отложена до QA-06 (Phase 5), а не матрица {2.21, 2.22} из CLAUDE.md | Сознательное отступление от CLAUDE.md: фокус Phase 1 на фундаменте и VM-тире; `check.sh` локально уже идёт на 2.22. Решение пользователя 2026-11-24, D-23 (Phase 1, план 01-09) | ✓ Принято |
-| Traefik на Panel-хосте в `Network=host` (а не pasta, как в таблице стека CLAUDE.md) и образ `traefik:v3.7.20` вместо пина v3.7.19 | `Network=host` нужен для EDGE-01 (реальный IP клиента, бинд 80/443, доступ к сервисам на 127.0.0.1) и входит в зону усмотрения Claude по CONTEXT фазы 2. В v3.7.20 закрыты три advisory (02-RESEARCH). При AVC-отказе нужна эскалация через `checkpoint:decision`, а не тихий boolean (планы 02-01, 02-03) | — Pending (подтверждается VM-тиром плана 02-03) |
-| Oracle Linux 10 добавлен как целевая ОС | Реальный деплой упал в preflight на OL10. Покрытие: container-тир на docker.io/library/oraclelinux:10, VM-тир на официальном libvirt box yum.oracle.com b710 (пин sha256) | — Pending (CI после согласованного push) |
+| Traefik на Panel-хосте в `Network=host` (а не pasta, как в таблице стека CLAUDE.md) и образ `traefik:v3.7.20` вместо пина v3.7.19 | `Network=host` нужен для EDGE-01 (реальный IP клиента, бинд 80/443, доступ к сервисам на 127.0.0.1) и входит в зону усмотрения Claude по CONTEXT фазы 2. В v3.7.20 закрыты три advisory (02-RESEARCH). При AVC-отказе нужна эскалация через `checkpoint:decision`, а не тихий boolean (планы 02-01, 02-03) | ✓ Good — Phase 2: ноль AVC на VM-тире, реальный IP клиента в логах |
+| Oracle Linux 10 добавлен как целевая ОС | Реальный деплой упал в preflight на OL10. Покрытие: container-тир на docker.io/library/oraclelinux:10, VM-тир на официальном libvirt box yum.oracle.com b710 (пин sha256) | ✓ Good — container- и VM-тир OL10 зелёные; production-деплой на OL10 работает |
 
 ## Evolution
 
@@ -98,4 +100,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-25 after Phase 1*
+*Last updated: 2026-11-28 after Phase 2*

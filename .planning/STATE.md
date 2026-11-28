@@ -1,43 +1,44 @@
 ---
 gsd_state_version: "1.0"
 milestone: v3.7.20
-current_phase: 02
-current_phase_name: Panel за Traefik с защищённым входом
-status: verifying
-stopped_at: Completed 02-12-PLAN.md
-last_updated: "2026-11-28T04:15:33.248Z"
-last_activity: 2026-11-27
-last_activity_desc: Phase 02 execution started
-state_head: f6f6786dd294c1de08f3badc62337582614d06d7
+current_phase: 3
+current_phase_name: Нода с Reality self-steal и авто-регистрацией
+status: planning
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-11-28T04:23:17.450Z"
+last_activity: 2026-11-28
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: 921457c0e492e372e5032fc3b4e1f017b42a11f8
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 24
   completed_plans: 24
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-25)
+See: .planning/PROJECT.md (updated 2026-11-28)
 
 **Core value:** Из inventory одной командой получается рабочая, защищённая и идемпотентная инсталляция Remnawave на RHEL 10 с SELinux enforcing: Panel за прокси с защищённым входом, ноды авто-регистрируются через API, Reality self-steal.
-**Current focus:** Phase 02 — Panel за Traefik с защищённым входом
+**Current focus:** Phase 3 — Нода с Reality self-steal и авто-регистрацией
 
 ## Current Position
 
-Phase: 02 (Panel за Traefik с защищённым входом) — EXECUTING
-Plan: 11 of 11
-Status: Phase complete — ready for verification
-Last activity: 2026-11-27 - Completed quick task 261127-ej4: Add Oracle Linux 10 as a supported target OS with CI coverage
+Phase: 3 — Нода с Reality self-steal и авто-регистрацией
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-28 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 24
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -46,6 +47,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 12 | - | - |
+| 02 | 12 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -123,11 +125,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 2 (HIGH RISK, reduced): cookie/secret-path admin gate in pure Traefik was proven in the research spike (Traefik 3.7.19 + Pebble); remaining risk is SELinux AVCs for Traefik `Network=host` (A1/A2) — escalate via checkpoint:decision, never a silent boolean.
 - [Phase 2 plan-phase] Plan-checker override accepted by user (2026-11-25): the gitleaks scan (02-08 Task 3 at the time; since review round 1 it is Plan 02-09, which already carries the fixes below in its tasks and wording) has known residual DOC-04 bypasses — (a) the `xvpn-secret-key-pathlike` FHS-path allowlist matches case-insensitively, so a value like `/var/<base64>` under a `*_file/_dir/_path` key is not flagged; (b) upstream global allowlist/stopwords pulled in by `useDefault = true` (e.g. substrings `false`, `null`, prefix `changeme`) can suppress `xvpn-secret-key` findings without the fixture marker, contrary to the plan's must_haves/T-02-35 wording; (c) secret-named keys with other suffixes (e.g. `_file_v2`) are not scanned. Executor of 02-09 should make the path exemption case-sensitive (or require a file-suffix discriminator), add a self-test case `/var/` + mixed-case base64 (expect exit 3), and correct the must_haves/T-02-35 wording — validating against the real gitleaks 8.30.1 binary. Checker evidence: plan-phase session scratchpad (not persisted).
 - Phase 3 (HIGH RISK): Reality -> Traefik loopback TLS self-steal has no verified precedent; spike with hand-written configs first; fallback is revisiting the Traefik decision.
 - Phase 3: Remnawave REST contract must be read from the pinned backend 3.4.11 OpenAPI before writing modules.
 - [Phase 1] Follow-up: make `molecule-vm` a required check on main (deferred policy item).
+- [Phase 2] Open info findings in 02-REVIEW-DISPOSITION.md: IN-01 (until/set_fact guard scans only roles/*/tasks), IN-02 (hard-coded store hashes in VM side_effect), IN-04 (xvpn_panel_failure_log_dir removed without deprecation note); IN-03 deferred (orphaned acme.json, documented).
+- [Phase 2] Deferred UAT follow-up: automated test for scripts/ci_watch.sh cancelled-run and dispatch branches (02-UAT.md, test 9).
 - [Phase 1] IN-03 skipped (01-REVIEW-DISPOSITION.md): getenforce gate runs before libselinux-utils is installed; role fails with a clear message instead of installing it.
 
 ### Quick Tasks Completed
@@ -157,6 +160,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-27T16:20:37.625Z
-Stopped at: Completed 02-12-PLAN.md
+Last session: 2026-11-28
+Stopped at: Phase 02 complete, ready to plan Phase 3
 Resume file: None
