@@ -1,2 +1,9 @@
 ---
 requires_ansible: ">=2.20.0"
+action_groups:
+  remnawave:
+    - remnawave_config_profile
+    - remnawave_node
+    - remnawave_host
+    - remnawave_internal_squad
+    - remnawave_node_secret

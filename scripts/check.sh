@@ -101,6 +101,10 @@ fi
 # set_fact templates its arguments once, so until/retries around it never re-evaluate a random draw.
 "$ANSIBLE_PYTHON" scripts/check_until_set_fact.py
 
+# API-01: unit tests of the collection plugins against a stdlib fake Panel (unittest only, no PyPI test runner).
+PYTHONPATH="$ROOT/.ansible/collections" "$ANSIBLE_PYTHON" -m unittest discover -s tests/unit -t "$ROOT" -q
+echo "unit: OK"
+
 # DOC-04 / D-20: no real secret in the repository. Self-test first (proves the scan still catches planted
 # secrets), then the scan of the working-tree content of every tracked file (.planning/ included).
 # check.sh is itself scanned: secret-named keys are assembled from fragments, random values at runtime.
